@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Методы в Java</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1>Методы</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0001-java-methods.html">уроку 0001</a>.</p>
+
+<h2>Шаблон объявления</h2>
+<pre><code>[модификаторы] ТипРезультата имяМетода(Тип1 парам1, Тип2 парам2) {
+    // тело
+    return значение;   // обязательно на каждом пути, если тип не void
+}</code></pre>
+
+<table>
+  <tr><th>Часть</th><th>Пример</th><th>Правило</th></tr>
+  <tr><td>Модификаторы</td><td><code>static</code>, <code>public</code></td><td>Вызываешь из <code>main</code> → пиши <code>static</code> (подробнее в уроке про ООП)</td></tr>
+  <tr><td>Тип результата</td><td><code>int</code>, <code>boolean</code>, <code>String</code>, <code>void</code></td><td><code>void</code> — метод ничего не возвращает</td></tr>
+  <tr><td>Имя</td><td><code>findMax</code>, <code>isValid</code></td><td>Глагол, camelCase, с маленькой буквы</td></tr>
+  <tr><td>Параметры</td><td><code>(int[] a, int n)</code></td><td>Тип + имя для каждого; может быть <code>()</code></td></tr>
+  <tr><td>Сигнатура</td><td><code>sum(int[])</code></td><td>Имя + типы параметров. Тип результата в неё <em>не входит</em></td></tr>
+</table>
+
+<h2>Передача аргументов — всегда по значению</h2>
+<table>
+  <tr><th>Что передали</th><th>Что копируется</th><th>Изменение внутри метода видно снаружи?</th></tr>
+  <tr><td>Примитив: <code>int</code>, <code>double</code>, <code>boolean</code>, <code>char</code>…</td><td>Само значение</td><td>Нет</td></tr>
+  <tr><td>Массив, <code>ArrayList</code>, объект</td><td>Ссылка (адрес)</td><td>Изменение <em>содержимого</em> (<code>a[0] = 1</code>, <code>list.add(x)</code>) — да.<br>Присваивание нового (<code>a = new int[3]</code>) — нет</td></tr>
+</table>
+
+<h2>Перегрузка</h2>
+<pre><code>static int    sum(int a, int b)       { ... }   // ✓
+static int    sum(int[] numbers)      { ... }   // ✓ другие параметры
+static double sum(double a, double b) { ... }   // ✓ другие типы
+static long   sum(int a, int b)       { ... }   // ✗ отличается только результат</code></pre>
+
+<h2>Частые ошибки компиляции</h2>
+<table>
+  <tr><th>Сообщение</th><th>Причина</th></tr>
+  <tr><td><code>missing return statement</code></td><td>Есть путь выполнения без <code>return</code></td></tr>
+  <tr><td><code>incompatible types</code></td><td>Возвращаешь или присваиваешь не тот тип</td></tr>
+  <tr><td><code>non-static method … cannot be referenced from a static context</code></td><td>Забыл <code>static</code> у метода, вызываемого из <code>main</code></td></tr>
+  <tr><td><code>method … is already defined in class …</code></td><td>Два метода с одинаковой сигнатурой</td></tr>
+  <tr><td><code>incompatible types: void cannot be converted to …</code><br><code>'void' type not allowed here</code></td><td>Пытаешься использовать результат <code>void</code>-метода (присвоить или напечатать)</td></tr>
+</table>
+
+<h2>Ловушка: деление целых</h2>
+<pre><code>3 / 2          // 1   — int / int = int, дробная часть отбрасывается
+3 / 2.0        // 1.5
+(double) 3 / 2 // 1.5 — сначала приводим к double, потом делим</code></pre>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/methods.html">Defining Methods</a>, <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/arguments.html">Passing Information to a Method</a> (Oracle).</p>
+
+</main>
+</body>
+</html>

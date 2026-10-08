@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 1 · Методы в Java</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0001 · Java Core · ~60 минут + домашка</div>
+<h1>Методы: как разрезать программу на понятные куски</h1>
+<p class="subtitle">После этого урока ты сможешь сам написать метод с параметрами и возвращаемым значением и предсказать, изменит ли он твои данные.</p>
+
+<h2>Зачем это backend-разработчику</h2>
+<p>Любое backend-приложение — это цепочка вызовов методов. Пользователь нажимает «Оформить заказ», запрос приходит на сервер, и дальше один метод вызывает другой: принять запрос → проверить данные → посчитать сумму → сохранить в базу. Когда через год ты откроешь проект на Spring Boot, ты увидишь сотни методов. Каждый устроен по правилам из этого урока.</p>
+<p>А ещё методы — это мост к ООП: класс в следующем уроке окажется «данными + методами, которые с ними работают».</p>
+
+<h2>1. Ты это уже знаешь — по Python</h2>
+<p>Метод в Java — то же, что функция в Python. Разница в одном: <strong>Java требует заранее указать типы</strong> — что метод принимает и что возвращает.</p>
+
+<div class="compare">
+<div>
+<p class="label">Python</p>
+<pre><code>def add(a, b):
+    return a + b
+
+print(add(2, 3))</code></pre>
+</div>
+<div>
+<p class="label">Java</p>
+<pre><code>static int add(int a, int b) {
+    return a + b;
+}
+
+System.out.println(add(2, 3));</code></pre>
+</div>
+</div>
+
+<p>Зачем такие строгости? Компилятор проверяет типы <em>до запуска</em>. В Python <code>add("2", 3)</code> упадёт только во время работы программы. В Java такой код просто не скомпилируется: ошибку ты увидишь сразу, ещё в IntelliJ. Для банковского backend это огромный плюс — ошибка с деньгами не доедет до продакшена.</p>
+
+<h2>2. Полная программа, разбор каждой строки</h2>
+<p>Задача: посчитать сумму корзины из массива цен. Создай в IntelliJ файл <code>Main.java</code>, перепиши код руками (не копируй — так он лучше запомнится) и запусти.</p>
+
+<div class="annotated">
+  <div class="row"><code>public class Main {</code><div>Весь код в Java живёт внутри класса. Имя класса совпадает с именем файла: <code>Main</code> → <code>Main.java</code>. Что такое класс по-настоящему, разберём в уроке 2.</div></div>
+  <div class="row"><code>    public static void main(String[] args) {</code><div>Точка входа — отсюда JVM начинает выполнение. Это тоже метод: <code>void</code> — ничего не возвращает, <code>String[] args</code> — аргументы командной строки.</div></div>
+  <div class="row"><code>        int[] prices = {120, 450, 90};</code><div>Массив цен корзины. Это ты уже знаешь.</div></div>
+  <div class="row"><code>        int total = sum(prices);</code><div><strong>Вызов метода.</strong> Передаём <code>prices</code>, метод возвращает <code>int</code>, результат кладём в <code>total</code>. Тип переменной должен совпадать с типом, который возвращает метод.</div></div>
+  <div class="row"><code>        System.out.println("Итого: " + total);</code><div>Печатает <code>Итого: 660</code>.</div></div>
+  <div class="row"><code>    }</code><div>Конец <code>main</code>.</div></div>
+  <div class="row"><code></code><div>Пустая строка: методы пишутся рядом друг с другом внутри класса, но <em>не</em> вложенно (в Java нельзя объявить метод внутри метода).</div></div>
+  <div class="row"><code>    static int sum(int[] numbers) {</code><div><strong>Объявление метода</strong> — разбор по словам ниже, в разделе 3.</div></div>
+  <div class="row"><code>        int result = 0;</code><div>Локальная переменная. Живёт только внутри <code>sum</code>, снаружи её не видно.</div></div>
+  <div class="row"><code>        for (int n : numbers) {</code><div>for-each по массиву — тоже знакомо.</div></div>
+  <div class="row"><code>            result += n;</code><div>Копим сумму.</div></div>
+  <div class="row"><code>        }</code><div></div></div>
+  <div class="row"><code>        return result;</code><div><code>return</code> делает две вещи: <em>завершает</em> метод и <em>отдаёт</em> значение туда, откуда его вызвали, — в строку <code>int total = sum(prices);</code>.</div></div>
+  <div class="row"><code>    }</code><div>Конец <code>sum</code>.</div></div>
+  <div class="row"><code>}</code><div>Конец класса.</div></div>
+</div>
+
+<h2>3. Анатомия объявления метода</h2>
+<p>Строку <code>static int sum(int[] numbers)</code> разберём по словам:</p>
+
+<div class="annotated">
+  <div class="row"><code>static</code><div><strong>Модификатор.</strong> Пока правило простое: если вызываешь метод прямо из <code>main</code>, пиши <code>static</code>. Почему — станет ясно в уроке про классы и объекты. Ещё бывают модификаторы доступа (<code>public</code>, <code>private</code>) — тоже в уроке 2.</div></div>
+  <div class="row"><code>int</code><div><strong>Тип возвращаемого значения.</strong> Любой тип (<code>int</code>, <code>double</code>, <code>boolean</code>, <code>String</code>, <code>int[]</code>, <code>ArrayList&lt;String&gt;</code>…) или <code>void</code>, если метод ничего не возвращает.</div></div>
+  <div class="row"><code>sum</code><div><strong>Имя.</strong> По соглашению — глагол в camelCase: <code>calculateTotal</code>, <code>isEmpty</code>, <code>findMax</code>. Не <code>Sum</code>, не <code>calculate_total</code> (это стиль Python).</div></div>
+  <div class="row"><code>(int[] numbers)</code><div><strong>Параметры:</strong> для каждого указывается тип и имя, через запятую. Может быть пусто: <code>()</code>.</div></div>
+  <div class="row"><code>{ ... }</code><div><strong>Тело метода</strong> в фигурных скобках.</div></div>
+</div>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/methods.html">Oracle, The Java Tutorials — Defining Methods</a>. Там же — соглашение об именах «глагол в нижнем регистре».</p>
+
+<h3>Компилятор проверяет, что <code>return</code> есть на каждом пути</h3>
+<p>Если метод объявил, что вернёт <code>int</code>, он обязан вернуть <code>int</code> при <em>любых</em> входных данных. Этот код не скомпилируется:</p>
+<pre><code>static int sign(int n) {
+    if (n > 0) return 1;
+    if (n < 0) return -1;
+}   // ошибка: missing return statement — а если n == 0?</code></pre>
+<p>Python молча вернул бы <code>None</code>, а Java заставляет тебя подумать о каждом случае.</p>
+
+<h3><code>void</code>: метод-действие</h3>
+<pre><code>static void printReceipt(int total) {
+    System.out.println("Чек: " + total + " руб.");
+}</code></pre>
+<p>Его нельзя присвоить переменной: <code>int x = printReceipt(5);</code> — ошибка компиляции. Внутри <code>void</code>-метода можно написать пустой <code>return;</code>, чтобы выйти пораньше.</p>
+
+<h2>4. Самое важное: что метод может сделать с твоими данными</h2>
+<p>В Java аргументы <strong>всегда передаются по значению</strong>: метод получает <em>копию</em> того, что лежит в переменной. Вся хитрость в том, <em>что именно</em> лежит в переменной.</p>
+
+<h3>Примитивы (<code>int</code>, <code>double</code>, <code>boolean</code>, <code>char</code>…): копируется само число</h3>
+<pre><code>static void addBonus(int balance) {
+    balance = balance + 100;      // меняем КОПИЮ
+}
+
+int myBalance = 500;
+addBonus(myBalance);
+System.out.println(myBalance);   // ?</code></pre>
+<details class="reveal"><summary>Сначала предскажи, потом открой</summary>
+<p><code>500</code>. Метод получил копию числа 500 и увеличил копию. Переменная <code>myBalance</code> в <code>main</code> не тронута.</p>
+</details>
+
+<h3>Массивы, списки, объекты: копируется ссылка</h3>
+<p>В переменной типа <code>int[]</code> или <code>ArrayList</code> лежит не сам массив, а <strong>ссылка</strong> на него («адрес»). Метод получает копию адреса, но адрес ведёт к <em>тому же самому</em> массиву.</p>
+<pre><code>static void applyDiscount(int[] prices) {
+    for (int i = 0; i < prices.length; i++) {
+        prices[i] = prices[i] / 2;   // меняем СОДЕРЖИМОЕ общего массива
+    }
+}
+
+int[] cart = {100, 200};
+applyDiscount(cart);
+System.out.println(cart[0]);        // ?</code></pre>
+<details class="reveal"><summary>Сначала предскажи, потом открой</summary>
+<p><code>50</code>. И <code>cart</code>, и <code>prices</code> указывают на один массив, поэтому изменения видны снаружи.</p>
+</details>
+
+<p>Но если внутри метода присвоить параметру <em>новый</em> массив, то перезаписывается только копия адреса:</p>
+<pre><code>static void reset(int[] prices) {
+    prices = new int[]{0, 0};   // копия ссылки теперь ведёт на НОВЫЙ массив
+}
+
+int[] cart = {100, 200};
+reset(cart);
+System.out.println(cart[0]);   // 100 — старый массив никто не трогал</code></pre>
+
+<div class="note">
+<p><strong>Как в Python.</strong> Здесь Java ведёт себя почти так же, как Python со списками: <code>lst.append(1)</code> внутри функции видно снаружи, а <code>lst = []</code> — нет. Примитивы Java ведут себя как числа в Python: изменить их «на месте» нельзя.</p>
+</div>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/arguments.html">Oracle — Passing Information to a Method</a>: «Reference data type parameters, such as objects, are also passed into methods by value».</p>
+
+<p><strong>Почему это важно на работе:</strong> один из классических багов в backend — метод «просто посчитать» случайно меняет переданный ему список, и данные портятся в другом месте программы. Вопрос «передаёт ли Java по ссылке?» любят на собеседованиях. Правильный ответ: <em>нет, всегда по значению; для объектов по значению передаётся ссылка</em>.</p>
+
+<h2>5. Перегрузка: одно имя — разные параметры</h2>
+<p>В одном классе может быть несколько методов с одним именем, если у них разные <strong>списки параметров</strong> (количество или типы). Компилятор выбирает нужный по аргументам.</p>
+<pre><code>static int sum(int a, int b)       { return a + b; }
+static int sum(int[] numbers)      { /* как выше */ }
+static double sum(double a, double b) { return a + b; }
+
+sum(2, 3);          // вызовет первый
+sum(new int[]{1,2}); // второй
+sum(1.5, 2.0);      // третий</code></pre>
+<p>Ты уже пользовался перегрузкой, не зная об этом: <code>System.out.println</code> — это много методов с одним именем: для <code>int</code>, для <code>String</code>, для <code>double</code>…</p>
+<p><strong>Ловушка:</strong> тип возвращаемого значения в выборе не участвует. Методы <code>int f(int x)</code> и <code>long f(int x)</code> в одном классе — ошибка компиляции: по вызову <code>f(5)</code> их не различить.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/methods.html">Oracle — Defining Methods</a>, раздел Overloading Methods.</p>
+
+<h2>6. Проверь себя</h2>
+<p>Отвечай по памяти, не прокручивая вверх: именно усилие при вспоминании закрепляет материал.</p>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>1. Что напечатает программа?</legend>
+<pre><code>static void change(int x) { x = 99; }
+// в main:
+int a = 5;
+change(a);
+System.out.println(a);</code></pre>
+  <label><input type="radio"> <code>5</code></label>
+  <label><input type="radio"> <code>99</code></label>
+  <label><input type="radio"> <code>0</code></label>
+  <label><input type="radio"> <code>6</code></label>
+  <p class="feedback">Метод получил копию числа. Изменение копии не трогает <code>a</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>2. А теперь?</legend>
+<pre><code>static void change(int[] arr) { arr[0] = 99; }
+// в main:
+int[] a = {5, 6};
+change(a);
+System.out.println(a[0]);</code></pre>
+  <label><input type="radio"> <code>5</code></label>
+  <label><input type="radio"> <code>99</code></label>
+  <label><input type="radio"> <code>6</code></label>
+  <label><input type="radio"> <code>0</code></label>
+  <p class="feedback">Скопировалась ссылка, а массив один и тот же. Метод изменил его содержимое.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>3. А так?</legend>
+<pre><code>static void change(int[] arr) { arr = new int[]{99, 99}; }
+// в main:
+int[] a = {5, 6};
+change(a);
+System.out.println(a[0]);</code></pre>
+  <label><input type="radio"> <code>99</code></label>
+  <label><input type="radio"> <code>0</code></label>
+  <label><input type="radio"> <code>5</code></label>
+  <label><input type="radio"> <code>6</code></label>
+  <p class="feedback">Перезаписана только копия ссылки внутри метода. Переменная <code>a</code> по-прежнему указывает на старый массив <code>{5, 6}</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>4. Какая пара методов НЕ может быть в одном классе?</legend>
+  <label><input type="radio"> <code>int f(int x)</code> и <code>int f(double x)</code></label>
+  <label><input type="radio"> <code>int f(int x)</code> и <code>int f(int x, int y)</code></label>
+  <label><input type="radio"> <code>void f(String s)</code> и <code>void f(int s)</code></label>
+  <label><input type="radio"> <code>int f(int x)</code> и <code>long f(int x)</code></label>
+  <p class="feedback">Параметры одинаковые, отличается только тип результата, а он в перегрузке не участвует. Вызов <code>f(5)</code> неоднозначен.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>5. Почему этот метод не компилируется?</legend>
+<pre><code>static int sign(int n) {
+    if (n > 0) return 1;
+    if (n < 0) return -1;
+}</code></pre>
+  <label><input type="radio"> Два return в одном методе</label>
+  <label><input type="radio"> Сравнение n &gt; 0 недопустимо</label>
+  <label><input type="radio"> Не каждый путь возвращает значение</label>
+  <label><input type="radio"> Метод static не возвращает int</label>
+  <p class="feedback">При <code>n == 0</code> метод дойдёт до конца без <code>return</code>. Компилятор требует вернуть <code>int</code> на любом пути.</p>
+</fieldset>
+<p class="quiz-score"></p>
+
+<h2>7. Домашнее задание</h2>
+<p><strong>Правило:</strong> пишешь сам, без ИИ и без поиска готовых решений. Документацию читать можно и нужно. Застрял — спроси меня, я дам подсказку, а не ответ.</p>
+
+<div class="task">
+<h3>Шаг 0. Git-репозиторий для курса (5 минут)</h3>
+<p>Все домашки будут жить в Git, чтобы к концу года у тебя была длинная честная история коммитов.</p>
+<pre><code>cd ~/Документы/JavaLearning
+git init
+mkdir -p src/lesson0001</code></pre>
+<p>Весь Java-код курса живёт в <code>src/</code>, у каждого урока своя подпапка: <code>src/lesson0001</code>, <code>src/lesson0002</code>… В IntelliJ: <em>File → Open</em> → папка <code>JavaLearning</code>, затем правый клик по <code>src</code> → <em>Mark Directory as → Sources Root</em>.</p>
+<p>Задание со звёздочкой: создай файл <code>.gitignore</code>, чтобы в репозиторий не попадали служебные файлы IntelliJ (папка <code>.idea/</code>, файлы <code>*.iml</code>) и результаты компиляции (папка <code>out/</code>, файлы <code>*.class</code>). Как устроен <code>.gitignore</code> — <a href="https://git-scm.com/book/ru/v2/Основы-Git-Запись-изменений-в-репозиторий">Pro Git, глава 2.2, раздел «Игнорирование файлов»</a>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 1. Файл <code>src/lesson0001/Shop.java</code></h3>
+<p>Первой строкой файла пиши <code>package lesson0001;</code>. Пакет — это «папка» для классов: так у каждого урока может быть свой <code>Main</code>, и они не конфликтуют. Если создавать класс в IntelliJ правым кликом по папке <code>lesson0001</code> → <em>New → Java Class</em>, строка появится сама. Подробно пакеты разберём позже.</p>
+<p>Класс <code>Shop</code> с методом <code>main</code> и следующими <code>static</code>-методами. Каждый вызови из <code>main</code> хотя бы на двух разных входных данных и выведи результат.</p>
+<ol>
+  <li><code>findMax(int[] prices)</code> — возвращает самую большую цену. Тип возвращаемого значения выбери сам.</li>
+  <li><code>average(int[] prices)</code> — возвращает среднюю цену <strong>с дробной частью</strong> (для <code>{1, 2}</code> должно быть <code>1.5</code>, а не <code>1</code>). Подсказка: что получится в Java при <code>3 / 2</code>?</li>
+  <li><code>average(ArrayList&lt;Integer&gt; prices)</code> — то же самое, но для списка. Да, с тем же именем: это перегрузка.</li>
+  <li><code>isValidPromoCode(String code)</code> — промокод валиден, если его длина ровно 8 символов и он начинается с <code>"KZN"</code>. Возвращает <code>boolean</code>.</li>
+  <li><code>applyDiscount(int[] prices, int percent)</code> — уменьшает <em>каждую цену в массиве</em> на <code>percent</code> процентов и ничего не возвращает. В <code>main</code> выведи массив до и после вызова.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 2. Объясни своими словами</h3>
+<p>В конце <code>Shop.java</code> оставь комментарий: <em>почему после вызова <code>applyDiscount</code> массив в <code>main</code> изменился, хотя метод ничего не вернул?</em> Два-три предложения, своими словами.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 3. Коммит и сдача</h3>
+<pre><code>git add .
+git commit -m "Lesson 0001: methods homework"</code></pre>
+<p>Потом напиши мне: <strong>«проверь домашку 0001»</strong>. Я прочитаю файлы, сделаю код-ревью и разберу с тобой всё, что можно улучшить.</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Прочитай (20 минут, английский простой): <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/methods.html">Defining Methods</a> и <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/arguments.html">Passing Information to a Method</a> из официального туториала Oracle. Туториал написан для JDK 8, но всё про методы в Java 21 работает точно так же. Актуальная версия туториалов — <a href="https://dev.java/learn/">dev.java/learn</a>.</p>
+
+<p>Краткая выжимка урока для повторения — <a href="../reference/java-methods.html">справочник «Методы»</a>.</p>
+
+<div class="note ask">
+<p>Что-то непонятно? Спроси меня прямо в терминале. Я твой преподаватель, глупых вопросов здесь нет. Особенно если раздел 4 про ссылки «вроде понятно, но не до конца»: это нормально, разберём на примерах.</p>
+</div>
+
+<nav class="course">
+  <span>← начало курса</span>
+  <span>Следующий урок: классы и объекты →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
