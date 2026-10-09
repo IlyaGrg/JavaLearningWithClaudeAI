@@ -121,3 +121,12 @@ nav.course { font-family: var(--mono); font-size: .78rem; display: flex; justify
   pre, .annotated, .task { break-inside: avoid; }
   a { color: inherit; }
 }
+
+/* Схемы (inline SVG): цвета берутся из токенов, поэтому работают в светлой и тёмной теме */
+figure.diagram { margin: 1.4rem 0; }
+figure.diagram svg { display: block; width: 100%; max-width: 560px; height: auto; margin: 0 auto; color: var(--fg); }
+figure.diagram .box { fill: var(--code-bg); stroke: var(--rule); }
+figure.diagram .obj { fill: var(--note-bg); stroke: var(--accent); }
+figure.diagram .arrow { stroke: var(--accent); fill: none; stroke-width: 1.6; }
+figure.diagram text { fill: currentColor; font-family: var(--mono); font-size: 13px; }
+figure.diagram figcaption { font-size: .82rem; color: var(--muted); text-align: center; margin-top: 6px; }

@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 2 · Классы и объекты</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0002 · Java Core · ~75 минут + домашка</div>
+<h1>Классы и объекты: свой тип данных <code>Product</code></h1>
+<p class="subtitle">После этого урока ты сможешь описать товар собственным классом, создать из него объекты и объяснить, что на самом деле значит слово <code>static</code>.</p>
+
+<h2>Разминка: вспомни урок 1</h2>
+<p>Сначала ответь в голове, потом открой. Это не формальность: вспоминание через несколько дней закрепляет материал сильнее, чем перечитывание.</p>
+<details class="reveal"><summary>Что лежит в переменной <code>int[] prices</code> — сам массив или что-то другое?</summary>
+<p>Ссылка на массив. Поэтому <code>println(prices)</code> печатал <code>[I@…</code>, а метод <code>applyDiscount</code> мог менять массив из <code>main</code>.</p>
+</details>
+<details class="reveal"><summary>Метод получил массив и сделал <code>prices = new int[3]</code>. Изменится ли массив снаружи?</summary>
+<p>Нет. Java всегда передаёт аргументы по значению: перезаписана только копия ссылки внутри метода.</p>
+</details>
+
+<h2>Зачем это backend-разработчику</h2>
+<p>В уроке 1 корзина была массивом <code>int[]</code>: цены есть, а <em>названий товаров нет</em>. Можно завести второй массив <code>String[] names</code> и следить, чтобы индексы совпадали… Но стоит отсортировать один массив и забыть про второй — и «Чай» начнёт стоить как ноутбук.</p>
+<p>В настоящем backend всё — объекты: <code>Order</code>, <code>Client</code>, <code>Account</code>, <code>Payment</code>. В Spring Boot строка таблицы базы данных превращается в объект класса, JSON из запроса — тоже в объект. Через полгода ты будешь писать такие классы каждый день. Начинаем с одного: <code>Product</code>.</p>
+
+<h2>1. Класс — чертёж, объект — вещь по чертежу</h2>
+<p><strong>Класс</strong> описывает, <em>какие данные</em> есть у товара (поля) и <em>что с ними можно делать</em> (методы). <strong>Объект</strong> — конкретный товар, созданный по этому описанию: «Чай за 250», «Кофе за 400». Класс один, объектов сколько угодно.</p>
+<p>В Python ты это уже видел:</p>
+
+<div class="compare">
+<div>
+<p class="label">Python</p>
+<pre><code>class Product:
+    def __init__(self, name, price):
+        self.name = name
+        self.price = price
+
+    def print_info(self):
+        print(f"{self.name}: {self.price}")
+
+tea = Product("Чай", 250)
+tea.print_info()</code></pre>
+</div>
+<div>
+<p class="label">Java</p>
+<pre><code>public class Product {
+    String name;
+    int price;
+
+    Product(String name, int price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    void printInfo() {
+        System.out.println(name + ": " + price);
+    }
+}
+// в main:
+Product tea = new Product("Чай", 250);
+tea.printInfo();</code></pre>
+</div>
+</div>
+
+<p>Четыре отличия, которые надо запомнить:</p>
+<ol>
+  <li><strong>Поля объявляются заранее, с типами</strong>, прямо в теле класса. В Python атрибуты появляются в <code>__init__</code>, а в Java у класса есть фиксированный список полей, и компилятор его проверяет.</li>
+  <li><strong>Конструктор</strong> вместо <code>__init__</code>: метод с <em>именем класса</em> и <em>без типа результата</em> (даже без <code>void</code>). <span class="cite">— <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/constructors.html">Oracle: Providing Constructors</a></span></li>
+  <li><strong><code>this</code> вместо <code>self</code></strong>, и его не пишут в параметрах: Java передаёт его сама.</li>
+  <li><strong>Объект создаётся через <code>new</code>.</strong></li>
+</ol>
+
+<h2>2. Полный код с разбором каждой строки</h2>
+<p>Это два файла в одном пакете. Создай в IntelliJ папку <code>src/lesson0002</code>, в ней классы <code>Product</code> и <code>Main</code>, перепиши код руками и запусти <code>Main</code>.</p>
+
+<p class="label">src/lesson0002/Product.java</p>
+<div class="annotated">
+  <div class="row"><code>package lesson0002;</code><div>Пакет, как в уроке 1. Оба класса в одном пакете, поэтому видят друг друга без <code>import</code>.</div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>public class Product {</code><div>Объявляем новый <strong>тип данных</strong> <code>Product</code>. Теперь можно писать <code>Product x</code> так же, как <code>int x</code> или <code>String x</code>. Класс <code>public</code> должен лежать в файле с тем же именем: <code>Product.java</code>.</div></div>
+  <div class="row"><code>    String name;</code><div><strong>Поле</strong> — переменная, которая есть <em>у каждого объекта своя</em>. У чая своё <code>name</code>, у кофе своё.</div></div>
+  <div class="row"><code>    int price;</code><div>Ещё одно поле.</div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>    Product(String name, int price) {</code><div><strong>Конструктор.</strong> Вызывается один раз, в момент <code>new</code>. Его задача — заполнить поля нового объекта.</div></div>
+  <div class="row"><code>        this.name = name;</code><div>Параметр называется так же, как поле, и <em>заслоняет</em> его: просто <code>name</code> здесь — параметр. <code>this.name</code> — поле <em>этого</em> объекта. Читается: «в поле name этого объекта положи значение параметра name». <span class="cite"><a href="https://docs.oracle.com/javase/tutorial/java/javaOO/thiskey.html">Oracle: Using the this Keyword</a></span></div></div>
+  <div class="row"><code>        this.price = price;</code><div>То же для цены.</div></div>
+  <div class="row"><code>    }</code><div>Конструктор ничего не возвращает: результат <code>new</code> — сам готовый объект.</div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>    int priceWithDiscount(int percent) {</code><div><strong>Метод объекта</strong> (не <code>static</code>). Он работает с данными <em>конкретного</em> товара, у которого его вызвали.</div></div>
+  <div class="row"><code>        return price - price * percent / 100;</code><div>Здесь <code>price</code> без <code>this</code>: параметра с таким именем нет, значит это поле объекта. Java сама понимает, что это <code>this.price</code>.</div></div>
+  <div class="row"><code>    }</code><div>Метод не меняет цену, а только возвращает расчёт. Объект остаётся прежним.</div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>    void printInfo() {</code><div>Ещё один метод объекта. Параметров нет: всё нужное уже лежит в полях.</div></div>
+  <div class="row"><code>        System.out.println(name + ": " + price + " руб.");</code><div>Печатает данные <em>того</em> объекта, у которого вызвали метод.</div></div>
+  <div class="row"><code>    }</code><div></div></div>
+  <div class="row"><code>}</code><div>Конец класса. Метода <code>main</code> здесь нет, и это нормально: <code>Product</code> — описание товара, а не программа.</div></div>
+</div>
+
+<p class="label">src/lesson0002/Main.java</p>
+<div class="annotated">
+  <div class="row"><code>package lesson0002;</code><div></div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>public class Main {</code><div>Класс-программа с точкой входа.</div></div>
+  <div class="row"><code>    public static void main(String[] args) {</code><div></div></div>
+  <div class="row"><code>        Product tea = new Product("Чай", 250);</code><div><code>new</code> выделяет память под новый объект и вызывает конструктор с аргументами <code>"Чай", 250</code>. В <code>tea</code> кладётся <strong>ссылка</strong> на этот объект, как было с массивами.</div></div>
+  <div class="row"><code>        Product coffee = new Product("Кофе", 400);</code><div>Второй, совершенно независимый объект по тому же чертежу.</div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>        tea.printInfo();</code><div>Точка означает «у этого объекта». Внутри метода <code>this</code> будет указывать на <code>tea</code>. Печатает <code>Чай: 250 руб.</code></div></div>
+  <div class="row"><code>        System.out.println(coffee.priceWithDiscount(10));</code><div><code>this</code> = <code>coffee</code>, считаем 400 − 40. Печатает <code>360</code>.</div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>        coffee.price = 380;</code><div>К полю тоже обращаются через точку. Меняется цена <em>только</em> кофе, у чая по-прежнему 250.</div></div>
+  <div class="row"><code>        coffee.printInfo();</code><div>Печатает <code>Кофе: 380 руб.</code></div></div>
+  <div class="row"><code>    }</code><div></div></div>
+  <div class="row"><code>}</code><div></div></div>
+</div>
+
+<h2>3. Объект живёт отдельно, в переменной — ссылка</h2>
+<p>Всё, что ты понял про массивы в уроке 1, работает и для объектов. Переменная хранит не товар, а ссылку на него:</p>
+<pre><code>Product a = new Product("Чай", 100);
+Product b = a;          // копируется ССЫЛКА, нового объекта не появилось
+b.price = 50;
+System.out.println(a.price);   // 50</code></pre>
+
+<figure class="diagram">
+<svg viewBox="0 0 520 150" role="img" aria-label="Две переменные a и b указывают на один объект Product">
+  <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/></marker></defs>
+  <rect class="box" x="10" y="20" width="110" height="40" rx="4"/><text x="24" y="45">a  ● ссылка</text>
+  <rect class="box" x="10" y="90" width="110" height="40" rx="4"/><text x="24" y="115">b  ● ссылка</text>
+  <path class="arrow" d="M110,40 C200,40 230,70 300,70" marker-end="url(#arr)"/>
+  <path class="arrow" d="M110,110 C200,110 230,85 300,85" marker-end="url(#arr)"/>
+  <rect class="obj" x="305" y="35" width="200" height="80" rx="6"/>
+  <text x="320" y="58">объект Product</text>
+  <text x="320" y="80">name  = "Чай"</text>
+  <text x="320" y="100">price = 50</text>
+</svg>
+<figcaption>Две переменные, один объект. Изменение через <code>b</code> видно через <code>a</code>.</figcaption>
+</figure>
+
+<p>То же происходит при передаче объекта в метод: метод получает копию ссылки и может менять <em>поля</em> общего объекта. А <code>p = new Product(...)</code> внутри метода, как и с массивом, снаружи ничего не изменит.</p>
+
+<h3>Если ссылки нет: <code>null</code></h3>
+<p>Ссылочная переменная может не указывать ни на какой объект. Это значение <code>null</code> (как <code>None</code> в Python). Вызов метода у <code>null</code> роняет программу:</p>
+<pre><code>Product p = null;
+p.printInfo();
+// NullPointerException: Cannot invoke "lesson0002.Product.printInfo()" because "p" is null</code></pre>
+<p>Это самое частое исключение в Java-проектах. Java 21 хотя бы пишет, <em>какая</em> переменная оказалась <code>null</code>, — читай текст ошибки целиком.</p>
+
+<h2>4. Что будет, если чего-то не написать</h2>
+<h3>Поле не заполнено → значение по умолчанию</h3>
+<p>Добавим в <code>Product</code> поле <code>int quantity;</code>, но конструктор его не трогает. Тогда <code>new Product("Чай", 100).quantity</code> равно <code>0</code>. Поля получают значения по умолчанию: <code>0</code> для чисел, <code>false</code> для <code>boolean</code>, <code>null</code> для ссылок (<code>String</code>, массивы, объекты). Локальные переменные внутри методов значения по умолчанию <em>не</em> получают: без присваивания будет ошибка компиляции. <span class="cite">— <a href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">Oracle: Primitive Data Types, Default Values</a></span></p>
+
+<h3>Конструктор не написан → компилятор добавит пустой</h3>
+<p>Если в классе нет ни одного конструктора, компилятор сам добавит конструктор без параметров, и <code>new Product()</code> заработает (все поля будут по умолчанию). Но <strong>как только ты написал свой конструктор, пустой больше не добавляется</strong>:</p>
+<pre><code>new Product();
+// error: constructor Product in class Product cannot be applied to given types;</code></pre>
+<p>Это удобно: нельзя создать товар без названия и цены, если ты так решил. Конструкторов можно написать несколько — это та же перегрузка, что в уроке 1. <span class="cite">— <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/constructors.html">Oracle: Providing Constructors</a></span></p>
+
+<h2>5. Наконец-то: что значит <code>static</code></h2>
+<p>В уроке 1 правило было «пиши <code>static</code>, если вызываешь из <code>main</code>». Теперь можно объяснить, откуда оно взялось.</p>
+<ul>
+  <li><strong>Метод объекта</strong> (без <code>static</code>) работает с конкретным объектом. Его вызывают через объект: <code>tea.printInfo()</code>. Внутри есть <code>this</code>.</li>
+  <li><strong>Статический метод</strong> принадлежит классу целиком, а не какому-то объекту. Его вызывают через имя класса: <code>Math.max(3, 7)</code>, <code>Arrays.toString(arr)</code>. Внутри <strong>нет <code>this</code></strong>: нет объекта, на который он мог бы указывать.</li>
+</ul>
+<p><code>main</code> — статический: JVM запускает программу, ещё не создав ни одного объекта. Поэтому из <code>main</code> напрямую можно вызвать только другие <code>static</code>-методы. Метод объекта требует объект: сначала <code>new</code>, потом точка.</p>
+<pre><code>public class Shop {
+    int count = 0;                        // поле объекта
+    public static void main(String[] args) {
+        count++;   // error: non-static variable count cannot be referenced from a static context
+    }
+}</code></pre>
+<p>Ту же ошибку для методов ты видел в справочнике урока 1. Теперь понятно: у <code>main</code> нет объекта, чьё <code>count</code> увеличивать. <span class="cite">— <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/classvars.html">Oracle: Understanding Class Members</a>: «class methods cannot use the this keyword as there is no instance for this to refer to»</span></p>
+
+<div class="note">
+<p><strong>Как выбрать.</strong> Метод работает с полями объекта (цена <em>этого</em> товара)? Тогда это метод объекта. Метод нужен для общего расчёта над тем, что передали в параметрах (сумма корзины, максимум в списке)? Тогда можно <code>static</code>.</p>
+</div>
+
+<h3>А что такое <code>public</code>?</h3>
+<p>Это модификатор доступа: кто может видеть класс, поле или метод. <code>public</code> — видно всем; без модификатора — только внутри своего пакета. Сейчас поля <code>Product</code> открыты, и любой может написать <code>tea.price = -1000</code>. Как это запретить и почему в банке это обязательно — тема урока 3 (инкапсуляция).</p>
+
+<h2>6. Проверь себя</h2>
+<p>Без подглядывания вверх. Ошибся — перечитай нужный раздел, это нормально.</p>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>1. Что напечатает программа?</legend>
+<pre><code>Product a = new Product("Чай", 100);
+Product b = a;
+b.price = 50;
+System.out.println(a.price);</code></pre>
+  <label><input type="radio"> <code>100</code></label>
+  <label><input type="radio"> <code>50</code></label>
+  <label><input type="radio"> <code>0</code></label>
+  <label><input type="radio"> <code>150</code></label>
+  <p class="feedback"><code>b = a</code> копирует ссылку, объект один. Изменение через <code>b</code> видно через <code>a</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>2. В <code>Product</code> есть только конструктор <code>Product(String name, int price)</code>. Какая строка не скомпилируется?</legend>
+  <label><input type="radio"> <code>new Product("Чай", 100)</code></label>
+  <label><input type="radio"> <code>new Product("Кофе", 0)</code></label>
+  <label><input type="radio"> <code>new Product()</code></label>
+  <label><input type="radio"> <code>new Product("", -1)</code></label>
+  <p class="feedback">Ты написал свой конструктор, поэтому пустой компилятор не добавляет. Пустая строка и −1 компилятору не мешают: это корректные <code>String</code> и <code>int</code>. Запрещать их будем в уроке 3.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>3. Поле <code>int quantity;</code> не заполняется в конструкторе. Чему равно <code>new Product("Чай", 100).quantity</code>?</legend>
+  <label><input type="radio"> <code>null</code></label>
+  <label><input type="radio"> <code>None</code></label>
+  <label><input type="radio"> <code>-1</code></label>
+  <label><input type="radio"> <code>0</code></label>
+  <p class="feedback">Числовые поля по умолчанию равны нулю. <code>null</code> бывает только у ссылочных типов, а <code>None</code> есть только в Python.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>4. Почему не компилируется <code>count++</code> в <code>main</code>, если <code>count</code> — поле без <code>static</code>?</legend>
+  <label><input type="radio"> У static-метода нет объекта this</label>
+  <label><input type="radio"> Поле count не имеет типа</label>
+  <label><input type="radio"> Метод main не изменяет переменные</label>
+  <label><input type="radio"> Оператор ++ запрещён для полей</label>
+  <p class="feedback">Поле объекта существует только внутри объекта. У <code>main</code> объекта нет, поэтому непонятно, чьё <code>count</code> увеличивать.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>5. Повторение урока 1 на объектах. Что напечатает программа?</legend>
+<pre><code>static void rename(Product p)  { p.name = "Кофе"; }
+static void replace(Product p) { p = new Product("Сок", 10); }
+// в main:
+Product x = new Product("Чай", 100);
+rename(x);
+replace(x);
+System.out.println(x.name);</code></pre>
+  <label><input type="radio"> <code>Чай</code></label>
+  <label><input type="radio"> <code>Кофе</code></label>
+  <label><input type="radio"> <code>Сок</code></label>
+  <label><input type="radio"> <code>null</code></label>
+  <p class="feedback"><code>rename</code> меняет поле общего объекта, и это видно снаружи. <code>replace</code> перезаписывает только свою копию ссылки, поэтому <code>x</code> по-прежнему указывает на тот же объект, уже с именем «Кофе».</p>
+</fieldset>
+<p class="quiz-score"></p>
+
+<h2>7. Домашнее задание</h2>
+<p>Правила прежние: сам, без ИИ, документацию читать можно. Застрял — спрашивай, получишь подсказку.</p>
+
+<div class="task">
+<h3>Шаг 1. <code>src/lesson0002/Product.java</code></h3>
+<ol>
+  <li>Поля: <code>name</code> (<code>String</code>), <code>price</code> (<code>int</code>), <code>quantity</code> (<code>int</code>, сколько штук на складе).</li>
+  <li>Конструктор, который принимает все три значения и заполняет поля через <code>this</code>.</li>
+  <li><code>totalCost()</code> — стоимость всех штук этого товара на складе.</li>
+  <li><code>isInStock()</code> — есть ли товар в наличии. Тип результата и форму <code>return</code> выбери по уроку 1.</li>
+  <li><code>applyDiscount(int percent)</code> — <em>меняет</em> цену этого товара и ничего не возвращает. Сравни с <code>priceWithDiscount</code> из урока: тот цену не трогал.</li>
+</ol>
+<p>Подумай для каждого метода: нужен ли ему <code>static</code>?</p>
+</div>
+
+<div class="task">
+<h3>Шаг 2. <code>src/lesson0002/Shop.java</code></h3>
+<ol>
+  <li>В <code>main</code> создай <code>ArrayList&lt;Product&gt; cart</code> минимум из трёх товаров, один из них с <code>quantity = 0</code>.</li>
+  <li>Метод <code>cartTotal(ArrayList&lt;Product&gt; cart)</code> — сумма <code>totalCost()</code> всех товаров.</li>
+  <li>Метод <code>findMostExpensive(ArrayList&lt;Product&gt; cart)</code> — <strong>возвращает объект</strong> <code>Product</code> с максимальной ценой. Что вернуть для пустой корзины? Вспомни раздел про <code>null</code> и проверь, что будет, если у результата вызвать <code>printInfo()</code>.</li>
+  <li>Выведи названия товаров, которых нет в наличии.</li>
+  <li>Примени скидку 10% ко всем товарам корзины и выведи цены до и после.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 3. Эксперимент и объяснение</h3>
+<ol>
+  <li>Выполни <code>System.out.println(cart.get(0));</code>. Что напечаталось? Объясни в комментарии, почему так, и вспомни, где ты уже видел похожий вывод.</li>
+  <li>Сначала напиши в комментарии <em>предсказание</em>, потом проверь запуском: <code>Product copy = cart.get(0); copy.price = 1;</code> — изменится ли цена у товара в корзине? Почему?</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>★ Со звёздочкой</h3>
+<p>Добавь в <code>Product</code> метод <code>public String toString()</code>, который возвращает строку вида <code>"Чай: 250 руб. × 3"</code>, и снова выполни <code>println(cart.get(0))</code>. Почему вывод изменился? Ты <em>переопределил</em> метод, который есть у любого объекта (<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html#toString()">Object.toString</a>). Подробно — в уроке про наследование, а пока над методом можно написать <code>@Override</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Коммит</h3>
+<p>Закоммить домашку <strong>осмысленным сообщением</strong> в духе <code>Lesson 0002: Product class and shop cart</code> и напиши мне «проверь домашку 0002».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Раздел <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/index.html">Classes and Objects</a> официального туториала Oracle. Для урока особенно нужны страницы <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/constructors.html">Providing Constructors</a>, <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/thiskey.html">Using the this Keyword</a> и <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/classvars.html">Understanding Class Members</a> (про <code>static</code>). Около 30 минут чтения.</p>
+
+<p>Шпаргалка — <a href="../reference/java-classes.html">справочник «Классы и объекты»</a>. Предыдущий урок — <a href="0001-java-methods.html">Методы</a>, его <a href="../reference/java-methods.html">справочник</a>.</p>
+
+<div class="note ask">
+<p>Вопросы задавай прямо в терминале. Особенно если ощущение «вроде понял, но не уверен» вызывает <code>this</code> или разница между <code>static</code> и методом объекта: это два самых важных места урока, лучше разобрать их сразу.</p>
+</div>
+
+<nav class="course">
+  <a href="0001-java-methods.html">← Урок 1: методы</a>
+  <span>Урок 3: инкапсуляция →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

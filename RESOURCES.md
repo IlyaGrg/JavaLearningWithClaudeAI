@@ -8,6 +8,8 @@
   Классический туториал (написан для JDK 8, но основы не изменились). Use for: устройство объявления метода, сигнатура, перегрузка.
 - [The Java Tutorials: Passing Information to a Method (Oracle)](https://docs.oracle.com/javase/tutorial/java/javaOO/arguments.html)
   Первоисточник по передаче аргументов по значению. Use for: примитивы и ссылки в параметрах.
+- [The Java Tutorials: Classes and Objects (Oracle)](https://docs.oracle.com/javase/tutorial/java/javaOO/index.html)
+  Классы, конструкторы, `this`, `static`, вложенные классы. Use for: ООП-уроки, точные правила про члены класса.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 

@@ -12,6 +12,7 @@
 
 ## Окружение
 - Ubuntu, OpenJDK 21.0.12, Git 2.53, IntelliJ IDEA. В Git настроено `user.name = Ilya`.
+- Запускает код и из терминала. Привык к `java File.java` (single-file mode); 2026-10-09 объяснил `javac -d out src/lessonNNNN/*.java` + `java -cp out lessonNNNN.Main`. Позже заменим на Maven.
 
 ## Рабочий план (черновик, менять по ходу)
 1. Java Core: методы → ООП (классы, объекты, инкапсуляция, наследование, интерфейсы) → исключения → коллекции (Map/Set) → generics → лямбды и Stream API.

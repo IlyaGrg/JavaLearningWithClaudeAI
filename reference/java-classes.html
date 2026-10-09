@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Классы и объекты</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1>Классы и объекты</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0002-classes-and-objects.html">уроку 0002</a>.</p>
+
+<h2>Шаблон класса</h2>
+<pre><code>public class Product {              // файл Product.java
+    String name;                     // поля: у каждого объекта свои
+    int price;
+
+    Product(String name, int price) {   // конструктор: имя класса, без типа результата
+        this.name = name;                // this.поле = параметр
+        this.price = price;
+    }
+
+    void printInfo() {               // метод объекта: есть this
+        System.out.println(name + ": " + price);
+    }
+
+    static int sum(int a, int b) {   // метод класса: нет this
+        return a + b;
+    }
+}</code></pre>
+
+<h2>Использование</h2>
+<table>
+  <tr><th>Что</th><th>Код</th></tr>
+  <tr><td>Создать объект</td><td><code>Product tea = new Product("Чай", 250);</code></td></tr>
+  <tr><td>Прочитать / изменить поле</td><td><code>tea.price</code>, <code>tea.price = 300;</code></td></tr>
+  <tr><td>Вызвать метод объекта</td><td><code>tea.printInfo();</code></td></tr>
+  <tr><td>Вызвать static-метод</td><td><code>Product.sum(2, 3);</code> (внутри класса — просто <code>sum(2, 3)</code>)</td></tr>
+  <tr><td>Нет объекта</td><td><code>Product p = null;</code></td></tr>
+</table>
+
+<h2>Объект или static?</h2>
+<table>
+  <tr><th></th><th>Метод объекта</th><th><code>static</code>-метод</th></tr>
+  <tr><td>Принадлежит</td><td>конкретному объекту</td><td>классу целиком</td></tr>
+  <tr><td>Вызов</td><td><code>obj.method()</code></td><td><code>ClassName.method()</code></td></tr>
+  <tr><td><code>this</code></td><td>есть</td><td>нет</td></tr>
+  <tr><td>Видит поля объекта напрямую</td><td>да</td><td>нет, только через ссылку на объект</td></tr>
+  <tr><td>Когда</td><td>работает с полями «своего» объекта</td><td>общий расчёт по параметрам: <code>Math.max</code>, <code>Arrays.toString</code></td></tr>
+</table>
+
+<h2>Значения полей по умолчанию</h2>
+<table>
+  <tr><th>Тип поля</th><th>Значение</th></tr>
+  <tr><td><code>int</code>, <code>long</code>, <code>double</code>…</td><td><code>0</code> / <code>0.0</code></td></tr>
+  <tr><td><code>boolean</code></td><td><code>false</code></td></tr>
+  <tr><td><code>String</code>, массивы, любые объекты</td><td><code>null</code></td></tr>
+  <tr><td>Локальная переменная в методе</td><td>значения нет — ошибка компиляции, пока не присвоишь</td></tr>
+</table>
+
+<h2>Ссылки</h2>
+<ul>
+  <li><code>Product b = a;</code> — копия ссылки: объект <strong>один</strong>, изменения видны через обе переменные.</li>
+  <li>В метод передаётся копия ссылки: изменение <strong>полей</strong> видно снаружи, <code>p = new …</code> — нет.</li>
+  <li>Вызов метода или поля у <code>null</code> → <code>NullPointerException</code>.</li>
+</ul>
+
+<h2>Частые ошибки компиляции</h2>
+<table>
+  <tr><th>Сообщение</th><th>Причина</th></tr>
+  <tr><td><code>constructor X in class X cannot be applied to given types</code></td><td>Аргументы <code>new</code> не подходят ни к одному конструктору. Свой конструктор отменяет пустой по умолчанию</td></tr>
+  <tr><td><code>non-static variable … cannot be referenced from a static context</code></td><td>Обращение к полю объекта (или к <code>this</code>) из <code>static</code>-метода</td></tr>
+  <tr><td><code>class X is public, should be declared in a file named X.java</code></td><td>Имя файла не совпадает с именем <code>public</code>-класса</td></tr>
+</table>
+
+<p class="cite">Источники: Oracle — <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/constructors.html">Providing Constructors</a>, <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/thiskey.html">this</a>, <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/classvars.html">Class Members</a>, <a href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">Default Values</a>.</p>
+
+</main>
+</body>
+</html>
