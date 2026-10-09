@@ -23,7 +23,7 @@ public class Product {
         price = price - price * percent / 100;
     }
     @Override
-    public String toString() {//почему мы делаем public?
+    public String toString() {
         return name + ": " + price + " руб. x " + quantity;
     }
 }
