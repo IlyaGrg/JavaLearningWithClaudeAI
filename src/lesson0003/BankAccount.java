@@ -24,25 +24,25 @@ public class BankAccount {
 
 
     public void deposit(int amount) {
-        if (amount < 0) {
-            throw new IllegalArgumentException("Сумма пополнения должна быть неотрицательной: " + amount);
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Сумма пополнения должна быть положительной: " + amount);
         }
         balance = balance + amount;
     }
 
     public void withdraw(int amount) {
-        if (amount < 0) {
-            throw new IllegalArgumentException("Нельзя снять отрицательную сумму: " + amount);
+        if (amount < 0 || amount > balance) {
+            throw new IllegalArgumentException("Нельзя снять отрицательную сумму или сумму, больше чем на счету: " + amount);
         }
         balance = balance - amount;
     }
 
     public void transferTo(BankAccount other, int amount) {
-        if (other == null || other.getOwner() == other.getOwner()) {
-            throw new IllegalArgumentException("Нельзя перевести деньги самому себе или несощуествующему пользователю.");
+        if (other == null || other.owner == owner) {
+            throw new IllegalArgumentException("Нельзя перевести деньги самому себе или несуществующему пользователю.");
         }
-        if (amount < 0) {
-            throw new IllegalArgumentException("Нельзя переводить отрицательную сумму");
+        if (amount < 0 || amount > balance) {
+            throw new IllegalArgumentException("Нельзя переводить отрицательную сумму или сумму, больше чем на счету.");
         }
 
         balance = balance - amount;
