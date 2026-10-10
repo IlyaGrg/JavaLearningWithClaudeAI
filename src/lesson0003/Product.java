@@ -38,14 +38,14 @@ public class Product {
 
     public void addStock(int amount) {
         if (amount <= 0) {
-            throw new IllegalArgumentException("Количество поступившего товара должно быть положительно");
+            throw new IllegalArgumentException("Количество поступившего товара должно быть положительно: " + amount);
         }
         quantity = quantity + amount;
     }
 
     public void sell(int amount) {
         if (amount <= 0 || amount > quantity) {
-            throw new IllegalArgumentException("Невозможно продать " + amount + " товаров " + " из " + quantity);
+            throw new IllegalArgumentException("Невозможно продать " + amount + " товаров из " + quantity);
         }
         quantity = quantity - amount;
     }

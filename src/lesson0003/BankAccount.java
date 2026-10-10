@@ -38,8 +38,11 @@ public class BankAccount {
     }
 
     public void transferTo(BankAccount other, int amount) {
-        if (other == null || other == this) {
-            throw new IllegalArgumentException("Нельзя перевести деньги самому себе или несуществующему пользователю.");
+        if (other == this) {
+            throw new IllegalArgumentException("Нельзя перевести деньги самому себе");
+        }
+        if (other == null) {
+            throw new IllegalArgumentException("Нельзя перевести деньги несуществующему пользователю");
         }
         withdraw(amount);
         other.deposit(amount);
