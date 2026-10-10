@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 3 · Инкапсуляция</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0003 · Java Core · ~90 минут + домашка</div>
+<h1>Инкапсуляция: объект, который нельзя сломать снаружи</h1>
+<p class="subtitle">После этого урока ты сможешь спрятать поля класса, дать к ним безопасный доступ через методы и сделать так, чтобы объект с неправильными данными просто нельзя было создать.</p>
+
+<div class="note">
+<p><strong>Как читать этот урок.</strong> Он длиннее предыдущих: ты попросил объяснять подробнее. После каждого раздела есть короткая проверка «Сначала ответь сам, потом открой». Не пропускай её: если ответ не сходится, перечитай раздел <em>до</em> того, как идти дальше. Так непонимание не будет копиться, как было с <code>static</code>.</p>
+</div>
+
+<h2>Разминка: вспомни урок 2</h2>
+<p>Ответь в голове, потом открой.</p>
+<details class="reveal"><summary>1. Что напечатает этот код и почему?</summary>
+<pre><code>Product a = new Product("Чай", 100);
+Product b = a;
+Product c = new Product(a.name, a.price);
+b.price = 50;
+System.out.println(a.price + " " + c.price);</code></pre>
+<p><code>50 100</code>. <code>b = a</code> копирует <strong>ссылку</strong>: <code>a</code> и <code>b</code> ведут к одному объекту, поэтому <code>b.price = 50</code> видно через <code>a</code>. <code>c</code> создан через <code>new</code> — это отдельный объект со своей копией цены 100, его изменение не коснулось.</p>
+</details>
+<details class="reveal"><summary>2. Метод <code>static int sum(int a, int b)</code> — почему ему можно быть <code>static</code>?</summary>
+<p>Он использует только свои параметры и не трогает поля никакого объекта. Конкретный объект ему не нужен.</p>
+</details>
+
+<h2>1. Проблема: любой может испортить твой объект</h2>
+<p>Вот <code>Product</code> из урока 2. Поля у него <em>открыты</em>: в объявлении нет модификатора доступа, и любой класс в пакете может делать с ними что угодно.</p>
+<pre><code>Product tea = new Product("Чай", 250, 10);
+
+tea.price = -1000;      // отрицательная цена
+tea.quantity = -5;      // минус пять пачек на складе
+tea.name = null;        // товар без названия</code></pre>
+<p>Компилятор всё это пропустит: <code>-1000</code> — корректный <code>int</code>, а <code>null</code> — корректное значение для <code>String</code>. Компилятор проверяет <em>типы</em>, а не <em>смысл</em>.</p>
+
+<p>Теперь проследим, что будет дальше, шаг за шагом:</p>
+<ol>
+  <li>Где-то в коде (чужом, твоём, написанном полгода назад) случайно выполнилось <code>tea.price = -1000</code>.</li>
+  <li>Программа не упала. Объект живёт дальше с отрицательной ценой.</li>
+  <li>Через час вызывается <code>cartTotal(cart)</code> и выдаёт сумму меньше, чем должна быть.</li>
+  <li>Клиент оплачивает заниженную сумму. Ошибку замечают через неделю по отчётам.</li>
+  <li>Ты ищешь, <em>какая из сотен строк</em> во всём проекте записала <code>-1000</code>. Поле открыто, значит, виновником может быть любая.</li>
+</ol>
+<p>Самое неприятное здесь: ошибка проявляется <strong>далеко от места, где её совершили</strong>. Это самый дорогой вид бага.</p>
+
+<p><strong>Банковская версия.</strong> Вместо товара представь банковский счёт:</p>
+<pre><code>account.balance = 1_000_000;    // и всё, у клиента миллион</code></pre>
+<p>Если поле <code>balance</code> можно менять откуда угодно, никакая проверка «хватает ли денег на списание» не спасёт: её можно просто обойти. Поэтому в банковском коде <strong>ни одно поле не бывает открытым</strong>. Это не вопрос вкуса, это требование безопасности.</p>
+
+<h3>Идея инкапсуляции в одном предложении</h3>
+<p><strong>Объект сам отвечает за свои данные:</strong> поля спрятаны, а снаружи доступны только методы, и каждый метод проверяет, что после него объект останется в правильном состоянии.</p>
+<p>Аналогия — банкомат. Внутри лежат деньги (поля), но открыть сейф и взять пачку нельзя. Есть только кнопки (методы): «снять», «внести», «показать баланс». Кнопка «снять» сначала проверит ПИН и остаток, и только потом выдаст деньги. Сейф защищён от тебя, а ты защищён от ошибок сейфа.</p>
+
+<details class="reveal"><summary>Проверь себя: почему компилятор не запрещает <code>tea.price = -1000</code>?</summary>
+<p>Компилятор проверяет только типы: <code>-1000</code> — это <code>int</code>, поле тоже <code>int</code>, всё совпадает. О том, что цена не может быть отрицательной, знаешь только ты. Значит, это правило должен выразить в коде <em>ты</em>, внутри класса.</p>
+</details>
+
+<h2>2. Модификаторы доступа: кто что видит</h2>
+<p><strong>Модификатор доступа</strong> — слово перед полем, методом, конструктором или классом. Оно говорит компилятору, из каких мест кода к этому члену класса можно обращаться. Ты уже видел <code>public</code> и писал поля вообще без модификатора. Всего вариантов четыре:</p>
+
+<div class="ref">
+<table>
+  <tr><th>Модификатор</th><th>Свой класс</th><th>Свой пакет</th><th>Наследники</th><th>Все остальные</th></tr>
+  <tr><td><code>private</code></td><td>да</td><td>нет</td><td>нет</td><td>нет</td></tr>
+  <tr><td><em>(ничего не написано)</em></td><td>да</td><td>да</td><td>нет</td><td>нет</td></tr>
+  <tr><td><code>protected</code></td><td>да</td><td>да</td><td>да</td><td>нет</td></tr>
+  <tr><td><code>public</code></td><td>да</td><td>да</td><td>да</td><td>да</td></tr>
+</table>
+</div>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/accesscontrol.html">Oracle — Controlling Access to Members of a Class</a>.</p>
+
+<p>Как читать таблицу, на примере поля <code>price</code> класса <code>Product</code>:</p>
+<ul>
+  <li><strong><code>private int price;</code></strong> — к полю можно обратиться <em>только из кода, написанного внутри класса <code>Product</code></em>. Из <code>Shop</code>, <code>Main</code> и любого другого класса нельзя, даже если он в том же пакете.</li>
+  <li><strong><code>int price;</code></strong> (без модификатора, так было у тебя) — можно из любого класса <em>в том же пакете</em> <code>lesson0002</code>. Поэтому <code>Shop</code> мог писать <code>product.price</code>.</li>
+  <li><strong><code>protected</code></strong> — понадобится в уроке про наследование. Пока пропускаем.</li>
+  <li><strong><code>public</code></strong> — можно откуда угодно, из любого пакета.</li>
+</ul>
+
+<h3>Что происходит, если нарушить <code>private</code></h3>
+<p>Это ошибка <strong>компиляции</strong>, а не запуска. Программа даже не соберётся:</p>
+<pre><code>// в классе Main, а поля Product объявлены как private:
+tea.price = -1000;
+// error: price has private access in Product
+System.out.println(tea.name);
+// error: name has private access in Product</code></pre>
+<p>Обрати внимание: запрещено и <em>читать</em> (<code>tea.name</code>), и <em>писать</em> (<code>tea.price = ...</code>). <code>private</code> закрывает поле полностью.</p>
+<p>Это и есть защита. Ошибка ловится в IntelliJ ещё до запуска, а не через неделю по отчётам.</p>
+
+<h3>Главное правило</h3>
+<p>Официальный туториал Oracle формулирует его так: <em>«Use <code>private</code> unless you have a good reason not to»</em> — используй <code>private</code>, если нет веской причины сделать иначе. И отдельно: <em>«Avoid <code>public</code> fields except for constants»</em> — не делай поля публичными, кроме констант.</p>
+<p>На практике:</p>
+<ul>
+  <li><strong>поля</strong> — всегда <code>private</code>;</li>
+  <li><strong>методы и конструкторы</strong>, которыми должны пользоваться другие классы, — <code>public</code>;</li>
+  <li><strong>вспомогательные методы</strong>, нужные только самому классу, — <code>private</code>.</li>
+</ul>
+
+<details class="reveal"><summary>Проверь себя: поле <code>private int price</code> в классе <code>Product</code>. Можно ли написать <code>price = 5</code> внутри метода класса <code>Product</code>? А внутри <code>Shop</code>, если он в том же пакете?</summary>
+<p>Внутри <code>Product</code> — да: <code>private</code> означает «видно в своём классе». Внутри <code>Shop</code> — нет, даже в том же пакете: пакет открывает доступ только для полей <em>без</em> модификатора.</p>
+</details>
+
+<h2>3. Геттеры: разрешаем читать</h2>
+<p>Мы закрыли поля, и теперь <code>Shop</code> не может даже узнать цену товара. Читать данные нужно, поэтому даём к ним доступ через метод.</p>
+<p><strong>Геттер</strong> (от англ. <em>get</em> — получить) — <code>public</code>-метод, который просто возвращает значение поля:</p>
+<pre><code>public int getPrice() {
+    return price;
+}</code></pre>
+<p>Снаружи вместо <code>tea.price</code> теперь пишут <code>tea.getPrice()</code>.</p>
+
+<h3>Соглашение об именах</h3>
+<p>Имена геттеров в Java строго договорные, и на них полагаются библиотеки, включая Spring:</p>
+<ul>
+  <li>поле <code>price</code> → геттер <code>getPrice()</code>: <code>get</code> + имя поля с большой буквы;</li>
+  <li>поле <code>name</code> → <code>getName()</code>;</li>
+  <li>для <code>boolean</code>-поля принято <code>is</code>: поле <code>active</code> → <code>isActive()</code>.</li>
+</ul>
+<p>Это соглашение называется JavaBeans. Через полгода Spring будет превращать твои объекты в JSON для REST-ответов, <em>находя данные именно по геттерам</em>. Нет геттера <code>getPrice()</code> — не будет поля <code>"price"</code> в JSON.</p>
+
+<h3>«Но это же то же самое, что открытое поле?»</h3>
+<p>Хороший вопрос, его задают все. Нет, не то же самое, и вот почему:</p>
+<ol>
+  <li><strong>Только чтение.</strong> Геттер позволяет <em>прочитать</em> цену, но не <em>изменить</em> её. С открытым полем можно и то и другое.</li>
+  <li><strong>Свобода менять внутренности.</strong> Допустим, через год ты решишь хранить цену в копейках (<code>long priceKopecks</code>), а не в рублях. Если все пользовались <code>getPrice()</code>, ты меняешь только тело геттера: <code>return (int) (priceKopecks / 100);</code>. Остальные сотни мест в коде ничего не заметят. С открытым полем пришлось бы переписать каждое место, где упоминается <code>.price</code>.</li>
+</ol>
+
+<details class="reveal"><summary>Проверь себя: как будет называться геттер для поля <code>boolean inStock</code>? А для <code>String ownerName</code>?</summary>
+<p><code>isInStock()</code> и <code>getOwnerName()</code>.</p>
+</details>
+
+<h2>4. Сеттеры с проверкой: разрешаем менять, но правильно</h2>
+<p>Иногда поле действительно нужно менять снаружи: цену товара меняют, это нормально. Для этого есть <strong>сеттер</strong> (от <em>set</em> — установить). Если сеттер просто присваивает значение, он не лучше открытого поля. Весь смысл сеттера в том, что он <strong>сначала проверяет</strong> значение:</p>
+
+<div class="annotated">
+  <div class="row"><code>public void setPrice(int price) {</code><div><code>public</code> — вызывать можно откуда угодно. <code>void</code> — ничего не возвращает: его работа — изменить объект. Имя: <code>set</code> + имя поля.</div></div>
+  <div class="row"><code>    if (price &lt; 0) {</code><div>Здесь <code>price</code> — это <strong>параметр</strong>: новое значение, которое нам предлагают. Оно ещё не записано в объект. Мы проверяем его <em>до</em> записи.</div></div>
+  <div class="row"><code>        throw new IllegalArgumentException(</code><div><strong>Бросаем исключение</strong> — аварийно прерываем метод. Подробно разберём в разделе 5.</div></div>
+  <div class="row"><code>            "Цена не может быть отрицательной: " + price);</code><div>Сообщение об ошибке. Пиши его так, чтобы по нему было понятно, <em>что</em> не так и <em>какое значение</em> пришло. Через месяц это сэкономит тебе час отладки.</div></div>
+  <div class="row"><code>    }</code><div></div></div>
+  <div class="row"><code>    this.price = price;</code><div>Сюда мы попадаем, только если проверка прошла. <code>this.price</code> — поле объекта, <code>price</code> — параметр, как в конструкторе из урока 2.</div></div>
+  <div class="row"><code>}</code><div></div></div>
+</div>
+
+<p>Обрати внимание на <strong>порядок</strong>: сначала проверка, потом запись. Если бы мы сначала записали, а потом проверили, объект уже успел бы испортиться.</p>
+
+<h3>Нужен ли сеттер каждому полю?</h3>
+<p><strong>Нет.</strong> Это частая ошибка новичков: IntelliJ умеет одной командой сгенерировать геттер и сеттер для всех полей, и люди так и делают. Для каждого поля спроси себя: <em>должно ли оно меняться после создания объекта?</em></p>
+<ul>
+  <li><strong>Название товара</strong> после создания обычно не меняется → геттер есть, сеттера нет. Значение задаётся один раз в конструкторе.</li>
+  <li><strong>Цена</strong> меняется → сеттер с проверкой.</li>
+  <li><strong>Баланс счёта</strong> меняется, но <em>не произвольно</em>. Об этом подробнее в разделе 7.</li>
+</ul>
+
+<details class="reveal"><summary>Проверь себя: что не так с этим сеттером?</summary>
+<pre><code>public void setPrice(int price) {
+    this.price = price;
+    if (price &lt; 0) {
+        throw new IllegalArgumentException("Цена отрицательная");
+    }
+}</code></pre>
+<p>Неправильный порядок: отрицательная цена <em>уже записана</em> в поле, а исключение бросается после этого. Объект испорчен. Сначала проверка, потом присваивание.</p>
+</details>
+
+<h2>5. Исключение: как сказать «так нельзя»</h2>
+<p>Что должен сделать сеттер, если ему передали <code>-1000</code>? Есть несколько вариантов, и только один из них правильный:</p>
+<ul>
+  <li><strong>Молча проигнорировать.</strong> Плохо: вызывающий код уверен, что цена изменилась, а она не изменилась. Ошибка опять всплывёт далеко от места, где её совершили.</li>
+  <li><strong>Напечатать «ошибка» в консоль.</strong> Плохо: в backend консоль никто не читает, а программа идёт дальше с неверными данными. И помни раздел из ревью урока 2: метод не знает, где его вызвали.</li>
+  <li><strong>Остановить выполнение и громко сообщить, что именно не так.</strong> Это и есть <strong>исключение</strong>.</li>
+</ul>
+
+<h3>Ты уже видел исключения</h3>
+<p><code>NullPointerException</code> и <code>IndexOutOfBoundsException</code> из прошлых домашек — это исключения, которые бросила сама Java, когда ты сделал что-то невозможное. Теперь ты будешь бросать их сам, когда кто-то пытается сделать что-то <em>запрещённое правилами твоего класса</em>.</p>
+
+<h3>Разбор строки <code>throw</code> по словам</h3>
+<pre><code>throw new IllegalArgumentException("Цена не может быть отрицательной: " + price);</code></pre>
+<ul>
+  <li><strong><code>new IllegalArgumentException(...)</code></strong> — создаём объект-исключение. Это обычный объект, такой же <code>new</code>, как <code>new Product(...)</code>. В конструктор передаём текст ошибки. <code>IllegalArgumentException</code> — это готовый класс из Java, название значит «недопустимый аргумент». Он предназначен ровно для нашего случая: метод вызвали с неправильным значением параметра. <span class="cite"><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/IllegalArgumentException.html">Документация IllegalArgumentException</a></span></li>
+  <li><strong><code>throw</code></strong> — «бросить». Метод немедленно прекращает работу, как при <code>return</code>, но вместо значения наружу летит исключение. Строки после <code>throw</code> не выполняются.</li>
+</ul>
+
+<h3>Что происходит при запуске: по шагам</h3>
+<pre><code>public static void main(String[] args) {
+    Product tea = new Product("Чай", 250);
+    System.out.println(tea.getName() + ": " + tea.getPrice());
+
+    tea.setPrice(300);
+    System.out.println(tea.getName() + ": " + tea.getPrice());
+
+    tea.setPrice(-1000);
+    System.out.println("Эта строка не выполнится");
+}</code></pre>
+<ol>
+  <li>Создаётся чай за 250, печатается <code>Чай: 250</code>.</li>
+  <li><code>setPrice(300)</code>: проверка <code>300 &lt; 0</code> ложна, исключения нет, цена записана. Печатается <code>Чай: 300</code>.</li>
+  <li><code>setPrice(-1000)</code>: проверка <code>-1000 &lt; 0</code> истинна → <code>throw</code>. Метод <code>setPrice</code> обрывается, строка <code>this.price = price</code> <strong>не выполняется</strong>, цена остаётся 300.</li>
+  <li>Исключение вылетает из <code>setPrice</code> туда, откуда его вызвали, — в <code>main</code>. В <code>main</code> его никто не перехватывает (как это делать, разберём в уроке про исключения), поэтому <code>main</code> тоже обрывается.</li>
+  <li>Программа завершается. Последний <code>println</code> не выполняется никогда.</li>
+</ol>
+
+<h3>Как читать сообщение об ошибке</h3>
+<p>Вот что напечатает программа (я запустил её на JDK 21). В уроке используется версия <code>Product</code> из раздела 6, поэтому видна строка про <code>checkPrice</code>:</p>
+<div class="annotated">
+  <div class="row"><code>Exception in thread "main"</code><div>Исключение произошло в главном потоке программы — там, где выполняется <code>main</code>.</div></div>
+  <div class="row"><code>java.lang.IllegalArgumentException:</code><div><strong>Тип</strong> исключения — полное имя класса.</div></div>
+  <div class="row"><code>Цена не может быть отрицательной: -1000</code><div><strong>Твоё сообщение.</strong> Видишь, как пригодилось значение в тексте?</div></div>
+  <div class="row"><code>	at lesson0003.Product.checkPrice(Product.java:31)</code><div><strong>Где брошено:</strong> метод <code>checkPrice</code>, файл <code>Product.java</code>, строка 31.</div></div>
+  <div class="row"><code>	at lesson0003.Product.setPrice(Product.java:25)</code><div>Кто вызвал <code>checkPrice</code>: <code>setPrice</code>, строка 25.</div></div>
+  <div class="row"><code>	at lesson0003.Main.main(Main.java:11)</code><div>Кто вызвал <code>setPrice</code>: <code>main</code>, строка 11. <strong>Именно здесь ошибка в логике</strong>: кто-то передал −1000.</div></div>
+</div>
+<p>Список строк <code>at ...</code> называется <strong>стек вызовов</strong> (stack trace). Читается <strong>сверху вниз</strong>: «где упало» → «кто это вызвал» → «кто вызвал того» … до <code>main</code>. Чтобы найти, <em>чья</em> это ошибка, ищи в стеке первую строку из <em>твоего вызывающего</em> кода. В IntelliJ эти строки кликабельны и сразу открывают нужное место.</p>
+
+<details class="reveal"><summary>Проверь себя: в стеке выше, какая строка выполнилась бы, если бы мы передали <code>setPrice(500)</code>?</summary>
+<p>Никакого исключения: проверка ложна, <code>checkPrice</code> молча завершается, <code>setPrice</code> записывает 500, и программа идёт дальше к следующей строке <code>main</code>. Стек вызовов печатается <em>только</em> когда исключение долетело до конца, не перехваченным.</p>
+</details>
+
+<h2>6. Дыра в защите: конструктор</h2>
+<p>Допустим, сеттер с проверкой уже написан. Всё ли защищено? Посмотри:</p>
+<pre><code>Product broken = new Product("Чай", -5);   // проверки нет!</code></pre>
+<p>Конструктор записывает значения в поля напрямую, мимо сеттера. Объект <strong>рождается испорченным</strong>. Значит, проверять нужно и в конструкторе.</p>
+<p>Но писать одну и ту же проверку дважды (в конструкторе и в сеттере) плохо: поменяешь правило в одном месте, а в другом забудешь. Поэтому выносим её в отдельный вспомогательный метод. Вот полная версия класса — это и есть итоговый код урока:</p>
+
+<p class="label">src/lesson0003/Product.java</p>
+<div class="annotated">
+  <div class="row"><code>package lesson0003;</code><div></div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>public class Product {</code><div></div></div>
+  <div class="row"><code>    private String name;</code><div>Поля закрыты. Снаружи до них не добраться.</div></div>
+  <div class="row"><code>    private int price;</code><div></div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>    public Product(String name, int price) {</code><div>Конструктор теперь <code>public</code>: создавать товары можно из любого пакета. В уроке 2 модификатора не было, поэтому <code>new Product</code> работал только внутри пакета <code>lesson0002</code>.</div></div>
+  <div class="row"><code>        if (name == null || name.isBlank()) {</code><div>Название обязательно. <code>isBlank()</code> — «пустая или только из пробелов» (<code>""</code>, <code>"   "</code>). <strong>Порядок важен</strong>, как с <code>&amp;&amp;</code> в уроке 1: <code>||</code> идёт слева направо и останавливается на первом <code>true</code>. Если <code>name</code> равно <code>null</code>, до <code>name.isBlank()</code> дело не дойдёт. А если поменять местами, получишь <code>NullPointerException</code>.</div></div>
+  <div class="row"><code>            throw new IllegalArgumentException(</code><div></div></div>
+  <div class="row"><code>                "Название товара не может быть пустым");</code><div></div></div>
+  <div class="row"><code>        }</code><div></div></div>
+  <div class="row"><code>        checkPrice(price);</code><div>Проверку цены не копируем, а вызываем общий метод. Если цена плохая, исключение вылетит отсюда, и объект <strong>не будет создан вообще</strong>: <code>new</code> не вернёт ссылку.</div></div>
+  <div class="row"><code>        this.name = name;</code><div>Записываем, только когда <em>все</em> проверки пройдены.</div></div>
+  <div class="row"><code>        this.price = price;</code><div></div></div>
+  <div class="row"><code>    }</code><div></div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>    public String getName() {</code><div>Геттер названия. Сеттера для названия нет: название задаётся один раз, при создании.</div></div>
+  <div class="row"><code>        return name;</code><div></div></div>
+  <div class="row"><code>    }</code><div></div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>    public int getPrice() {</code><div>Геттер цены.</div></div>
+  <div class="row"><code>        return price;</code><div></div></div>
+  <div class="row"><code>    }</code><div></div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>    public void setPrice(int price) {</code><div>Сеттер цены.</div></div>
+  <div class="row"><code>        checkPrice(price);</code><div>Та же самая проверка, что в конструкторе. Правило записано в одном месте.</div></div>
+  <div class="row"><code>        this.price = price;</code><div></div></div>
+  <div class="row"><code>    }</code><div></div></div>
+  <div class="row"><code></code><div></div></div>
+  <div class="row"><code>    private static void checkPrice(int price) {</code><div><strong><code>private</code></strong>: это внутренняя кухня класса, снаружи вызывать её незачем. <strong><code>static</code></strong>: метод использует только свой параметр и не трогает поля объекта — по правилу из урока 2 объект ему не нужен. Кроме того, он вызывается из конструктора, когда объект ещё не до конца собран.</div></div>
+  <div class="row"><code>        if (price &lt; 0) {</code><div></div></div>
+  <div class="row"><code>            throw new IllegalArgumentException(</code><div></div></div>
+  <div class="row"><code>                "Цена не может быть отрицательной: " + price);</code><div></div></div>
+  <div class="row"><code>        }</code><div></div></div>
+  <div class="row"><code>    }</code><div></div></div>
+  <div class="row"><code>}</code><div></div></div>
+</div>
+
+<p>Теперь у класса есть важное свойство: <strong>не существует способа получить объект <code>Product</code> с пустым названием или отрицательной ценой.</strong> Ни через конструктор, ни через сеттер, ни напрямую через поле. Такое правило, которое объект соблюдает всегда, называется <strong>инвариантом</strong>. Защищать инварианты — главная задача инкапсуляции.</p>
+
+<details class="reveal"><summary>Проверь себя: что вернёт <code>new Product("   ", 100)</code>?</summary>
+<p>Ничего не вернёт: конструктор бросит <code>IllegalArgumentException: Название товара не может быть пустым</code>, потому что <code>"   ".isBlank()</code> равно <code>true</code>. Объект создан не будет. Я проверил: стек укажет на <code>Product.&lt;init&gt;</code> — так в стеке называется конструктор.</p>
+</details>
+
+<h2>7. Лучше сеттера: методы с бизнес-смыслом</h2>
+<p>Для банковского счёта сеттер <code>setBalance(int)</code> — <em>плохая</em> идея, даже с проверкой «баланс ≥ 0». Почему? Потому что в банке баланс никогда не «устанавливают». Его меняют только конкретные операции, у каждой из которых свои правила:</p>
+<pre><code>public class BankAccount {
+    private int balance;
+
+    public void deposit(int amount) {        // пополнить
+        // правило: сумма пополнения положительна
+    }
+
+    public void withdraw(int amount) {       // снять
+        // правила: сумма положительна И денег достаточно
+    }
+
+    public int getBalance() {                // посмотреть
+        return balance;
+    }
+}</code></pre>
+<p>Сравни, как выглядит списание:</p>
+<ul>
+  <li><code>account.setBalance(account.getBalance() - 300)</code> — проверку «хватает ли денег» должен не забыть сделать <em>каждый</em>, кто так пишет. Кто-то забудет обязательно.</li>
+  <li><code>account.withdraw(300)</code> — проверка живёт <em>внутри</em> метода, обойти её невозможно. Код ещё и читается как фраза.</li>
+</ul>
+<p>Правило на будущее: <strong>вместо «установи значение» давай методы, которые называются как действие из реального мира</strong>: <code>withdraw</code>, <code>deposit</code>, <code>sell</code>, <code>addStock</code>. В домашке ты напишешь такой счёт полностью.</p>
+
+<h2>8. Частые вопросы</h2>
+
+<h3>Внутри класса тоже надо писать <code>getPrice()</code> вместо <code>price</code>?</h3>
+<p>Нет. Внутри своего класса поле доступно напрямую, <code>private</code> ограничивает только <em>чужие</em> классы. В методах <code>Product</code> спокойно пиши <code>price</code>.</p>
+
+<h3>Можно ли в методе <code>Product</code> обратиться к <code>private</code>-полю <em>другого</em> товара?</h3>
+<p>Да, и это удивляет многих. <code>private</code> означает «видно в коде этого <em>класса</em>», а не «видно только этому объекту». Поэтому так можно:</p>
+<pre><code>public boolean isCheaperThan(Product other) {
+    return this.price &lt; other.price;   // other.price — private, но мы внутри Product
+}</code></pre>
+<p>Я проверил, это компилируется. Это пригодится в домашке для перевода денег между счетами.</p>
+
+<h3>Что будет, если вообще не писать модификатор у метода?</h3>
+<p>Метод будет виден только в своём пакете. Пока все классы урока лежат в одном пакете, разницы не заметно. Как только появятся несколько пакетов (а в Spring-проекте их десятки), всё, что должно вызываться снаружи, придётся сделать <code>public</code>. Привыкай писать модификатор явно и осознанно.</p>
+
+<h3>Зачем в <code>toString()</code> был <code>public</code>, а теперь <code>public</code> везде?</h3>
+<p>Теперь понятно целиком: <code>public</code> — это «доступно отовсюду». <code>toString()</code> обязан быть <code>public</code>, потому что он публичный у <code>Object</code>, а заменить метод более закрытым нельзя. Свои методы, которыми пользуются другие классы, ты делаешь <code>public</code> по собственному решению.</p>
+
+<h3>IntelliJ умеет генерировать геттеры и сеттеры. Можно пользоваться?</h3>
+<p>Можно: <strong>Alt+Insert → Getter and Setter</strong>. Но в этом уроке и домашке напиши их руками: так закрепится форма. И помни раздел 4: сгенерированный сеттер <em>не содержит проверок</em>, а сеттер есть не у каждого поля.</p>
+
+<h3>А если я не хочу, чтобы программа падала от исключения?</h3>
+<p>Исключение можно <em>перехватить</em> и обработать: показать пользователю сообщение и продолжить работу. Это конструкция <code>try/catch</code>, ей будет посвящён отдельный урок. Пока исключение, которое долетело до конца и уронило программу, — нормальный и честный результат: ты сразу видишь, что и где пошло не так.</p>
+
+<h2>9. Проверь себя</h2>
+<p>Без подглядывания вверх. Ошибся — вернись к нужному разделу.</p>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>1. У <code>Product</code> поле <code>private int price</code>, есть <code>getPrice()</code> и <code>setPrice(int)</code>. Какая строка в классе <code>Shop</code> не скомпилируется?</legend>
+  <label><input type="radio"> <code>tea.getPrice()</code></label>
+  <label><input type="radio"> <code>tea.setPrice(5)</code></label>
+  <label><input type="radio"> <code>tea.price = 5</code></label>
+  <label><input type="radio"> <code>tea.getName()</code></label>
+  <p class="feedback">Поле <code>private</code>, поэтому из другого класса к нему нельзя обратиться напрямую: <code>price has private access in Product</code>. Методы <code>public</code>, их вызывать можно.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>2. Что произойдёт при вызове <code>tea.setPrice(-1)</code> с проверкой из урока?</legend>
+  <label><input type="radio"> Программа остановится с исключением</label>
+  <label><input type="radio"> Цена молча станет отрицательной</label>
+  <label><input type="radio"> Метод вернёт значение false</label>
+  <label><input type="radio"> Ошибка появится при компиляции</label>
+  <p class="feedback">Проверка срабатывает при выполнении: <code>throw</code> прерывает метод, цена не меняется. Компилятор об отрицательном числе ничего не знает, а метод <code>void</code> ничего не возвращает.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>3. Сеттер уже проверяет цену. Зачем проверять её ещё и в конструкторе?</legend>
+  <label><input type="radio"> Иначе сеттер не будет работать</label>
+  <label><input type="radio"> Так требует синтаксис языка Java</label>
+  <label><input type="radio"> Конструктор нельзя вызывать без проверок</label>
+  <label><input type="radio"> Иначе объект создадут сразу некорректным</label>
+  <p class="feedback">Конструктор записывает поля напрямую, мимо сеттера. Без проверки в нём можно сразу создать <code>new Product("Чай", -5)</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>4. Метод внутри <code>Product</code> обращается к <code>other.price</code>, где <code>other</code> — другой объект <code>Product</code>, а поле <code>private</code>. Скомпилируется?</legend>
+  <label><input type="radio"> Нет, чужое поле закрыто</label>
+  <label><input type="radio"> Да, private ограничивает класс</label>
+  <label><input type="radio"> Только через геттер getPrice</label>
+  <label><input type="radio"> Только для объекта this</label>
+  <p class="feedback"><code>private</code> открывает доступ всему коду класса <code>Product</code>, к полям любых объектов этого класса.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>5. Какой дизайн банковского счёта правильный?</legend>
+  <label><input type="radio"> Публичное поле balance без методов</label>
+  <label><input type="radio"> Сеттер setBalance для любых изменений</label>
+  <label><input type="radio"> Методы deposit, withdraw с проверками</label>
+  <label><input type="radio"> Только конструктор, без других методов</label>
+  <p class="feedback">Баланс меняется только через операции с бизнес-смыслом, у каждой свои правила. Сеттер позволил бы обойти проверку «хватает ли денег».</p>
+</fieldset>
+<p class="quiz-score"></p>
+
+<h2>10. Домашнее задание</h2>
+<p>Правила прежние: сам, без ИИ, документацию читать можно. Застрял — спрашивай, получишь подсказку. Все файлы — в <code>src/lesson0003/</code> с <code>package lesson0003;</code>.</p>
+
+<div class="task">
+<h3>Шаг 1. <code>Product.java</code> — переделай товар из урока 2</h3>
+<p>Начни с копии своего <code>Product</code> из урока 2 (не забудь поменять <code>package</code>) и доработай:</p>
+<ol>
+  <li>Поля <code>name</code>, <code>price</code>, <code>quantity</code> — <code>private</code>.</li>
+  <li><code>public</code>-конструктор с проверками: название не пустое, цена ≥ 0, количество ≥ 0. Проверки цены не дублируй: вынеси в <code>private</code>-метод, как в уроке.</li>
+  <li>Геттеры для всех трёх полей. Сеттер — только для цены, с проверкой.</li>
+  <li>Вместо сеттера для количества — два метода с бизнес-смыслом:
+    <ul>
+      <li><code>addStock(int amount)</code> — привезли на склад. Сумма должна быть больше 0.</li>
+      <li><code>sell(int amount)</code> — продали. Сумма больше 0 и не больше, чем есть на складе. Сообщение об ошибке должно говорить, сколько просили и сколько есть.</li>
+    </ul>
+  </li>
+  <li><code>applyDiscount(int percent)</code> — теперь с проверкой: процент от 0 до 100.</li>
+  <li>Оставь <code>totalCost()</code>, <code>isInStock()</code>, <code>toString()</code>. Сделай их <code>public</code>.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 2. <code>BankAccount.java</code> — банковский счёт</h3>
+<ol>
+  <li>Поля: <code>owner</code> (<code>String</code>) и <code>balance</code> (<code>int</code>, в рублях), оба <code>private</code>.</li>
+  <li>Конструктор: владелец не пустой, начальный баланс ≥ 0.</li>
+  <li><code>getOwner()</code>, <code>getBalance()</code>. <strong>Метода <code>setBalance</code> нет.</strong> В комментарии над классом объясни своими словами почему.</li>
+  <li><code>deposit(int amount)</code> — сумма больше 0.</li>
+  <li><code>withdraw(int amount)</code> — сумма больше 0 и не больше баланса.</li>
+  <li><code>transferTo(BankAccount other, int amount)</code> — перевод на другой счёт. Подумай: можно ли переиспользовать <code>withdraw</code> и <code>deposit</code> вместо того, чтобы писать проверки заново? А что будет, если <code>other</code> — это <code>null</code>? Или тот же самый счёт?</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 3. <code>Main.java</code> — проверка</h3>
+<ol>
+  <li>Покажи нормальную работу: создай товары и два счёта, продай товар, пополни счёт, сделай перевод. После каждого действия печатай состояние.</li>
+  <li><strong>Проверь каждую защиту.</strong> Вызови по очереди все запрещённые действия: отрицательную цену, продажу больше, чем есть, снятие больше баланса, пустое имя владельца и так далее. Программа падает на первом исключении, поэтому делай так: вызвал → запустил → увидел исключение → <em>закомментировал</em> вызов, а рядом записал в комментарии сообщение об ошибке и номер строки из стека, на которую оно указало → следующий.</li>
+  <li>Попробуй в <code>Main</code> написать <code>account.balance = 1000000;</code>. Запиши в комментарии текст ошибки компиляции и закомментируй строку.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Предсказание (повторение урока 2)</h3>
+<p>Сначала напиши ответ в комментарии, <em>потом</em> проверь запуском:</p>
+<pre><code>BankAccount a = new BankAccount("Илья", 1000);
+BankAccount b = a;
+b.withdraw(300);
+System.out.println(a.getBalance());</code></pre>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Коммит</h3>
+<p><code>git status</code> → <code>git add .</code> → <code>git commit</code> с сообщением в повелительном наклонении, например <code>Lesson 0003: encapsulate Product, add BankAccount</code>. Потом напиши «проверь домашку 0003».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p><a href="https://docs.oracle.com/javase/tutorial/java/javaOO/accesscontrol.html">Controlling Access to Members of a Class</a> из официального туториала Oracle — коротко, 10 минут, там же таблица доступа и советы, процитированные выше. Про исключения: <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/IllegalArgumentException.html">IllegalArgumentException</a> в документации Java 21.</p>
+
+<p>Шпаргалка — <a href="../reference/java-encapsulation.html">справочник «Инкапсуляция»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1. Методы</a>, <a href="0002-classes-and-objects.html">2. Классы и объекты</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал, не копи. Твои вопросы по прошлым урокам были точными, а не глупыми: каждый указывал на место, которое в уроке было объяснено слишком сжато. Так что если здесь что-то непонятно, скорее всего, это я объяснил недостаточно. Спрашивай.</p>
+</div>
+
+<nav class="course">
+  <a href="0002-classes-and-objects.html">← Урок 2: классы и объекты</a>
+  <span>Урок 4: исключения →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

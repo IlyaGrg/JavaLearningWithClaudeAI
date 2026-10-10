@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Инкапсуляция</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1>Инкапсуляция</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0003-encapsulation.html">уроку 0003</a>.</p>
+
+<h2>Модификаторы доступа</h2>
+<table>
+  <tr><th>Модификатор</th><th>Класс</th><th>Пакет</th><th>Наследники</th><th>Все</th><th>Когда</th></tr>
+  <tr><td><code>private</code></td><td>✓</td><td></td><td></td><td></td><td>все поля; внутренние методы</td></tr>
+  <tr><td><em>нет</em></td><td>✓</td><td>✓</td><td></td><td></td><td>редко, осознанно</td></tr>
+  <tr><td><code>protected</code></td><td>✓</td><td>✓</td><td>✓</td><td></td><td>наследование (позже)</td></tr>
+  <tr><td><code>public</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>методы и конструкторы для других классов</td></tr>
+</table>
+<p><code>private</code> = доступ из кода <strong>класса</strong>, в том числе к полям других объектов того же класса.</p>
+
+<h2>Шаблон защищённого класса</h2>
+<pre><code>public class Product {
+    private String name;                       // поля закрыты
+    private int price;
+
+    public Product(String name, int price) {   // проверки ДО записи
+        if (name == null || name.isBlank()) {  // сначала null, потом isBlank
+            throw new IllegalArgumentException("Название не может быть пустым");
+        }
+        checkPrice(price);
+        this.name = name;
+        this.price = price;
+    }
+
+    public String getName() { return name; }   // геттер; сеттера нет — не меняется
+    public int getPrice()   { return price; }
+
+    public void setPrice(int price) {          // сеттер с проверкой
+        checkPrice(price);
+        this.price = price;
+    }
+
+    private static void checkPrice(int price) {   // одно правило — одно место
+        if (price &lt; 0) {
+            throw new IllegalArgumentException("Цена не может быть отрицательной: " + price);
+        }
+    }
+}</code></pre>
+
+<h2>Имена</h2>
+<table>
+  <tr><th>Поле</th><th>Геттер</th><th>Сеттер</th></tr>
+  <tr><td><code>int price</code></td><td><code>getPrice()</code></td><td><code>setPrice(int)</code></td></tr>
+  <tr><td><code>boolean active</code></td><td><code>isActive()</code></td><td><code>setActive(boolean)</code></td></tr>
+</table>
+
+<h2>Чек-лист класса</h2>
+<ul>
+  <li>Все поля <code>private</code>.</li>
+  <li>Конструктор проверяет всё, что проверяют сеттеры.</li>
+  <li>Сеттер только у тех полей, которые действительно меняются. Проверка — <strong>до</strong> присваивания.</li>
+  <li>Вместо <code>setX</code> — методы-действия, если у изменения есть правила: <code>withdraw</code>, <code>sell</code>, <code>addStock</code>.</li>
+  <li>Повторяющаяся проверка вынесена в <code>private</code>-метод.</li>
+</ul>
+
+<h2>Исключение</h2>
+<pre><code>throw new IllegalArgumentException("что не так: " + значение);</code></pre>
+<ul>
+  <li>Метод прерывается сразу, строки после <code>throw</code> не выполняются.</li>
+  <li>Не перехвачено → программа завершается и печатает стек вызовов.</li>
+  <li>Стек читается сверху вниз: где брошено → кто вызвал → … → <code>main</code>. <code>&lt;init&gt;</code> в стеке = конструктор.</li>
+</ul>
+
+<h2>Ошибки</h2>
+<table>
+  <tr><th>Сообщение</th><th>Причина</th></tr>
+  <tr><td><code>x has private access in Product</code></td><td>Обращение к <code>private</code>-полю или методу из другого класса. Используй геттер или метод</td></tr>
+  <tr><td><code>Exception in thread "main" java.lang.IllegalArgumentException: …</code></td><td>Сработала твоя проверка: кто-то передал недопустимое значение. Смотри стек</td></tr>
+</table>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/accesscontrol.html">Oracle — Controlling Access to Members of a Class</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/IllegalArgumentException.html">IllegalArgumentException (Java 21)</a>.</p>
+
+</main>
+</body>
+</html>

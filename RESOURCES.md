@@ -10,6 +10,10 @@
   Первоисточник по передаче аргументов по значению. Use for: примитивы и ссылки в параметрах.
 - [The Java Tutorials: Classes and Objects (Oracle)](https://docs.oracle.com/javase/tutorial/java/javaOO/index.html)
   Классы, конструкторы, `this`, `static`, вложенные классы. Use for: ООП-уроки, точные правила про члены класса.
+- [The Java Tutorials: Controlling Access to Members of a Class (Oracle)](https://docs.oracle.com/javase/tutorial/java/javaOO/accesscontrol.html)
+  Таблица модификаторов доступа и правило «private, если нет веской причины». Use for: инкапсуляция.
+- [Java 21 API: IllegalArgumentException](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/IllegalArgumentException.html)
+  Стандартное исключение для недопустимого аргумента. Use for: проверки в конструкторах и сеттерах.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 
