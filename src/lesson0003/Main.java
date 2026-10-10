@@ -10,7 +10,7 @@ public class Main {
         BankAccount scammer = null;
 
         System.out.println(iPhone.getName() + " " + iPhone.getPrice() + " " + iPhone.getQuantity());
-        System.out.println(macBook.getName() + " " + macBook.getPrice()+ " " + macBook.getQuantity());
+        System.out.println(macBook.getName() + " " + macBook.getPrice() + " " + macBook.getQuantity());
 
 
         iPhone.setPrice(100_000);
@@ -22,7 +22,7 @@ public class Main {
         macBook.applyDiscount(0);
         macBook.addStock(12);
 
-        System.out.println(macBook.getName() + " " + macBook.getPrice()+ " " + macBook.getQuantity());
+        System.out.println(macBook.getName() + " " + macBook.getPrice() + " " + macBook.getQuantity());
 
         System.out.println(ilyaAccount.getOwner() + " " + ilyaAccount.getBalance());
         System.out.println(valeriaAccount.getOwner() + " " + valeriaAccount.getBalance());

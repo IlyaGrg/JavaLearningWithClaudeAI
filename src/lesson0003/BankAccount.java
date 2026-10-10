@@ -1,6 +1,6 @@
 package lesson0003;
 
-// мы не делаем setBalance() для того, чтобы нельзя было выставить большую сумму
+// мы не делаем setBalance() для того, чтобы нельзя было выставить отрицательную сумму и положить все последующие вычисления
 public class BankAccount {
     private String owner;
     private int balance;
@@ -24,8 +24,8 @@ public class BankAccount {
 
 
     public void deposit(int amount) {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Сумма пополнения должна быть положительной: " + amount);
+        if (amount < 0) {
+            throw new IllegalArgumentException("Сумма пополнения должна быть неотрицательной: " + amount);
         }
         balance = balance + amount;
     }
@@ -38,14 +38,10 @@ public class BankAccount {
     }
 
     public void transferTo(BankAccount other, int amount) {
-        if (other == null || other.owner == owner) {
+        if (other == null || other == this) {
             throw new IllegalArgumentException("Нельзя перевести деньги самому себе или несуществующему пользователю.");
         }
-        if (amount < 0 || amount > balance) {
-            throw new IllegalArgumentException("Нельзя переводить отрицательную сумму или сумму, больше чем на счету.");
-        }
-
-        balance = balance - amount;
+        withdraw(amount);
         other.deposit(amount);
     }
 
