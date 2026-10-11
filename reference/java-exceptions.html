@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Исключения</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1>Исключения</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0004-exceptions.html">уроку 0004</a>.</p>
+
+<h2>try / catch</h2>
+<pre><code>try {
+    tea.sell(amount);                         // может бросить
+    System.out.println("Продано");            // только если не бросило
+} catch (OutOfStockException e) {             // частный тип — выше
+    System.out.println(e.getMessage());
+} catch (IllegalArgumentException e) {        // общий — ниже
+    System.out.println("Ошибка: " + e.getMessage());
+}
+System.out.println("дальше");                 // выполняется в обоих случаях</code></pre>
+
+<h2>Поток выполнения</h2>
+<ol>
+  <li>Исключение обрывает каждый метод по пути вверх по стеку, пока не попадёт в <code>try</code> с подходящим <code>catch</code>.</li>
+  <li>Строки <code>try</code> после места броска не выполняются. Назад в <code>try</code> не возвращаемся.</li>
+  <li>Срабатывает <strong>первый</strong> подходящий <code>catch</code> сверху. После него — код за всей конструкцией.</li>
+  <li>Никто не поймал → программа падает и печатает стек.</li>
+</ol>
+
+<h2>Дерево</h2>
+<pre><code>Throwable
+├── Error                         не ловить
+└── Exception                     checked (кроме ветки ниже)
+    ├── IOException               checked
+    └── RuntimeException          unchecked
+        ├── IllegalArgumentException
+        │   └── NumberFormatException
+        └── NullPointerException</code></pre>
+<p><code>catch (X e)</code> ловит <code>X</code> и всех потомков. Порядок <code>catch</code>: от частного к общему.</p>
+
+<h2>Checked и unchecked</h2>
+<table>
+  <tr><th></th><th>Checked</th><th>Unchecked</th></tr>
+  <tr><td>Родитель</td><td><code>Exception</code></td><td><code>RuntimeException</code></td></tr>
+  <tr><td>Компилятор</td><td>требует <code>catch</code> или <code>throws</code></td><td>не проверяет</td></tr>
+  <tr><td>Примеры</td><td><code>IOException</code>, <code>SQLException</code></td><td><code>IllegalArgumentException</code>, <code>NullPointerException</code></td></tr>
+  <tr><td>В курсе</td><td>читать и обрабатывать</td><td>свои исключения пишем так</td></tr>
+</table>
+<pre><code>public void sell(int amount) throws OutOfStockException { ... }   // объявление checked</code></pre>
+
+<h2>Своё исключение</h2>
+<pre><code>public class OutOfStockException extends RuntimeException {
+    public OutOfStockException(String message) {
+        super(message);              // первой строкой; сообщение хранит родитель
+    }
+}</code></pre>
+
+<h2>Методы исключения</h2>
+<table>
+  <tr><td><code>e.getMessage()</code></td><td>текст, переданный в конструктор</td></tr>
+  <tr><td><code>e.printStackTrace()</code></td><td>тип, сообщение и строки <code>at</code> — для отладки</td></tr>
+  <tr><td><code>throw e;</code></td><td>внутри <code>catch</code> — бросить дальше</td></tr>
+</table>
+
+<h2>Не делай</h2>
+<ul>
+  <li>Пустой <code>catch { }</code> — ошибка исчезает молча.</li>
+  <li><code>catch (Exception e)</code> «на всякий случай» — заодно ловит баги.</li>
+  <li>Исключения вместо обычного <code>if</code> для нормальных вариантов.</li>
+  <li>Ловить <code>NullPointerException</code> — его предотвращают проверкой на <code>null</code>.</li>
+</ul>
+
+<h2>Ошибки компиляции</h2>
+<table>
+  <tr><th>Сообщение</th><th>Причина</th></tr>
+  <tr><td><code>unreported exception X; must be caught or declared to be thrown</code></td><td>Checked-исключение не поймано и не объявлено в <code>throws</code></td></tr>
+  <tr><td><code>exception X has already been caught</code></td><td>Общий <code>catch</code> стоит выше частного</td></tr>
+  <tr><td><code>exception X is never thrown in body of corresponding try statement</code></td><td><code>catch</code> для checked-исключения, которое в <code>try</code> не может вылететь</td></tr>
+  <tr><td><code>call to super must be first statement in constructor</code></td><td><code>super(...)</code> не первой строкой</td></tr>
+  <tr><td><code>cannot find symbol</code> после <code>try</code></td><td>Переменная объявлена внутри <code>try</code>, а снаружи её не видно</td></tr>
+</table>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/index.html">Oracle — Lesson: Exceptions</a>, <a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/runtime.html">Unchecked Exceptions — The Controversy</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/RuntimeException.html">RuntimeException (Java 21)</a>. Сообщения компилятора проверены на JDK 21.</p>
+
+</main>
+</body>
+</html>

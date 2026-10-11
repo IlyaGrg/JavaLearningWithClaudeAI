@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 4 · Исключения</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0004 · Java Core · ~90 минут + домашка</div>
+<h1>Исключения: ошибка, которая не роняет программу</h1>
+<p class="subtitle">После этого урока ты сможешь перехватить исключение и продолжить работу, выбрать, какие ошибки ловить, и написать собственный класс исключения для своего банковского счёта.</p>
+
+<div class="note">
+<p><strong>Как читать урок.</strong> Устроен так же, как урок 3: после каждого раздела — проверка «Сначала ответь сам, потом открой». В этом уроке главное — <em>поток выполнения</em>: какая строка выполнится следующей. Поэтому трассировок по шагам здесь больше, чем раньше. Проходи их с карандашом: пиши номера строк в том порядке, в каком они выполняются.</p>
+</div>
+
+<h2>Разминка: вспомни урок 3</h2>
+<details class="reveal"><summary>1. Должок с прошлого раза: что напечатает этот код и какой <code>count</code> обнулился?</summary>
+<pre><code>public class Counter {
+    private int count = 10;
+
+    public void reset(int count) {
+        count = 0;
+    }
+
+    public int getCount() {
+        return count;
+    }
+}
+
+Counter c = new Counter();
+c.reset(5);
+System.out.println(c.getCount());</code></pre>
+<p><code>10</code>. Внутри <code>reset</code> имя <code>count</code> занято параметром, и Java находит его первым. Строка <code>count = 0</code> обнуляет <strong>параметр</strong> (копию числа 5), а поле объекта остаётся 10. Чтобы обнулить поле, нужно <code>this.count = 0</code>. IntelliJ подсветит эту строку предупреждением: присвоенное значение нигде не используется.</p>
+</details>
+<details class="reveal"><summary>2. Что происходит с методом, когда выполняется <code>throw</code>?</summary>
+<p>Метод обрывается сразу. Строки после <code>throw</code> не выполняются, метод ничего не возвращает. Исключение вылетает туда, откуда метод вызвали.</p>
+</details>
+<details class="reveal"><summary>3. Почему в <code>transferTo</code> сначала <code>withdraw</code>, а потом <code>deposit</code>?</summary>
+<p><code>withdraw</code> — операция, которая может упасть (не хватает денег). Если она упадёт первой, ничего ещё не изменено. Если бы первым был <code>deposit</code>, получатель уже получил бы деньги, а списание упало бы — «дюп». Правило: <strong>сначала то, что может упасть, потом то, что уже не сломается</strong>. Сегодня этот вопрос станет важным снова.</p>
+</details>
+
+<h2>1. Проблема: одна ошибка роняет всю программу</h2>
+<p>До сих пор было так: проверка нашла ошибку → <code>throw</code> → программа завершилась со стеком в консоли. Для домашки это удобно: ты сразу видишь, где ошибка. Но представь настоящий банкомат.</p>
+<p>Клиент просит 5000, а на счету 500. Твой <code>withdraw</code> честно бросает исключение. Если его никто не перехватит, <strong>упадёт весь банкомат</strong>: следующий клиент увидит чёрный экран. А нужно другое: показать «Недостаточно средств» и вернуться в меню.</p>
+<p>В backend это ещё важнее. Сервер обрабатывает тысячи запросов. Один пользователь прислал некорректные данные — сервер должен ответить <em>этому</em> пользователю «ошибка в запросе» и продолжить обслуживать остальных. В Spring, к которому мы идём, ответ «400 Bad Request» на неверные данные — это как раз перехваченное исключение.</p>
+
+<p>Значит, нужны два навыка:</p>
+<ol>
+  <li><strong>Бросить</strong> исключение там, где обнаружена ошибка. Это ты уже умеешь (<code>throw</code>).</li>
+  <li><strong>Поймать</strong> его там, где понятно, что делать дальше. Это <code>try/catch</code> — тема урока.</li>
+</ol>
+
+<p>Аналогия: на кухне ресторана повар обнаружил, что кончилась рыба. Он не решает сам, что сказать гостю, и не закрывает ресторан. Он сообщает официанту («рыбы нет» — это и есть исключение), а официант, который знает гостя, предлагает другое блюдо. <strong>Ошибку обнаруживает один, а обрабатывает другой</strong> — тот, кто знает, как на неё реагировать.</p>
+
+<h2>2. Куда летит исключение: стек вызовов</h2>
+<p>Чтобы понять <code>try/catch</code>, сначала нужно точно знать, <em>куда</em> летит брошенное исключение. Для примеров урока возьмём упрощённый товар. Он не похож на твою домашку, чтобы не подсказывать решение:</p>
+
+<p class="label">Product.java</p>
+<pre><code>package demo;
+
+public class Product {
+    private String name;
+    private int quantity;
+
+    public Product(String name, int quantity) {
+        this.name = name;
+        this.quantity = quantity;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public void sell(int amount) {
+        if (amount &lt;= 0) {
+            throw new IllegalArgumentException("Количество должно быть больше 0: " + amount);
+        }
+        if (amount &gt; quantity) {
+            throw new OutOfStockException("Нельзя продать " + amount + " шт. «" + name + "», на складе " + quantity);
+        }
+        quantity = quantity - amount;
+    }
+}</code></pre>
+<p><code>OutOfStockException</code> («нет в наличии») — наше собственное исключение. Как его написать, разберём в разделе 6. Пока считай, что это такой же класс, как <code>IllegalArgumentException</code>, только с другим именем.</p>
+
+<p class="label">Shop.java</p>
+<pre><code>package demo;
+
+public class Shop {
+    public static void checkout(Product product, int amount) {
+        System.out.println("Оформляю заказ на " + amount + " шт.");
+        product.sell(amount);
+        System.out.println("Заказ оформлен");
+    }
+}</code></pre>
+
+<p class="label">Main.java</p>
+<pre><code>package demo;
+
+public class Main {
+    public static void main(String[] args) {
+        Product tea = new Product("Чай", 3);
+        System.out.println("1. Начало");
+        Shop.checkout(tea, 5);
+        System.out.println("2. Конец");
+    }
+}</code></pre>
+
+<p>Цепочка вызовов: <code>main</code> вызывает <code>checkout</code>, <code>checkout</code> вызывает <code>sell</code>. Java запоминает эту цепочку: каждый вызов кладётся «сверху» на предыдущий, как тарелки в стопке. Эта стопка называется <strong>стек вызовов</strong> (call stack). Когда метод заканчивается, его тарелка снимается, и выполнение возвращается к тому, кто лежит ниже.</p>
+
+<figure class="diagram">
+<svg viewBox="0 0 560 210" role="img" aria-label="main вызывает checkout, checkout вызывает sell; исключение летит обратно от sell к checkout и к main">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <rect class="box" x="10" y="40" width="140" height="50" rx="4"/>
+  <text x="80" y="70" text-anchor="middle">main</text>
+  <rect class="box" x="210" y="40" width="140" height="50" rx="4"/>
+  <text x="280" y="70" text-anchor="middle">checkout</text>
+  <rect class="obj" x="410" y="40" width="140" height="50" rx="4"/>
+  <text x="480" y="70" text-anchor="middle">sell → throw</text>
+  <line x1="150" y1="58" x2="208" y2="58" stroke="currentColor" stroke-width="1.4" marker-end="url(#ah)"/>
+  <line x1="350" y1="58" x2="408" y2="58" stroke="currentColor" stroke-width="1.4" marker-end="url(#ah)"/>
+  <text x="280" y="24" text-anchor="middle">вызовы: вправо</text>
+  <path class="arrow" d="M480,92 C480,150 280,150 280,94" marker-end="url(#ah)"/>
+  <path class="arrow" d="M280,92 C280,150 80,150 80,94" marker-end="url(#ah)"/>
+  <text x="280" y="180" text-anchor="middle">исключение: влево, через каждый метод,</text>
+  <text x="280" y="198" text-anchor="middle">пока не встретит подходящий catch</text>
+</svg>
+<figcaption>Исключение возвращается по той же цепочке, по которой шли вызовы, только в обратную сторону.</figcaption>
+</figure>
+
+<p>Трассировка запуска. Я запустил этот код на JDK 21:</p>
+<ol>
+  <li><code>main</code>: создаётся чай (3 шт.), печатается <code>1. Начало</code>.</li>
+  <li><code>main</code> вызывает <code>checkout(tea, 5)</code>. Печатается <code>Оформляю заказ на 5 шт.</code></li>
+  <li><code>checkout</code> вызывает <code>sell(5)</code>. Первая проверка <code>5 &lt;= 0</code> ложна. Вторая <code>5 &gt; 3</code> истинна → <code>throw</code>.</li>
+  <li><code>sell</code> обрывается. Строка <code>quantity = quantity - amount</code> не выполняется. Исключение вылетает в <code>checkout</code>, в строку <code>product.sell(amount)</code>.</li>
+  <li>В <code>checkout</code> нет <code>try/catch</code>, поэтому <strong><code>checkout</code> тоже обрывается</strong>. <code>Заказ оформлен</code> не печатается. Исключение летит дальше, в <code>main</code>.</li>
+  <li>В <code>main</code> тоже нет <code>try/catch</code>. <code>main</code> обрывается, <code>2. Конец</code> не печатается.</li>
+  <li>Исключение вылетело из <code>main</code> — дальше лететь некуда. Java печатает его и завершает программу.</li>
+</ol>
+
+<p>Вывод программы:</p>
+<pre><code>1. Начало
+Оформляю заказ на 5 шт.
+Exception in thread "main" demo.OutOfStockException: Нельзя продать 5 шт. «Чай», на складе 3
+	at demo.Product.sell(Product.java:21)
+	at demo.Shop.checkout(Shop.java:6)
+	at demo.Main.main(Main.java:7)</code></pre>
+
+<p>Теперь видно, что такое три строки <code>at</code>: это <strong>снимок стека вызовов в момент броска</strong>. Сверху — где брошено (<code>sell</code>), ниже — кто вызвал (<code>checkout</code>), ещё ниже — кто вызвал его (<code>main</code>). Слово «стек» в «стектрейс» (stack trace) — это и есть та самая стопка вызовов.</p>
+
+<div class="annotated">
+  <div class="row"><code>demo.OutOfStockException</code><div>Тип исключения: пакет <code>demo</code>, класс <code>OutOfStockException</code>. Это наш класс, поэтому без <code>java.lang</code>.</div></div>
+  <div class="row"><code>Нельзя продать 5 шт. «Чай»...</code><div>Сообщение, которое мы передали при создании исключения.</div></div>
+  <div class="row"><code>	at demo.Product.sell(Product.java:21)</code><div>Строка 21 файла <code>Product.java</code> — сам <code>throw</code>. <strong>Где</strong> обнаружена ошибка.</div></div>
+  <div class="row"><code>	at demo.Shop.checkout(Shop.java:6)</code><div>Строка 6 в <code>Shop.java</code> — вызов <code>product.sell(amount)</code>.</div></div>
+  <div class="row"><code>	at demo.Main.main(Main.java:7)</code><div>Строка 7 в <code>Main.java</code> — вызов <code>Shop.checkout(tea, 5)</code>. <strong>Откуда</strong> всё началось.</div></div>
+</div>
+
+<div class="note">
+<p><strong>Как читать стек на практике.</strong> Верхняя строка говорит, <em>где</em> сработала проверка. Но причина часто ниже: кто-то <em>передал</em> плохое значение. Иди сверху вниз, пока не встретишь <strong>свой</strong> код, который передал неправильный аргумент. В Spring-проекте над твоими строками будут десятки строк из библиотек, и этот навык станет главным.</p>
+</div>
+
+<details class="reveal"><summary>Проверь себя: что напечатается, если в <code>main</code> вызвать <code>Shop.checkout(tea, 2)</code>?</summary>
+<p>Исключения нет: <code>1. Начало</code>, <code>Оформляю заказ на 2 шт.</code>, <code>Заказ оформлен</code>, <code>2. Конец</code>. Стек вызовов просто «разматывается» обычным путём: <code>sell</code> закончился → вернулись в <code>checkout</code> → он закончился → вернулись в <code>main</code>.</p>
+</details>
+
+<h2>3. <code>try/catch</code>: поймать и продолжить</h2>
+<p><strong>Зачем:</strong> чтобы исключение, вылетевшее из метода, не обрывало всё подряд до <code>main</code>, а попало в код, который знает, что с ним делать.</p>
+<p><strong>Простыми словами:</strong> «<em>попробуй</em> выполнить эти строки (<code>try</code>). Если в них вылетит исключение такого-то типа, <em>поймай</em> его и выполни вот это (<code>catch</code>)».</p>
+
+<div class="compare">
+<div>
+<p class="label">Python</p>
+<pre><code>try:
+    checkout(tea, 5)
+    print("Продано")
+except OutOfStockError as e:
+    print("Отказ:", e)</code></pre>
+</div>
+<div>
+<p class="label">Java</p>
+<pre><code>try {
+    Shop.checkout(tea, 5);
+    System.out.println("Продано");
+} catch (OutOfStockException e) {
+    System.out.println("Отказ: " + e.getMessage());
+}</code></pre>
+</div>
+</div>
+<p>Идея та же, что в Python: <code>try</code> ↔ <code>try</code>, <code>except</code> ↔ <code>catch</code>, <code>raise</code> ↔ <code>throw</code>. Отличия — фигурные скобки и то, что тип с именем переменной пишутся в круглых скобках: <code>(OutOfStockException e)</code>, как параметр метода.</p>
+
+<p>Полный пример, вместо <code>Main</code> из раздела 2:</p>
+<p class="label">Main2.java</p>
+<pre><code>public class Main2 {
+    public static void main(String[] args) {
+        Product tea = new Product("Чай", 3);
+        System.out.println("1. Начало");
+        try {
+            System.out.println("2. Пробую продать 5");
+            Shop.checkout(tea, 5);
+            System.out.println("3. Продано");
+        } catch (OutOfStockException e) {
+            System.out.println("4. Отказ: " + e.getMessage());
+        }
+        System.out.println("5. Осталось: " + tea.getQuantity());
+    }
+}</code></pre>
+
+<div class="annotated">
+  <div class="row"><code>try {</code><div>Начало «опасного» блока. Если внутри вылетит исключение, Java сначала посмотрит на <code>catch</code> ниже, прежде чем обрывать <code>main</code>.</div></div>
+  <div class="row"><code>    Shop.checkout(tea, 5);</code><div>Вызов, внутри которого (глубоко, в <code>sell</code>) может быть брошено исключение. Не важно, на какой глубине: исключение долетит до этого места.</div></div>
+  <div class="row"><code>    System.out.println("3. Продано");</code><div>Выполнится, <strong>только если</strong> строка выше закончилась без исключения.</div></div>
+  <div class="row"><code>} catch (OutOfStockException e) {</code><div>«Если вылетело исключение типа <code>OutOfStockException</code>, положи его в переменную <code>e</code> и выполни блок». <code>e</code> — обычная переменная, её можно назвать как угодно, но по традиции пишут <code>e</code>.</div></div>
+  <div class="row"><code>    e.getMessage()</code><div>Метод любого исключения: возвращает текст, переданный при <code>new</code>. Сам стек он не возвращает.</div></div>
+  <div class="row"><code>}</code><div>Конец <code>catch</code>. После него программа идёт <strong>дальше как обычно</strong>.</div></div>
+  <div class="row"><code>System.out.println("5. Осталось: " ...</code><div>Выполнится в любом случае: и после удачной продажи, и после пойманного исключения.</div></div>
+</div>
+
+<h3>Трассировка по шагам</h3>
+<ol>
+  <li><code>1. Начало</code>. Входим в <code>try</code>, печатаем <code>2. Пробую продать 5</code>.</li>
+  <li>Вызов <code>checkout</code> → печать <code>Оформляю заказ на 5 шт.</code> → вызов <code>sell(5)</code> → <code>throw</code>.</li>
+  <li><code>sell</code> обрывается. В <code>checkout</code> нет <code>try</code> → он тоже обрывается.</li>
+  <li>Исключение долетело до <code>main</code>, а строка с вызовом стоит <strong>внутри <code>try</code></strong>. Java проверяет <code>catch</code>: тип <code>OutOfStockException</code> подходит.</li>
+  <li>Остаток <code>try</code> <strong>пропускается</strong>: <code>3. Продано</code> не печатается. Выполнение прыгает в <code>catch</code>, печатается <code>4. Отказ: ...</code></li>
+  <li><code>catch</code> закончился, программа идёт дальше: <code>5. Осталось: 3</code>. Программа завершается нормально, без стека в консоли.</li>
+</ol>
+<p>Вывод (проверено на JDK 21):</p>
+<pre><code>1. Начало
+2. Пробую продать 5
+Оформляю заказ на 5 шт.
+4. Отказ: Нельзя продать 5 шт. «Чай», на складе 3
+5. Осталось: 3</code></pre>
+
+<div class="note">
+<p><strong>Три правила потока выполнения</strong> — запомни их, на этом держится весь урок:</p>
+<ol>
+  <li>Исключение обрывает каждый метод на своём пути, пока не попадёт в <code>try</code> с подходящим <code>catch</code>.</li>
+  <li>Внутри <code>try</code> строки после места, где вылетело исключение, <strong>не выполняются</strong>. Назад в <code>try</code> выполнение не возвращается.</li>
+  <li>После <code>catch</code> программа продолжается со строки, которая идёт после всей конструкции <code>try/catch</code>.</li>
+</ol>
+</div>
+
+<h3>Что будет, если…</h3>
+<p><strong>…исключения не было?</strong> Весь <code>try</code> выполняется, <code>catch</code> пропускается целиком. Если заказать 2: <code>1</code>, <code>2</code>, «Оформляю…», «Заказ оформлен», <code>3. Продано</code>, <code>5. Осталось: 1</code>.</p>
+<p><strong>…вылетело исключение другого типа?</strong> Например, <code>sell(-1)</code> бросит <code>IllegalArgumentException</code>, а <code>catch</code> ловит только <code>OutOfStockException</code>. Тип не подходит → этот <code>catch</code> не срабатывает → <code>main</code> обрывается и программа падает, как в разделе 2. <code>catch</code> ловит только то, что ему указано.</p>
+<p><strong>…объявить переменную внутри <code>try</code>, а использовать после?</strong> Не скомпилируется. Переменная живёт только внутри своих фигурных скобок, как в теле <code>if</code> или цикла:</p>
+<pre><code>try {
+    int n = Integer.parseInt("42");
+} catch (NumberFormatException e) {
+    System.out.println("Не число");
+}
+System.out.println(n);   // error: cannot find symbol — variable n</code></pre>
+<p>В Python это сработало бы, а в Java — нет. Если результат нужен после <code>try</code>, используй его <em>внутри</em> <code>try</code> или объяви переменную до него.</p>
+
+<details class="reveal"><summary>Проверь себя: в <code>Main2</code> между <code>Shop.checkout</code> и <code>3. Продано</code> добавили строку <code>System.out.println("2.5");</code>. Напечатается ли она при заказе 5?</summary>
+<p>Нет. Она стоит в <code>try</code> после места, где вылетело исключение (правило 2). Выполнение сразу прыгает в <code>catch</code>.</p>
+</details>
+
+<h2>4. Несколько <code>catch</code> и семейство исключений</h2>
+<p>У нашего <code>sell</code> две разные ошибки, и реагировать на них хочется по-разному. «Нет товара» — нормальная ситуация, клиенту надо предложить меньше. «Количество −1» — ошибка в самом заказе. Для этого пишут несколько <code>catch</code> подряд:</p>
+
+<p class="label">Main3.java — касса обрабатывает очередь заказов</p>
+<pre><code>public class Main3 {
+    public static void main(String[] args) {
+        Product tea = new Product("Чай", 3);
+        int[] orders = {2, 5, -1, 1};
+        for (int amount : orders) {
+            try {
+                tea.sell(amount);
+                System.out.println("Продано " + amount + ", осталось " + tea.getQuantity());
+            } catch (OutOfStockException e) {
+                System.out.println("Не хватает товара: " + e.getMessage());
+            } catch (IllegalArgumentException e) {
+                System.out.println("Ошибка в заказе: " + e.getMessage());
+            }
+        }
+        System.out.println("Касса закрыта");
+    }
+}</code></pre>
+<p>Вывод (проверено):</p>
+<pre><code>Продано 2, осталось 1
+Не хватает товара: Нельзя продать 5 шт. «Чай», на складе 1
+Ошибка в заказе: Количество должно быть больше 0: -1
+Продано 1, осталось 0
+Касса закрыта</code></pre>
+<p>Посмотри, что изменилось по сравнению с уроком 3: <strong>две плохие заявки не уронили кассу</strong>. Цикл дошёл до конца, и последний заказ обслужен. <code>try</code> стоит <em>внутри</em> цикла, поэтому каждый заказ обрабатывается отдельно. Если бы <code>try</code> обнимал весь цикл, первое же исключение выбросило бы нас из цикла в <code>catch</code>, и заказ <code>1</code> не обработался бы.</p>
+<p>Как Java выбирает <code>catch</code>: проверяет их <strong>сверху вниз</strong> и выполняет <strong>первый подходящий</strong>. Остальные пропускает. Сработать может только один.</p>
+
+<h3>Что значит «подходящий»: семейство исключений</h3>
+<p>Классы исключений образуют дерево: каждое исключение — разновидность более общего. Вот часть этого дерева. Я получил её на JDK 21, спрашивая у каждого класса, чьей разновидностью он является:</p>
+<pre><code>Throwable                       всё, что можно бросить через throw
+├── Error                       сломалась сама JVM (OutOfMemoryError). Не ловят.
+└── Exception                   ошибки программы
+    ├── IOException             ошибка ввода-вывода (файл, сеть) — checked
+    └── RuntimeException        ошибки во время работы — unchecked
+        ├── IllegalArgumentException      недопустимый аргумент
+        │   └── NumberFormatException     строка не число: Integer.parseInt("abc")
+        ├── NullPointerException          вызов метода у null
+        └── OutOfStockException           наше (раздел 6)</code></pre>
+<p>Правило: <code>catch (X e)</code> ловит исключение типа <code>X</code> <strong>и всех его потомков</strong> ниже по дереву. Например, <code>catch (IllegalArgumentException e)</code> поймает и <code>NumberFormatException</code>: неправильная строка для числа — тоже разновидность недопустимого аргумента. А <code>catch (RuntimeException e)</code> поймает всё, что под ним, включая наше <code>OutOfStockException</code>.</p>
+<p>Аналогия: табличка «вход с животными запрещён» относится и к собакам, и к кошкам, и к таксам. Более общее понятие покрывает все частные.</p>
+
+<h3>Почему порядок <code>catch</code> важен</h3>
+<p>Поставь общий <code>catch</code> выше частного:</p>
+<pre><code>try {
+    tea.sell(5);
+} catch (RuntimeException e) {
+    System.out.println("Что-то пошло не так");
+} catch (OutOfStockException e) {
+    System.out.println("Не хватает товара");
+}</code></pre>
+<p>Компилятор (JDK 21) откажется:</p>
+<pre><code>error: exception OutOfStockException has already been caught</code></pre>
+<p>Почему: <code>OutOfStockException</code> — потомок <code>RuntimeException</code>. Первый <code>catch</code> поймает его всегда, и до второго очередь никогда не дойдёт. Java считает недостижимый код ошибкой. <strong>Правило: от частного к общему</strong> — сначала узкие типы, потом широкие.</p>
+<p>В <code>Main3</code> порядок двух <code>catch</code> не важен: <code>OutOfStockException</code> и <code>IllegalArgumentException</code> — соседи в дереве, а не предок и потомок. Но если бы мы ловили <code>NumberFormatException</code> и <code>IllegalArgumentException</code>, первым обязан был бы стоять <code>NumberFormatException</code>.</p>
+
+<details class="reveal"><summary>Проверь себя: <code>Integer.parseInt("abc")</code> внутри <code>try</code>, ниже только <code>catch (IllegalArgumentException e)</code>. Поймается ли исключение?</summary>
+<p>Да. <code>parseInt</code> бросает <code>NumberFormatException</code> (я проверил: сообщение <code>For input string: "abc"</code>), а это потомок <code>IllegalArgumentException</code>. <code>catch</code> ловит тип и всех потомков.</p>
+</details>
+
+<h2>5. Checked и unchecked: когда компилятор заставляет ловить</h2>
+<p>В дереве выше две ветки помечены по-разному: <code>IOException</code> — <em>checked</em>, <code>RuntimeException</code> — <em>unchecked</em>. В Python такого разделения нет совсем, это особенность Java.</p>
+
+<ul>
+  <li><strong>Unchecked</strong> (не проверяемые компилятором): <code>RuntimeException</code> и все его потомки, плюс <code>Error</code>. Бросай где хочешь, лови если хочешь — компилятор не следит. Все исключения, которые ты бросал до сих пор, были такими.</li>
+  <li><strong>Checked</strong> (проверяемые): всё остальное под <code>Exception</code>, например <code>IOException</code>. Компилятор <strong>требует</strong>, чтобы метод, где такое исключение может вылететь, либо поймал его через <code>catch</code>, либо явно предупредил в своей сигнатуре словом <code>throws</code>: «я могу это бросить».</li>
+</ul>
+
+<p>Посмотрим на деле. Допустим, <code>OutOfStockException</code> унаследован не от <code>RuntimeException</code>, а от <code>Exception</code> — то есть стал checked. <code>sell</code> не изменился. Компилятор:</p>
+<pre><code>Product.java:21: error: unreported exception OutOfStockException; must be caught or declared to be thrown
+            throw new OutOfStockException(...);
+            ^</code></pre>
+<p>Перевод: «необъявленное исключение: его нужно поймать или объявить, что оно бросается». Объявляем в сигнатуре:</p>
+<pre><code>public void sell(int amount) throws OutOfStockException {</code></pre>
+<p>Теперь <code>Product</code> компилируется, но та же ошибка появляется <strong>там, где вызывают</strong> <code>sell</code>, если вызов не в <code>try</code>:</p>
+<pre><code>Main.java:6: error: unreported exception OutOfStockException; must be caught or declared to be thrown
+        tea.sell(5);
+                ^</code></pre>
+<p>Вызывающий код снова выбирает: поймать или тоже написать <code>throws</code> и передать проблему выше. Так компилятор гарантирует, что про checked-исключение <strong>никто не забудет</strong>. Обратная сторона: если ловить его негде, слово <code>throws</code> расползается по сигнатурам всей цепочки вызовов.</p>
+<p>И наоборот: <code>catch</code> для checked-исключения, которое в <code>try</code> не может вылететь, тоже ошибка — <code>exception IOException is never thrown in body of corresponding try statement</code>. Для unchecked компилятор такого не проверяет.</p>
+
+<h3>Что выбрать для своего исключения</h3>
+<p>Официальный совет Oracle:</p>
+<blockquote><p>«If a client can reasonably be expected to recover from an exception, make it a checked exception. If a client cannot do anything to recover from the exception, make it an unchecked exception.»</p>
+<p class="cite"><a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/runtime.html">Oracle — Unchecked Exceptions: The Controversy</a></p></blockquote>
+<p>То есть: если вызывающий код может осмысленно восстановиться — checked, если не может — unchecked. На практике в современном backend почти всё делают <strong>unchecked</strong>. Spring, например, превращает ошибки базы данных в свои unchecked-исключения (<code>DataAccessException</code> — потомок <code>RuntimeException</code>). Причина в том, что ловят ошибки обычно в одном месте на самом верху, а <code>throws</code> через десять слоёв кода только мешает. Поэтому в курсе мы будем писать свои исключения как <code>extends RuntimeException</code>. Но checked нужно уметь читать: стандартная библиотека Java ими полна (файлы, сеть, JDBC).</p>
+
+<details class="reveal"><summary>Проверь себя: почему для <code>throw new IllegalArgumentException(...)</code> в уроке 3 компилятор ни разу не потребовал <code>throws</code>?</summary>
+<p><code>IllegalArgumentException</code> — потомок <code>RuntimeException</code>, то есть unchecked. Компилятор такие не отслеживает.</p>
+</details>
+
+<h2>6. Своё исключение</h2>
+<p><strong>Зачем:</strong> по типу исключения вызывающий код решает, что делать (раздел 4). Если всё бросать как <code>IllegalArgumentException</code>, нельзя отдельно поймать «нет товара» и отдельно «заказ на −1». Свой тип даёт ошибке имя.</p>
+<p>Вот весь класс <code>OutOfStockException</code>:</p>
+<pre><code>public class OutOfStockException extends RuntimeException {
+    public OutOfStockException(String message) {
+        super(message);
+    }
+}</code></pre>
+
+<div class="annotated">
+  <div class="row"><code>public class OutOfStockException</code><div>Обычный класс в своём файле <code>OutOfStockException.java</code>. Имя по соглашению заканчивается на <code>Exception</code>.</div></div>
+  <div class="row"><code>    extends RuntimeException</code><div><strong>Новое слово.</strong> <code>extends</code> — «расширяет»: наш класс является <em>разновидностью</em> <code>RuntimeException</code> и получает всё, что умеет тот: <code>getMessage()</code>, запись стека, возможность быть брошенным через <code>throw</code>. Так наш класс встаёт в дерево из раздела 4 и становится unchecked. В Python то же самое: <code>class OutOfStockError(Exception):</code>. Наследование целиком — следующая тема, для исключений этого достаточно.</div></div>
+  <div class="row"><code>    public OutOfStockException(String message) {</code><div>Конструктор, принимающий текст сообщения.</div></div>
+  <div class="row"><code>        super(message);</code><div><strong>Новое слово.</strong> <code>super(...)</code> вызывает конструктор родителя (<code>RuntimeException</code>) и передаёт ему сообщение. Сохраняет его именно родитель, поэтому потом <code>getMessage()</code> его вернёт. Похоже на <code>this.name = name</code>, только поле хранится в родительской части объекта. Вызов <code>super(...)</code> обязан стоять <strong>первой строкой</strong> конструктора. Иначе JDK 21 выдаст: <code>call to super must be first statement in constructor</code>.</div></div>
+</div>
+
+<p>Использование ничем не отличается от стандартных исключений: <code>throw new OutOfStockException("...")</code> бросает, <code>catch (OutOfStockException e)</code> ловит.</p>
+
+<h3>Исключение может нести данные</h3>
+<p>Исключение — обычный объект. Значит, у него могут быть свои поля и геттеры, как у <code>Product</code>. Тогда <code>catch</code> получит не только текст, но и числа, с которыми можно работать: например, сколько товара всё-таки есть, чтобы предложить клиенту купить столько. Сделать такое исключение для счёта — часть домашки. Подсказка: <code>super(...)</code> всё равно первой строкой, а поля можно присваивать после него.</p>
+
+<details class="reveal"><summary>Проверь себя: что изменится, если написать <code>extends Exception</code> вместо <code>extends RuntimeException</code>?</summary>
+<p>Исключение станет checked. Метод, который его бросает, обязан будет объявить <code>throws OutOfStockException</code>, а каждый вызывающий — поймать его или тоже объявить <code>throws</code> (раздел 5).</p>
+</details>
+
+<h2>7. Как не надо: три типичные ошибки</h2>
+
+<h3>Пустой <code>catch</code> — «проглатывание»</h3>
+<pre><code>try {
+    account.withdraw(5000);
+} catch (IllegalArgumentException e) {
+}</code></pre>
+<p>Компилируется и не падает — и это худшее, что может быть. Деньги не сняты, клиент об этом не узнал, в логах пусто. Ошибка исчезла молча, и через неделю ты будешь её искать, не имея ни строчки стека. Если поймал — <strong>сделай что-то осмысленное</strong>: сообщи пользователю, запиши в лог, верни другой ответ. Если не знаешь, что делать, — не лови, пусть летит выше.</p>
+
+<h3>Ловить всё подряд: <code>catch (Exception e)</code></h3>
+<p>Поймает и твою ошибку «нет денег», и <code>NullPointerException</code> из-за бага в коде, и вообще всё. Ты напечатаешь «Недостаточно средств», хотя на самом деле в программе баг. Лови <strong>конкретные</strong> типы, которые ты ожидаешь и знаешь, как обработать.</p>
+
+<h3>Исключение вместо обычной проверки</h3>
+<p>Если можно спокойно проверить заранее (<code>if (product.getQuantity() &gt;= 2)</code>), а ситуация не ошибочная, а просто один из вариантов, — пиши <code>if</code>. Исключения — для <em>исключительных</em> ситуаций, когда метод не может выполнить свою работу. Ими не заменяют обычные ветвления.</p>
+
+<h2>8. Частые вопросы</h2>
+
+<h3>Где ставить <code>try/catch</code>: в <code>sell</code>, в <code>checkout</code> или в <code>main</code>?</h3>
+<p>Там, где понятно, <strong>что делать</strong> с ошибкой. <code>sell</code> не знает, кто его вызвал: касса, сайт или склад, — поэтому он только бросает. <code>main</code> в наших примерах «общается с пользователем» и знает, что напечатать. Вспомни повара и официанта из раздела 1. Ловить в том же методе, где бросаешь, обычно бессмысленно: проще было бы написать <code>if</code>.</p>
+
+<h3>Можно ли поймать исключение, напечатать и бросить дальше?</h3>
+<p>Можно: внутри <code>catch</code> написать <code>throw e;</code>. Это пригодится позже, когда будем писать логи. Пока достаточно знать, что так бывает.</p>
+
+<h3>Как в <code>catch</code> увидеть стек, а не только сообщение?</h3>
+<p><code>e.printStackTrace();</code> печатает тип, сообщение и все строки <code>at</code> — почти как при падении программы, только программа продолжает работать. Удобно при отладке. В реальном коде вместо этого пишут в лог через библиотеку логирования — до неё ещё дойдём.</p>
+
+<h3>Я видел <code>try ... catch ... finally</code>. Что это?</h3>
+<p>Блок <code>finally</code> выполняется <em>всегда</em>: и после успешного <code>try</code>, и после <code>catch</code>, и даже если исключение не поймано и летит дальше. Нужен, чтобы освободить ресурс — закрыть файл или соединение с базой. Ресурсов у нас пока нет, поэтому сегодня он не нужен. Встретим его вместе с <code>try</code>-с-ресурсами, когда будем подключаться к PostgreSQL через JDBC.</p>
+
+<h3>Почему программа на исключении печатает <code>Exception in thread "main"</code>, а не просто ошибку?</h3>
+<p>Программа на Java может выполнять несколько дел параллельно в разных <em>потоках</em> (threads). <code>main</code> работает в потоке с именем <code>"main"</code>. Сервер в Spring обрабатывает каждый запрос в своём потоке. Поэтому исключение в одном запросе не роняет весь сервер: Spring ловит его на верху потока.</p>
+
+<h3>Что такое <code>NullPointerException</code>, которое я наверняка увижу?</h3>
+<p>Самое частое unchecked-исключение: вызов метода или обращение к полю через переменную, в которой <code>null</code>. Например, <code>BankAccount x = null; x.getBalance();</code>. Его <strong>не ловят</strong> — его <em>предотвращают</em> проверкой на <code>null</code>, как ты делал в <code>transferTo</code>. Если оно вылетело, значит в коде баг, и нужно читать стек.</p>
+
+<h2>9. Проверь себя</h2>
+<p>Без подглядывания. Ошибся — вернись к разделу.</p>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>1. Исключение брошено в <code>sell</code>, который вызван из <code>checkout</code>, а тот вызван из <code>main</code> внутри <code>try</code> с подходящим <code>catch</code>. Где продолжится выполнение?</legend>
+  <label><input type="radio"> В следующей строке метода sell</label>
+  <label><input type="radio"> В первой строке блока catch</label>
+  <label><input type="radio"> В следующей строке метода checkout</label>
+  <label><input type="radio"> В самом начале блока try</label>
+  <p class="feedback">Исключение обрывает <code>sell</code> и <code>checkout</code> (в них нет <code>try</code>) и попадает в <code>catch</code> в <code>main</code>. Назад выполнение никогда не возвращается.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>2. Чем checked-исключение отличается от unchecked?</legend>
+  <label><input type="radio"> Checked нельзя поймать через catch</label>
+  <label><input type="radio"> Unchecked компилятор запрещает бросать</label>
+  <label><input type="radio"> Checked бывают только при работе с сетью</label>
+  <label><input type="radio"> Checked нужно поймать или объявить throws</label>
+  <p class="feedback">Компилятор проверяет, что checked-исключение поймано или объявлено в сигнатуре. Для <code>RuntimeException</code> и его потомков такой проверки нет.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>3. Первым стоит <code>catch (RuntimeException e)</code>, вторым — <code>catch (IllegalArgumentException e)</code>. Что будет?</legend>
+  <label><input type="radio"> Ошибка компиляции: второй catch недостижим</label>
+  <label><input type="radio"> Второй catch поймает IllegalArgumentException</label>
+  <label><input type="radio"> Сработают оба catch по очереди сверху</label>
+  <label><input type="radio"> Программа упадёт на первом исключении</label>
+  <p class="feedback"><code>IllegalArgumentException</code> — потомок <code>RuntimeException</code>, первый <code>catch</code> поймает его всегда. Компилятор: <code>has already been caught</code>. Порядок — от частного к общему.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>4. Переменная объявлена внутри <code>try</code>. Можно ли использовать её после блока <code>catch</code>?</legend>
+  <label><input type="radio"> Да, если исключения вовсе не было</label>
+  <label><input type="radio"> Да, если объявить её как public</label>
+  <label><input type="radio"> Нет, она видна только внутри try</label>
+  <label><input type="radio"> Нет, после catch Java её обнуляет</label>
+  <p class="feedback">Область видимости — фигурные скобки блока, как у <code>if</code> и циклов. Ошибка компиляции <code>cannot find symbol</code>, независимо от того, было ли исключение.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>5. Что плохого в <code>catch (Exception e) { }</code> с пустым телом?</legend>
+  <label><input type="radio"> Он замедляет программу в несколько раз</label>
+  <label><input type="radio"> Ошибка исчезает молча, баг не найти</label>
+  <label><input type="radio"> Он не компилируется без слова throws</label>
+  <label><input type="radio"> Он ловит только checked-исключения</label>
+  <p class="feedback">Пустой <code>catch</code> «проглатывает» ошибку: ни сообщения, ни стека. А <code>Exception</code> ловит вообще всё, включая баги вроде <code>NullPointerException</code>.</p>
+</fieldset>
+<p class="quiz-score"></p>
+
+<h2>10. Домашнее задание</h2>
+<p>Правила прежние: сам, без ИИ, документацию читать можно. Застрял — спрашивай, получишь подсказку, а не решение. Новые файлы — в <code>src/lesson0004/</code> с <code>package lesson0004;</code>.</p>
+
+<div class="task">
+<h3>Шаг 0. Хвосты урока 3 (отдельный коммит)</h3>
+<ol>
+  <li>В <code>src/lesson0003/Main.java</code> обнови два устаревших комментария про <code>transferTo</code> (на себя и на <code>scammer</code>): после разделения <code>if</code> сообщения стали другими.</li>
+  <li>Раскомментируй <code>valeriaAccount.transferTo(ilyaAccount, 100_000);</code>, запусти и перепиши в комментарий <strong>все строки <code>at</code></strong>. Теперь ты знаешь, что они значат: подпиши рядом, какая строка — «где брошено», а какая — «откуда началось». Закомментируй обратно.</li>
+  <li>Коммит, например <code>Обновить комментарии и записать стек в уроке 0003</code>.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 1. Своё исключение для счёта</h3>
+<ol>
+  <li>Скопируй свой счёт в новый пакет: <code>cp src/lesson0003/BankAccount.java src/lesson0004/</code> и поменяй <code>package</code>.</li>
+  <li>Создай <code>InsufficientFundsException</code> («недостаточно средств»), unchecked.</li>
+  <li>Конструктор принимает <strong>два числа</strong>: сколько хотели снять (<code>requested</code>) и сколько есть на счету (<code>available</code>). Сообщение собери из них сам, например <code>Недостаточно средств: запрошено 5000, доступно 500</code>.</li>
+  <li>Оба числа сохрани в <code>private</code>-поля и дай к ним геттеры. Сеттеры не нужны: зачем менять данные об уже случившейся ошибке?</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 2. <code>withdraw</code> бросает новое исключение</h3>
+<p>Если сумма больше баланса — <code>InsufficientFundsException</code>. Если сумма отрицательная — по-прежнему <code>IllegalArgumentException</code>. Значит, проверку придётся разделить на два <code>if</code>. Это две <em>разные</em> ошибки: одна — «клиенту не хватает денег», другая — «в программу пришли кривые данные».</p>
+</div>
+
+<div class="task">
+<h3>Шаг 3. <code>Main.java</code> — банкомат, который не падает</h3>
+<ol>
+  <li>Счёт с балансом 1000. Массив запросов на снятие, например <code>{300, 5000, -100, 200}</code>.</li>
+  <li>Цикл по запросам. На каждый — <code>try</code> с <code>withdraw</code> и печатью «Выдано N, осталось M».</li>
+  <li>Два <code>catch</code>. Для нехватки денег печатай, <strong>сколько именно не хватает</strong>, — посчитай через геттеры исключения, а не вытаскивай из текста. Для неверной суммы — «Неверная сумма» и сообщение.</li>
+  <li>После цикла — «Банкомат закрыт» и итоговый баланс. Программа должна дойти до этой строки.</li>
+  <li>Отдельно: два счёта, перевод суммы больше баланса в <code>try/catch</code>. После <code>catch</code> напечатай <strong>оба</strong> баланса и убедись, что ни один не изменился. В комментарии объясни, почему (вспомни разминку, вопрос 3).</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Эксперимент с checked</h3>
+<ol>
+  <li>Поменяй у своего исключения <code>RuntimeException</code> на <code>Exception</code>. Скомпилируй, запиши ошибку в комментарий.</li>
+  <li>Добавь <code>throws</code> в <code>withdraw</code>. Скомпилируй снова. Где теперь ошибки? Запиши, в каких методах. Обрати внимание, куда «расползлось» <code>throws</code>.</li>
+  <li>Верни <code>RuntimeException</code>, убери <code>throws</code>. В комментарии над классом исключения напиши своими словами, почему ты выбрал unchecked.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Предсказание потока</h3>
+<p>Сначала <strong>в комментарии</strong> напиши, что напечатает программа — каждую строку по порядку. Потом запусти и сравни. Если не совпало, разберись почему и запиши.</p>
+<pre><code>static int parsePositive(String s) {
+    System.out.println("A");
+    int n = Integer.parseInt(s);
+    System.out.println("B");
+    if (n &lt;= 0) {
+        throw new IllegalArgumentException("не положительное: " + n);
+    }
+    System.out.println("C");
+    return n;
+}
+
+public static void main(String[] args) {
+    String[] inputs = {"7", "x", "-2"};
+    for (String s : inputs) {
+        try {
+            System.out.println("1");
+            int n = parsePositive(s);
+            System.out.println("2 " + n);
+        } catch (NumberFormatException e) {
+            System.out.println("3");
+        } catch (IllegalArgumentException e) {
+            System.out.println("4 " + e.getMessage());
+        }
+        System.out.println("5");
+    }
+}</code></pre>
+<p>И вопрос: можно ли поменять местами два <code>catch</code>? Ответь до проверки компилятором.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 6. Коммит</h3>
+<p>Один коммит на шаги 1–5, например <code>Добавить InsufficientFundsException и банкомат с обработкой ошибок</code>. Потом напиши «проверь домашку 0004».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p><a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/index.html">Lesson: Exceptions</a> из официального туториала Oracle. Прочитай разделы <a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/definition.html">What Is an Exception?</a>, <a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/catchOrDeclare.html">The Catch or Specify Requirement</a> и <a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/runtime.html">Unchecked Exceptions — The Controversy</a>: примерно 20 минут, там та же картинка стека вызовов. Справочно — <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/RuntimeException.html">RuntimeException</a> в документации Java 21.</p>
+
+<p>Шпаргалка — <a href="../reference/java-exceptions.html">справочник «Исключения»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1. Методы</a>, <a href="0002-classes-and-objects.html">2. Классы и объекты</a>, <a href="0003-encapsulation.html">3. Инкапсуляция</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Особенно если в трассировке из раздела 3 какой-то шаг не сходится с тем, что ты ожидал: значит, я пропустил промежуточный шаг, и его стоит разобрать отдельно.</p>
+</div>
+
+<nav class="course">
+  <a href="0003-encapsulation.html">← Урок 3: инкапсуляция</a>
+  <span>Урок 5: наследование →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

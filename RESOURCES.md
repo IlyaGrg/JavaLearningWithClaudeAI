@@ -14,6 +14,8 @@
   Таблица модификаторов доступа и правило «private, если нет веской причины». Use for: инкапсуляция.
 - [Java 21 API: IllegalArgumentException](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/IllegalArgumentException.html)
   Стандартное исключение для недопустимого аргумента. Use for: проверки в конструкторах и сеттерах.
+- [The Java Tutorials: Lesson: Exceptions (Oracle)](https://docs.oracle.com/javase/tutorial/essential/exceptions/index.html)
+  Стек вызовов, try/catch/finally, требование «поймай или объяви», checked против unchecked. Use for: урок про исключения, позже try-with-resources для JDBC.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 

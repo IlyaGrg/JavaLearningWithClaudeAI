@@ -40,9 +40,12 @@ public class Main {
         //macBook.addStock(-500); Exception in thread "main" java.lang.IllegalArgumentException: Количество поступившего товара должно быть положительно
         //ilyaAccount.deposit(-1000); Exception in thread "main" java.lang.IllegalArgumentException: Сумма пополнения должна быть неотрицательной: -1000
         //valeriaAccount.withdraw(55_000); Exception in thread "main" java.lang.IllegalArgumentException: Нельзя снять отрицательную сумму или сумму, больше чем на счету: 55000
-        //valeriaAccount.transferTo(valeriaAccount, 100_000); Exception in thread "main" java.lang.IllegalArgumentException: Нельзя перевести деньги самому себе или несуществующему пользователю.
+        //valeriaAccount.transferTo(valeriaAccount, 100_000); Exception in thread "main" java.lang.IllegalArgumentException: Нельзя перевести деньги самому себе
         //valeriaAccount.transferTo(ilyaAccount, 100_000); Exception in thread "main" java.lang.IllegalArgumentException: Нельзя снять отрицательную сумму или сумму, больше чем на счету: 100000
-        //valeriaAccount.transferTo(scammer, 100_000); Exception in thread "main" java.lang.IllegalArgumentException: Нельзя перевести деньги самому себе или несуществующему пользователю.
+        //at lesson0003.BankAccount.withdraw(BankAccount.java:35) 35 строка BankAccount.java в методе withdraw
+        //at lesson0003.BankAccount.transferTo(BankAccount.java:47) 47 строка BankAccount.java в методе transferTo
+        //at lesson0003.Main.main(Main.java:44) в Main.java в 44 строке
+        //valeriaAccount.transferTo(scammer, 100_000); Exception in thread "main" java.lang.IllegalArgumentException: Нельзя перевести деньги несуществующему пользователю
         //BankAccount loruAccount= new BankAccount("Лору", -1); Exception in thread "main" java.lang.IllegalArgumentException: Баланс на счету не может быть отрицательным: -1
         //Product magSafeAirBatteryPack = new Product("Mag Safe Air Battery Pack", 110_000, -11); Exception in thread "main" java.lang.IllegalArgumentException: Количество товара не может быть отрицательным: -11
         //Product magSafeAirBatteryPack = new Product("                                 ", 110_000, 11); Exception in thread "main" java.lang.IllegalArgumentException: Название товара не может быть пустым или состоять только из пробелов
