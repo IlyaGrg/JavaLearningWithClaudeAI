@@ -5,7 +5,6 @@ public class BankAccount {
     private String owner;
     private int balance;
 
-
     public BankAccount(String owner, int balance) {
         checkOwner(owner);
         this.owner = owner;
@@ -22,7 +21,6 @@ public class BankAccount {
         return balance;
     }
 
-
     public void deposit(int amount) {
         if (amount < 0) {
             throw new IllegalArgumentException("Сумма пополнения должна быть неотрицательной: " + amount);
@@ -31,11 +29,11 @@ public class BankAccount {
     }
 
     public void withdraw(int amount) {
-        if (amount > balance) {
-            throw new InsufficientFundsException(amount, balance);
-        }
         if (amount < 0) {
             throw new IllegalArgumentException("Сумма снятия не может быть отрицательной: " + amount);
+        }
+        if (amount > balance) {
+            throw new InsufficientFundsException(amount, balance);
         }
         balance = balance - amount;
     }
@@ -62,6 +60,5 @@ public class BankAccount {
             throw new IllegalArgumentException("Баланс на счету не может быть отрицательным: " + balance);
         }
     }
-
 
 }

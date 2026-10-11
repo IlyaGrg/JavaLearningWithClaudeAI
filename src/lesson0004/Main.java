@@ -8,16 +8,16 @@ public class Main {
         for (int request : requests) {
             try {
                 userBankAccount.withdraw(request);
-                System.out.println("Выдано " + request + " осталось " + userBankAccount.getBalance());
+                System.out.println("Выдано " + request + ", осталось " + userBankAccount.getBalance());
             } catch (InsufficientFundsException e) {
                 System.out.println("Не хватает " + (e.getRequested() - e.getAvailable()));
 
             } catch (IllegalArgumentException e) {
-                System.out.println("Неверная сумма " + e.getMessage());
+                System.out.println("Неверная сумма: " + e.getMessage());
             }
         }
         System.out.println("Банкомат закрыт.");
-
+        System.out.println("Баланс: " + userBankAccount.getBalance());
         BankAccount ilyaBankAccount = new BankAccount("Ilya", 13_000);
         BankAccount valeriaBankAccount = new BankAccount("Valeria", 12_000);
 
@@ -28,7 +28,7 @@ public class Main {
         }
         System.out.println(ilyaBankAccount.getBalance());
         System.out.println(valeriaBankAccount.getBalance());
-        //балансы не изменились потому что мы корректно использовали методы withdraw(), deposit() в методе transferTo() и потому при ошибке не происходит лишнего перевода
+        //балансы не изменились потому что мы корректно использовали методы withdraw(), deposit() в методе transferTo() и потому при ошибке не происходит лишнего перевода, то есть мы сначала проверяли на корекктность и только потом переводили, если бы была ошибка, то вылетело бы исключение и ложный перевод бы не состоялся
 
         String[] inputs = {"7", "x", "-2"};
         for (String s : inputs) {
@@ -42,7 +42,8 @@ public class Main {
                 System.out.println("4 " + e.getMessage());
             }
             System.out.println("5");
-        }//catch нельзя менять местами потому что IlleagalArgumentException родитель NumberFormatException
+        }//catch нельзя менять местами потому что IllegalArgumentException родитель NumberFormatException
+        //Все что вывел компилятор у меня совпало. В случае с x печатается 1 A 3 5(1 печатается всегда A напечаталось, но не напечаталось B потому что int n = Integer.parseInt(s); невозможно x перевести в int, затем сработало исключение NumberFormatException и напечаталось 3, 5 печатается всегда после try/catch
     }
 
     static int parsePositive(String s) {
@@ -55,6 +56,5 @@ public class Main {
         System.out.println("C");
         return n;
     }
-
 
 }
