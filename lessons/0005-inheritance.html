@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 5 · Наследование</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0005 · Java Core · ~90 минут + домашка</div>
+<h1>Наследование: новый класс на основе старого</h1>
+<p class="subtitle">После этого урока ты сможешь создать класс-потомок, правильно вызвать конструктор родителя, переопределить метод с <code>@Override</code> и понять, какой метод выполнится, когда в переменной типа «родитель» лежит объект-потомок.</p>
+
+<div class="note">
+<p><strong>Как читать урок.</strong> Устроен, как уроки 3 и 4: после каждого раздела — проверка, в конце частые вопросы, квиз и домашка. Самый важный раздел — 6, про полиморфизм. На собеседованиях про него спрашивают почти всегда. Если там что-то не сойдётся с твоим ожиданием — сразу спрашивай.</p>
+</div>
+
+<h2>Разминка: вспомни урок 4</h2>
+<details class="reveal"><summary>1. Должок: исключение было checked, <code>withdraw</code> объявлял <code>throws</code>. Ошибка появилась в <code>transferTo</code>. Почему <code>Main</code> при этом компилировался?</summary>
+<p>Компилятор требует: checked-исключение надо <em>поймать или объявить</em>. В твоём <code>Main</code> оба вызова, <code>withdraw</code> в цикле банкомата и <code>transferTo</code>, уже стояли внутри <code>try</code> с <code>catch (InsufficientFundsException e)</code>. Значит, исключение там поймано, и требование выполнено. А в <code>transferTo</code> вызов <code>withdraw(amount)</code> стоял без <code>try</code> и без <code>throws</code> — поэтому ошибка была только там. Если бы ты добавил <code>throws</code> в <code>transferTo</code>, <code>Main</code> всё равно скомпилировался бы по той же причине.</p>
+</details>
+<details class="reveal"><summary>2. Кто это сообщает — компилятор или запущенная программа? (а) <code>cannot find symbol</code>; (б) <code>Exception in thread "main" ...</code>; (в) строки <code>1 A 3 5</code>.</summary>
+<p>(а) компилятор, <code>javac</code>: программа ещё даже не запускалась. (б) и (в) — запущенная программа, <code>java</code>. Компилятор никогда не печатает вывод твоего кода, он только проверяет его и собирает <code>.class</code>.</p>
+</details>
+<details class="reveal"><summary>3. Ты писал <code>InsufficientFundsException extends RuntimeException</code>. Что твой класс получил от <code>RuntimeException</code>, хотя ты этого не писал?</summary>
+<p>Метод <code>getMessage()</code>, запись стека вызовов, возможность быть брошенным через <code>throw</code> и пойманным через <code>catch (RuntimeException e)</code>. Ты написал только поля и геттеры, а всё остальное <em>унаследовал</em>. Сегодня разберём, как это работает.</p>
+</details>
+
+<h2>1. Проблема: почти одинаковые классы</h2>
+<p>В магазине есть обычные товары и товары со скидкой. Вот обычный товар — упрощённый <code>Product</code> из прошлых уроков:</p>
+
+<p class="label">Product.java</p>
+<pre><code>package demo;
+
+public class Product {
+    private String name;
+    private int price;
+
+    public Product(String name, int price) {
+        if (price &lt; 0) {
+            throw new IllegalArgumentException("Цена не может быть отрицательной: " + price);
+        }
+        this.name = name;
+        this.price = price;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public int getPrice() {
+        return price;
+    }
+
+    public int getFinalPrice() {
+        return price;
+    }
+
+    @Override
+    public String toString() {
+        return name + ": " + getFinalPrice() + " руб.";
+    }
+}</code></pre>
+<p><code>getFinalPrice()</code> — «сколько заплатит покупатель». У обычного товара это просто цена.</p>
+
+<p>Теперь нужен товар со скидкой: у него всё то же самое — название, цена, проверка цены, геттеры — плюс процент скидки, а итоговая цена считается по-другому. Первое, что приходит в голову, — скопировать <code>Product</code> в <code>DiscountedProduct</code> и дописать. Получится два класса, на 80% одинаковых. Чем это плохо, ты уже знаешь по уроку 3, где правило «одна проверка — одно место» привело к <code>checkPrice</code>:</p>
+<ul>
+  <li>Поменялось правило цены — правишь в двух местах и однажды забываешь одно.</li>
+  <li>Метод <code>cartTotal(ArrayList&lt;Product&gt; cart)</code> не примет товар со скидкой: это другой тип. Придётся писать вторую корзину и второй метод.</li>
+</ul>
+<p>Второе хуже первого. Нам нужно сказать Java: «товар со скидкой — <strong>это тоже товар</strong>, просто особый». Для этого и есть наследование.</p>
+
+<h2>2. <code>extends</code>: «является разновидностью»</h2>
+<p><strong>Простыми словами:</strong> класс-<em>потомок</em> (subclass) получает всё, что есть у класса-<em>родителя</em> (superclass), и добавляет своё или меняет поведение.</p>
+
+<div class="compare">
+<div>
+<p class="label">Python</p>
+<pre><code>class DiscountedProduct(Product):
+    ...</code></pre>
+</div>
+<div>
+<p class="label">Java</p>
+<pre><code>public class DiscountedProduct extends Product {
+    ...
+}</code></pre>
+</div>
+</div>
+<p>Идея та же, что в Python: родитель указывается при объявлении класса. Различие одно и важное: в Java у класса <strong>ровно один</strong> родитель. Написать <code>extends Product, Something</code> нельзя: JDK 21 ответит <code>'{' expected</code> — после первого имени он ждёт начало тела класса.</p>
+
+<p>Вот весь потомок. Дальше разберём его по частям:</p>
+<p class="label">DiscountedProduct.java</p>
+<pre><code>package demo;
+
+public class DiscountedProduct extends Product {
+    private int discountPercent;
+
+    public DiscountedProduct(String name, int price, int discountPercent) {
+        super(name, price);
+        if (discountPercent &lt; 0 || discountPercent &gt; 100) {
+            throw new IllegalArgumentException("Скидка от 0 до 100: " + discountPercent);
+        }
+        this.discountPercent = discountPercent;
+    }
+
+    public int getDiscountPercent() {
+        return discountPercent;
+    }
+
+    @Override
+    public int getFinalPrice() {
+        return getPrice() - getPrice() * discountPercent / 100;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " (скидка " + discountPercent + "%)";
+    }
+}</code></pre>
+
+<p>Что важно: в этом классе <strong>нет</strong> полей <code>name</code> и <code>price</code>, нет <code>getName()</code> и <code>getPrice()</code>. Но они работают:</p>
+<pre><code>DiscountedProduct coffee = new DiscountedProduct("Кофе", 800, 25);
+System.out.println(coffee.getName() + " " + coffee.getPrice());   // Кофе 800</code></pre>
+<p>Эти методы <em>унаследованы</em> от <code>Product</code>. Объект <code>coffee</code> внутри состоит из двух частей: «часть <code>Product</code>» (name, price) и «часть <code>DiscountedProduct</code>» (discountPercent). Это <strong>один</strong> объект, а не два.</p>
+
+<figure class="diagram">
+<svg viewBox="0 0 520 190" role="img" aria-label="Объект DiscountedProduct содержит часть Product с полями name и price и свою часть с полем discountPercent">
+  <rect class="obj" x="110" y="20" width="300" height="160" rx="6"/>
+  <text x="260" y="44" text-anchor="middle">объект DiscountedProduct</text>
+  <rect class="box" x="130" y="58" width="260" height="56" rx="4"/>
+  <text x="260" y="80" text-anchor="middle">часть Product</text>
+  <text x="260" y="102" text-anchor="middle">name = "Кофе", price = 800</text>
+  <rect class="box" x="130" y="122" width="260" height="44" rx="4"/>
+  <text x="260" y="149" text-anchor="middle">discountPercent = 25</text>
+</svg>
+<figcaption>Один объект, два «слоя». Поля родителя лежат внутри объекта потомка.</figcaption>
+</figure>
+
+<h3>Проверка «является ли»</h3>
+<p>Наследование уместно, только если фраза «<em>Потомок</em> — это разновидность <em>Родителя</em>» звучит правдой:</p>
+<ul>
+  <li>«Товар со скидкой — это товар» ✓</li>
+  <li>«<code>InsufficientFundsException</code> — это <code>RuntimeException</code>» ✓</li>
+  <li>«Корзина — это товар» ✗ — корзина <em>содержит</em> товары. Для этого есть поле <code>ArrayList&lt;Product&gt;</code>, а не <code>extends</code>.</li>
+</ul>
+
+<h3>Общий предок всех классов: <code>Object</code></h3>
+<p>Если <code>extends</code> не написан, Java сама подставляет <code>extends Object</code>. Поэтому <strong>у любого объекта</strong> есть методы <code>toString()</code>, <code>equals()</code> и ещё несколько: они унаследованы от <code>Object</code>. Это ответ на твой вопрос из урока 2, откуда взялся <code>toString</code>. Без переопределения <code>Object.toString()</code> печатает имя класса и хеш-код. Я проверил: класс без своего <code>toString</code> печатает что-то вроде <code>demo.Plain@2a139a55</code>.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/IandI/subclasses.html">Oracle — Inheritance</a>, <a href="https://docs.oracle.com/javase/tutorial/java/IandI/objectclass.html">Object as a Superclass</a>.</p>
+
+<details class="reveal"><summary>Проверь себя: в <code>DiscountedProduct</code> нет метода <code>getName()</code>. Почему <code>coffee.getName()</code> компилируется?</summary>
+<p><code>getName()</code> объявлен в <code>Product</code> как <code>public</code>, а <code>DiscountedProduct extends Product</code> его унаследовал. Java ищет метод сначала в классе объекта, потом у родителя, потом у родителя родителя — вплоть до <code>Object</code>.</p>
+</details>
+
+<h2>3. Конструктор потомка и <code>super(...)</code></h2>
+<p>Конструкторы <strong>не наследуются</strong>. У <code>DiscountedProduct</code> свой конструктор, и он отвечает за весь объект, включая «часть <code>Product</code>». Но поля <code>name</code> и <code>price</code> — <code>private</code> в <code>Product</code>, а проверка цены живёт в конструкторе <code>Product</code>. Поэтому потомок не заполняет их сам, а <strong>просит родителя</strong>: <code>super(name, price)</code>.</p>
+
+<div class="annotated">
+  <div class="row"><code>public DiscountedProduct(String name,
+        int price, int discountPercent) {</code><div>Конструктор потомка принимает всё: и данные для родителя, и своё.</div></div>
+  <div class="row"><code>    super(name, price);</code><div>Вызвать конструктор родителя <code>Product(String, int)</code>. Он проверит цену и заполнит <code>name</code> и <code>price</code>. Ты уже писал <code>super(message)</code> в своём исключении — это то же самое. Должен стоять <strong>первой строкой</strong>.</div></div>
+  <div class="row"><code>    if (discountPercent &lt; 0 || ...) {
+        throw ...
+    }</code><div>Проверка своего поля. Её можно делать только после <code>super</code>.</div></div>
+  <div class="row"><code>    this.discountPercent = discountPercent;</code><div>Заполняем своё поле, как обычно.</div></div>
+</div>
+
+<h3>Трассировка: <code>new DiscountedProduct("Кофе", 800, 25)</code></h3>
+<ol>
+  <li>Java выделяет память под объект целиком, со всеми полями обоих классов.</li>
+  <li>Запускается конструктор <code>DiscountedProduct</code>. Первая строка — <code>super("Кофе", 800)</code>.</li>
+  <li>Выполнение переходит в конструктор <code>Product</code>: проверка <code>800 &lt; 0</code> ложна, <code>name = "Кофе"</code>, <code>price = 800</code>. Конструктор <code>Product</code> закончился.</li>
+  <li>Возвращаемся в конструктор <code>DiscountedProduct</code>, на строку после <code>super</code>: проверка скидки, <code>discountPercent = 25</code>.</li>
+  <li>Конструктор закончился, <code>new</code> возвращает ссылку на готовый объект.</li>
+</ol>
+<p>Если бы цена была <code>-5</code>, на шаге 3 вылетело бы исключение из конструктора <code>Product</code>, и по правилам урока 4 оно оборвало бы и конструктор <code>DiscountedProduct</code>. Объект не был бы создан. Проверку цены потомок получил бесплатно.</p>
+
+<h3>Что будет, если не написать <code>super(...)</code></h3>
+<p>Тогда Java сама подставит первой строкой <code>super()</code> — вызов конструктора родителя <em>без аргументов</em>. Но у <code>Product</code> такого конструктора нет, есть только <code>Product(String, int)</code>. JDK 21:</p>
+<pre><code>error: constructor Product in class Product cannot be applied to given types;
+  required: String,int
+  found:    no arguments
+  reason: actual and formal argument lists differ in length</code></pre>
+<p>Читается так: «конструктор <code>Product</code> требует <code>String, int</code>, а вызван без аргументов». Ошибка указывает на конструктор потомка, хотя <code>super()</code> ты там не писал: его подставила Java. Если увидишь такое — значит, забыл <code>super(...)</code>.</p>
+
+<details class="reveal"><summary>Проверь себя: почему в конструкторе потомка нельзя просто написать <code>this.name = name;</code>?</summary>
+<p><code>name</code> объявлен <code>private</code> в <code>Product</code>, а <code>private</code> — доступ только из кода самого класса <code>Product</code> (урок 3). Код потомка — это другой класс. Ну и проверки родителя при этом обошлись бы. Поэтому — через <code>super(name, price)</code>.</p>
+</details>
+
+<h2>4. <code>private</code> у родителя: наследуется, но не видно</h2>
+<p>Поле <code>price</code> лежит внутри объекта <code>coffee</code> (вспомни схему), но код <code>DiscountedProduct</code> обратиться к нему по имени не может:</p>
+<pre><code>@Override
+public int getFinalPrice() {
+    return price / 2;      // error: price has private access in Product
+}</code></pre>
+<p>Это та же ошибка, что в уроке 3, когда ты пробовал <code>account.balance = ...</code> из <code>Main</code>. Для <code>private</code> потомок — такой же «чужой» класс. Поэтому в <code>DiscountedProduct</code> мы пишем <code>getPrice()</code>: публичный геттер родителя доступен.</p>
+<p>И это хорошо, а не неудобство. Родитель сам охраняет свои инварианты («цена ≥ 0»), и ни один потомок не сможет их сломать, даже случайно.</p>
+
+<div class="note">
+<p><strong><code>protected</code></strong> из таблицы урока 3 — модификатор «видно потомкам (и пакету)». Если бы <code>price</code> был <code>protected</code>, потомок мог бы писать <code>price</code> напрямую — но и менять его в обход проверок. Поэтому поля оставляют <code>private</code>, а <code>protected</code> используют редко, для методов, специально предназначенных потомкам.</p>
+</div>
+
+<h2>5. Переопределение и <code>@Override</code></h2>
+<p><strong>Переопределение</strong> (overriding) — потомок пишет метод с <strong>той же сигнатурой</strong>, что у родителя (то же имя, те же типы параметров), и даёт ему своё поведение. Для объектов-потомков будет выполняться новая версия.</p>
+<p>В <code>DiscountedProduct</code> переопределены два метода:</p>
+
+<div class="annotated">
+  <div class="row"><code>@Override
+public int getFinalPrice() {
+    return getPrice() - getPrice()
+        * discountPercent / 100;
+}</code><div>Та же сигнатура, что у <code>Product.getFinalPrice()</code>, своё тело: цена минус скидка. <code>getPrice()</code> — унаследованный геттер.</div></div>
+  <div class="row"><code>@Override
+public String toString() {
+    return super.toString()
+        + " (скидка " + discountPercent + "%)";
+}</code><div><code>super.toString()</code> — «вызови <em>родительскую</em> версию этого метода». Мы не повторяем код родителя, а дописываем к его результату свой текст. <code>super.метод()</code> можно писать в любом месте метода, не только первой строкой.</div></div>
+</div>
+
+<h3>Не путай: переопределение и перегрузка</h3>
+<p>В глоссарии из урока 1 уже стояла пометка: перегрузка — это другое.</p>
+<div class="ref">
+<table>
+  <tr><th></th><th>Перегрузка (overloading)</th><th>Переопределение (overriding)</th></tr>
+  <tr><td>Где</td><td>в одном классе</td><td>в потомке, для метода родителя</td></tr>
+  <tr><td>Сигнатура</td><td>имя то же, параметры <strong>разные</strong></td><td>имя и параметры <strong>те же</strong></td></tr>
+  <tr><td>Пример</td><td><code>max(int, int)</code> и <code>max(double, double)</code></td><td><code>getFinalPrice()</code> в <code>Product</code> и в <code>DiscountedProduct</code></td></tr>
+</table>
+</div>
+
+<h3>Зачем <code>@Override</code></h3>
+<p>Ты спрашивал об этом ещё в уроке 2. <code>@Override</code> — <em>аннотация</em>, пометка для компилятора: «я собираюсь <strong>переопределить</strong> метод родителя, проверь». Программа работает и без неё. Но посмотри, что бывает с опечаткой.</p>
+<p><strong>С <code>@Override</code>:</strong> написал <code>getFinalprice</code> (маленькая <code>p</code>):</p>
+<pre><code>error: method does not override or implement a method from a supertype
+    @Override
+    ^</code></pre>
+<p>Компилятор сразу сказал: у родителя такого метода нет, ты ничего не переопределяешь.</p>
+<p><strong>Без <code>@Override</code>:</strong> та же опечатка <em>компилируется</em>. Java считает <code>getFinalprice</code> новым, отдельным методом потомка. Я проверил: товар за 400 с «половинной» ценой в таком классе печатает <code>400</code>. Вызывается родительский <code>getFinalPrice()</code>, а твой метод не вызывает никто. Ни ошибки, ни предупреждения при запуске — тихий баг, как с <code>price = price</code> из прошлых уроков.</p>
+<p>Вывод: <strong>ставь <code>@Override</code> всегда</strong>, когда переопределяешь. Это бесплатная проверка.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/IandI/override.html">Oracle — Overriding and Hiding Methods</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Override.html">Override (Java 21)</a>.</p>
+
+<h3>Правило доступа</h3>
+<p>Переопределённый метод не может быть «закрытее» родительского. Если у родителя <code>public int getFinalPrice()</code>, а у потомка без <code>public</code>:</p>
+<pre><code>error: getFinalPrice() in Narrow cannot override getFinalPrice() in Product
+  attempting to assign weaker access privileges; was public</code></pre>
+<p>Логика: везде, где можно вызвать метод у товара, его должно быть можно вызвать и у товара со скидкой. Это же объясняет, почему <code>toString()</code> обязан быть <code>public</code> — у <code>Object</code> он <code>public</code>.</p>
+
+<details class="reveal"><summary>Проверь себя: зачем в <code>toString()</code> потомка <code>super.toString()</code>, а не просто <code>toString()</code>?</summary>
+<p>Просто <code>toString()</code> внутри <code>toString()</code> вызвал бы <em>сам себя</em> — снова и снова, пока не кончится стек вызовов (<code>StackOverflowError</code>). <code>super.</code> явно говорит: нужна версия родителя.</p>
+</details>
+
+<h2>6. Полиморфизм: какой метод выполнится</h2>
+<p>Самое ценное в наследовании. Раз товар со скидкой — это товар, его можно положить туда, где ждут товар:</p>
+<pre><code>Product p = new DiscountedProduct("Кофе", 800, 25);   // ✓ компилируется
+
+ArrayList&lt;Product&gt; cart = new ArrayList&lt;&gt;();
+cart.add(new Product("Чай", 250));
+cart.add(new DiscountedProduct("Кофе", 800, 25));      // ✓ тоже товар
+cart.add(new DiscountedProduct("Печенье", 120, 50));</code></pre>
+<p>Теперь главный вопрос: <code>p.getFinalPrice()</code> — какую версию вызовет Java? Переменная типа <code>Product</code>, а объект — <code>DiscountedProduct</code>.</p>
+
+<div class="note">
+<p><strong>Два правила полиморфизма:</strong></p>
+<ol>
+  <li><strong>Какие методы можно вызвать</strong> — решает тип <em>переменной</em>. Проверяет компилятор.</li>
+  <li><strong>Какая версия выполнится</strong> — решает тип <em>объекта</em>. Решает запущенная программа, в момент вызова.</li>
+</ol>
+</div>
+
+<p>Применим к <code>p.getFinalPrice()</code>:</p>
+<ol>
+  <li>Компиляция: у типа <code>Product</code> есть <code>getFinalPrice()</code>? Да → компилируется.</li>
+  <li>Выполнение: Java смотрит по ссылке на настоящий объект. Это <code>DiscountedProduct</code>, у него есть своя версия → выполняется она. Результат <code>600</code> (проверено).</li>
+</ol>
+
+<p>Аналогия: на кассе висит табличка «Оплата картой». Кассир (переменная типа «карта») знает только, что карту можно приложить. Но списание пройдёт по правилам <em>конкретной</em> карты, которую ты дал: кешбэк, кредитный лимит — у каждой свои. Кассиру знать это не нужно.</p>
+
+<h3>Корзина — тот самый <code>cartTotal</code></h3>
+<pre><code>int total = 0;
+for (Product p : cart) {
+    total = total + p.getFinalPrice();
+}
+System.out.println("Итого: " + total);    // Итого: 910</code></pre>
+<p>Проверим 910: чай 250 (обычный) + кофе 600 (800 − 25%) + печенье 60 (120 − 50%) = 910 ✓. Цикл написан <strong>один раз</strong> и ничего не знает о скидках. Каждый объект сам отвечает, сколько он стоит. Завтра появится <code>WeightProduct</code> с ценой за килограмм — цикл менять не придётся.</p>
+
+<h3>Полиморфизм работает даже внутри родителя</h3>
+<p>Посмотри внимательно на <code>Product.toString()</code>: там <code>getFinalPrice()</code>, а не <code>price</code>. Трассировка <code>System.out.println(coffee)</code>:</p>
+<ol>
+  <li><code>println</code> вызывает <code>coffee.toString()</code>. Объект — <code>DiscountedProduct</code> → его версия.</li>
+  <li>Она вызывает <code>super.toString()</code> → выполняется код <code>Product.toString()</code>.</li>
+  <li>В нём вызывается <code>getFinalPrice()</code>. Это вызов у <code>this</code>, а <code>this</code> — всё тот же объект <code>DiscountedProduct</code>. По правилу 2 выполняется версия <strong>потомка</strong> → 600.</li>
+  <li><code>Product.toString()</code> возвращает <code>"Кофе: 600 руб."</code>, потомок дописывает <code>" (скидка 25%)"</code>.</li>
+</ol>
+<p>Итог (проверено): <code>Кофе: 600 руб. (скидка 25%)</code>. Код родителя был написан до того, как появились скидки, а работает с ними правильно.</p>
+
+<h3>Чего нельзя: правило 1 в действии</h3>
+<pre><code>Product p = new DiscountedProduct("Кофе", 800, 25);
+p.getDiscountPercent();   // error: cannot find symbol
+                          //   symbol:   method getDiscountPercent()
+                          //   location: variable p of type Product</code></pre>
+<p>Объект внутри умеет <code>getDiscountPercent()</code>, но компилятор смотрит на тип переменной: у <code>Product</code> такого метода нет. Обрати внимание на <code>location: variable p of type Product</code> — компилятор прямо говорит, на что он смотрел. Если нужен метод потомка, храни объект в переменной типа потомка: <code>DiscountedProduct coffee = ...</code>.</p>
+
+<details class="reveal"><summary>Проверь себя: <code>Product x = new Product("Сыр", 400);</code> — что вернёт <code>x.getFinalPrice()</code>? А если затем сделать <code>x = new DiscountedProduct("Сыр", 400, 10);</code>?</summary>
+<p>Сначала <code>400</code>: объект — обычный <code>Product</code>. После присваивания переменная ссылается на другой объект, <code>DiscountedProduct</code>, и тот же вызов вернёт <code>360</code>. Переменная одна, а выполняемый метод зависит от объекта, на который она сейчас ссылается.</p>
+</details>
+
+<h2>7. Когда наследование — плохая идея</h2>
+<ul>
+  <li><strong>Не наследуй ради того, чтобы переиспользовать пару методов.</strong> Если не проходит проверка «является разновидностью», лучше сделай поле нужного типа и вызывай его методы. Это называется <em>композиция</em>. Корзина <em>содержит</em> товары, магазин <em>содержит</em> корзины.</li>
+  <li><strong>Потомок не должен ломать обещания родителя.</strong> Если код работает с <code>Product</code> и рассчитывает, что <code>getFinalPrice()</code> ≥ 0, потомок не должен возвращать минус. Иначе полиморфный цикл из раздела 6 начнёт давать неверные итоги.</li>
+  <li><strong>Цепочки наследования делай короткими.</strong> Один-два уровня под своим классом — нормально. Пять уровней — читать такой код никто не сможет.</li>
+</ul>
+
+<h2>8. Частые вопросы</h2>
+
+<h3>Можно ли переопределить конструктор?</h3>
+<p>Нет. Конструкторы не наследуются, поэтому и переопределять нечего. У каждого класса свои конструкторы, и потомок вызывает родительский через <code>super(...)</code>.</p>
+
+<h3>Проверка в конструкторе потомка стоит после <code>super</code>. Значит, на время объект «наполовину неправильный»?</h3>
+<p>На время выполнения конструктора — да. Но если проверка бросит исключение, <code>new</code> не вернёт ссылку, и никто снаружи этот объект не увидит. Как в уроке 4: исключение обрывает конструктор, объект не создан.</p>
+
+<h3>Как это в Python? Там <code>super().__init__(...)</code>.</h3>
+<p>Да, это то же самое. Разница в том, что в Python вызов родительского <code>__init__</code> можно забыть, и поля родителя просто не появятся. В Java компилятор следит за этим: либо ты вызываешь <code>super(...)</code> сам, либо он подставит <code>super()</code> и потребует, чтобы такой конструктор существовал.</p>
+
+<h3>Можно ли запретить наследоваться от моего класса?</h3>
+<p>Да, словом <code>final</code>: <code>public final class Money</code>. Так сделан, например, <code>String</code> — от него нельзя унаследоваться. Метод тоже можно сделать <code>final</code>, тогда его нельзя переопределить.</p>
+
+<h3>В Spring я буду писать <code>extends</code>?</h3>
+<p>Своё — редко. В современном backend больше используют <strong>интерфейсы</strong>, это тема следующего урока. Но механика из этого урока — переопределение, <code>@Override</code>, «метод выбирается по объекту» — нужна там на каждом шагу. Например, ты постоянно будешь переопределять <code>toString()</code>, <code>equals()</code> и <code>hashCode()</code> от <code>Object</code>. И, как ты уже видел, все исключения устроены через <code>extends</code>.</p>
+
+<h3>Можно ли у переопределённого метода изменить параметры?</h3>
+<p>Тогда это уже не переопределение, а новый метод (перегрузка). Именно такую ошибку ловит <code>@Override</code>.</p>
+
+<h2>9. Проверь себя</h2>
+<p>Без подглядывания. Ошибся — вернись к разделу.</p>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>1. <code>Product p = new DiscountedProduct("Кофе", 800, 25);</code> Какая версия <code>p.getFinalPrice()</code> выполнится?</legend>
+  <label><input type="radio"> Метод Product, по типу переменной</label>
+  <label><input type="radio"> Сначала Product, потом DiscountedProduct</label>
+  <label><input type="radio"> Метод DiscountedProduct, по типу объекта</label>
+  <label><input type="radio"> Никакая: ошибка компиляции, типы разные</label>
+  <p class="feedback">Версия выбирается по объекту, на который ссылается переменная (правило 2). Присвоить потомка переменной типа родителя можно: товар со скидкой — это товар.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>2. Зачем писать <code>@Override</code>?</legend>
+  <label><input type="radio"> Компилятор проверит, что метод переопределяет</label>
+  <label><input type="radio"> Без неё переопределение просто не сработает</label>
+  <label><input type="radio"> Она ускоряет вызов переопределённого метода</label>
+  <label><input type="radio"> Она запрещает потомкам менять этот метод</label>
+  <p class="feedback">Переопределение работает и без аннотации. <code>@Override</code> — проверка: при опечатке в имени или параметрах будет ошибка компиляции, а не тихий баг.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>3. Какая строка в методе <code>DiscountedProduct</code> не скомпилируется? (<code>price</code> и <code>name</code> — <code>private</code> в <code>Product</code>)</legend>
+  <label><input type="radio"> <code>return getPrice() / 2;</code></label>
+  <label><input type="radio"> <code>return super.getFinalPrice();</code></label>
+  <label><input type="radio"> <code>return getName().length();</code></label>
+  <label><input type="radio"> <code>return price / 2;</code></label>
+  <p class="feedback"><code>private</code>-поле родителя недоступно по имени в коде потомка: <code>price has private access in Product</code>. Публичные методы родителя — пожалуйста.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>4. В конструкторе потомка нет <code>super(...)</code>, а у <code>Product</code> есть только конструктор <code>(String, int)</code>. Что будет?</legend>
+  <label><input type="radio"> Java сама передаст родителю null и 0</label>
+  <label><input type="radio"> Ошибка компиляции в конструкторе потомка</label>
+  <label><input type="radio"> Поля родителя останутся пустыми навсегда</label>
+  <label><input type="radio"> Исключение при создании объекта потомка</label>
+  <p class="feedback">Java подставит <code>super()</code> без аргументов, а такого конструктора у <code>Product</code> нет: <code>constructor Product in class Product cannot be applied to given types</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>5. <code>Product p = new DiscountedProduct("Кофе", 800, 25);</code> Что будет при <code>p.getDiscountPercent()</code>?</legend>
+  <label><input type="radio"> Не скомпилируется: у Product нет метода</label>
+  <label><input type="radio"> Вернёт процент скидки, объект ведь потомок</label>
+  <label><input type="radio"> Вернёт ноль, потому что тип переменной Product</label>
+  <label><input type="radio"> Бросит исключение при выполнении программы</label>
+  <p class="feedback">Какие методы можно вызвать, решает тип переменной (правило 1): <code>cannot find symbol ... location: variable p of type Product</code>.</p>
+</fieldset>
+<p class="quiz-score"></p>
+
+<h2>10. Домашнее задание</h2>
+<p>Правила прежние: сам, без ИИ, документацию читать можно. Застрял — спрашивай. Файлы — в <code>src/lesson0005/</code> с <code>package lesson0005;</code>. Скопируй туда свои <code>BankAccount</code> и <code>InsufficientFundsException</code> из урока 4 и поменяй <code>package</code>.</p>
+
+<div class="task">
+<h3>Шаг 1. <code>toString()</code> у <code>BankAccount</code></h3>
+<p>Добавь в родителя <code>toString()</code>, например <code>Илья: 1000 руб.</code>. Не забудь <code>@Override</code>: от кого этот метод переопределяется?</p>
+</div>
+
+<div class="task">
+<h3>Шаг 2. <code>SavingsAccount extends BankAccount</code> — накопительный счёт</h3>
+<ol>
+  <li>Свои поля: <code>interestRate</code> — процент начисления (<code>int</code>, от 0 до 100), и <code>maxWithdrawal</code> — максимум, который можно снять <em>за одну операцию</em> (<code>int</code>, больше 0). Оба <code>private</code>, с геттерами.</li>
+  <li>Конструктор: владелец, начальный баланс, процент, лимит. Сначала родитель, потом проверки своих полей.</li>
+  <li><code>addInterest()</code> — начислить проценты: баланс увеличивается на <code>баланс * процент / 100</code>. Поле <code>balance</code> — <code>private</code> в родителе. Подумай, каким <em>уже существующим</em> методом родителя пополнить счёт.</li>
+  <li>Переопредели <code>withdraw(int amount)</code>: если сумма больше лимита, брось исключение (выбери сам: стандартное или своё, и объясни выбор в комментарии). Иначе — обычное снятие со всеми проверками родителя. Проверки родителя <strong>не копируй</strong>.</li>
+  <li>Переопредели <code>toString()</code>: к тексту родителя допиши <code>(накопительный, 5%)</code>.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 3. <code>Main.java</code> — полиморфизм</h3>
+<ol>
+  <li>Создай <code>ArrayList&lt;BankAccount&gt;</code>: два обычных счёта и один накопительный с лимитом 3000, у всех баланс 10 000.</li>
+  <li>Распечатай все счета одним циклом через <code>println(account)</code>.</li>
+  <li>Одним циклом попробуй снять с каждого 5000, в <code>try/catch</code>. Напечатай, что получилось с каждым. В комментарии объясни: цикл один и тот же, почему с одного счёта снять не удалось?</li>
+  <li>Попробуй вызвать <code>addInterest()</code> у элемента списка, например <code>accounts.get(2).addInterest()</code>. Запиши ошибку компиляции и объясни её через правило 1. Потом начисли проценты так, чтобы скомпилировалось.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Предсказание</h3>
+<p>Метод <code>transferTo</code> ты в <code>SavingsAccount</code> не переопределял. <strong>Сначала в комментарии</strong> напиши, что произойдёт, потом запусти:</p>
+<pre><code>SavingsAccount savings = new SavingsAccount("Илья", 10_000, 5, 3000);
+BankAccount other = new BankAccount("Валерия", 0);
+savings.transferTo(other, 4000);</code></pre>
+<p>Пройдёт ли перевод? Какой <code>withdraw</code> вызовется внутри <code>transferTo</code> и почему? Подсказка — раздел 6, «Полиморфизм работает даже внутри родителя».</p>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Эксперименты (по одному, каждый откатывай)</h3>
+<ol>
+  <li>Убери <code>super(...)</code> из конструктора <code>SavingsAccount</code>. Запиши ошибку.</li>
+  <li>Переименуй свой <code>withdraw</code> в <code>withdrow</code>, <code>@Override</code> оставь. Запиши ошибку.</li>
+  <li>Теперь убери и <code>@Override</code>. Скомпилируется? Что станет с лимитом при запуске шага 3? Запиши.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 6. Коммит</h3>
+<p>Например, <code>Добавить SavingsAccount и проверить полиморфизм</code>. Потом напиши «проверь домашку 0005».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Из раздела Oracle <a href="https://docs.oracle.com/javase/tutorial/java/IandI/index.html">Interfaces and Inheritance</a> прочитай четыре страницы: <a href="https://docs.oracle.com/javase/tutorial/java/IandI/subclasses.html">Inheritance</a>, <a href="https://docs.oracle.com/javase/tutorial/java/IandI/override.html">Overriding and Hiding Methods</a>, <a href="https://docs.oracle.com/javase/tutorial/java/IandI/polymorphism.html">Polymorphism</a>, <a href="https://docs.oracle.com/javase/tutorial/java/IandI/super.html">Using the Keyword super</a>. Это около 25 минут. Раздел «Hiding» про <code>static</code>-методы пока можно пропустить.</p>
+
+<p>Шпаргалка — <a href="../reference/java-inheritance.html">справочник «Наследование»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1. Методы</a>, <a href="0002-classes-and-objects.html">2. Классы и объекты</a>, <a href="0003-encapsulation.html">3. Инкапсуляция</a>, <a href="0004-exceptions.html">4. Исключения</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Особенно про раздел 6: «тип переменной против типа объекта» — место, где путаются почти все. Если правило кажется странным, придумай свой пример и спроси, что он напечатает, — разберём.</p>
+</div>
+
+<nav class="course">
+  <a href="0004-exceptions.html">← Урок 4: исключения</a>
+  <span>Урок 6: интерфейсы →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

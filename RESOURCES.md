@@ -16,6 +16,8 @@
   Стандартное исключение для недопустимого аргумента. Use for: проверки в конструкторах и сеттерах.
 - [The Java Tutorials: Lesson: Exceptions (Oracle)](https://docs.oracle.com/javase/tutorial/essential/exceptions/index.html)
   Стек вызовов, try/catch/finally, требование «поймай или объяви», checked против unchecked. Use for: урок про исключения, позже try-with-resources для JDBC.
+- [The Java Tutorials: Interfaces and Inheritance (Oracle)](https://docs.oracle.com/javase/tutorial/java/IandI/index.html)
+  Наследование, переопределение, полиморфизм, super, Object, абстрактные классы и интерфейсы. Use for: уроки 5–6.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 

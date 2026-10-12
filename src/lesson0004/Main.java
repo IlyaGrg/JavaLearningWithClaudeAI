@@ -43,7 +43,7 @@ public class Main {
             }
             System.out.println("5");
         }//catch нельзя менять местами потому что IllegalArgumentException родитель NumberFormatException
-        //Все что вывел компилятор у меня совпало. В случае с x печатается 1 A 3 5(1 печатается всегда A напечаталось, но не напечаталось B потому что int n = Integer.parseInt(s); невозможно x перевести в int, затем сработало исключение NumberFormatException и напечаталось 3, 5 печатается всегда после try/catch
+        //Все что вывела программа у меня совпало. В случае с x печатается 1 A 3 5(1 печатается всегда A напечаталось, но не напечаталось B потому что int n = Integer.parseInt(s); невозможно x перевести в int, затем сработало исключение NumberFormatException и напечаталось 3, 5 печатается всегда после try/catch
     }
 
     static int parsePositive(String s) {

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Наследование</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1>Наследование</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0005-inheritance.html">уроку 0005</a>.</p>
+
+<h2>Шаблон потомка</h2>
+<pre><code>public class DiscountedProduct extends Product {      // один родитель
+    private int discountPercent;                       // своё поле
+
+    public DiscountedProduct(String name, int price, int discountPercent) {
+        super(name, price);                            // первой строкой
+        // проверки своих полей — после super
+        this.discountPercent = discountPercent;
+    }
+
+    @Override                                          // всегда при переопределении
+    public int getFinalPrice() {
+        return getPrice() - getPrice() * discountPercent / 100;   // private родителя — через геттер
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " (скидка " + discountPercent + "%)";   // версия родителя + своё
+    }
+}</code></pre>
+
+<h2>Что получает потомок</h2>
+<table>
+  <tr><th>У родителя</th><th>В потомке</th></tr>
+  <tr><td><code>public</code>-методы</td><td>наследуются, можно вызывать и переопределять</td></tr>
+  <tr><td><code>private</code>-поля</td><td>есть внутри объекта, но по имени недоступны → геттеры</td></tr>
+  <tr><td><code>protected</code></td><td>доступны потомку напрямую (для полей — избегать)</td></tr>
+  <tr><td>конструкторы</td><td>не наследуются → <code>super(...)</code></td></tr>
+</table>
+<p>Нет <code>extends</code> → неявно <code>extends Object</code>: отсюда <code>toString()</code>, <code>equals()</code> у всех объектов.</p>
+
+<h2>Полиморфизм</h2>
+<pre><code>Product p = new DiscountedProduct("Кофе", 800, 25);
+p.getFinalPrice();       // 600 — версия потомка
+p.getDiscountPercent();  // ошибка компиляции</code></pre>
+<ol>
+  <li><strong>Какие методы можно вызвать</strong> — по типу <em>переменной</em> (компилятор).</li>
+  <li><strong>Какая версия выполнится</strong> — по типу <em>объекта</em> (при выполнении). Работает и для вызовов внутри кода родителя.</li>
+</ol>
+
+<h2>Перегрузка и переопределение</h2>
+<table>
+  <tr><th></th><th>Перегрузка</th><th>Переопределение</th></tr>
+  <tr><td>Где</td><td>один класс</td><td>потомок</td></tr>
+  <tr><td>Параметры</td><td>разные</td><td>те же</td></tr>
+  <tr><td>Доступ</td><td>любой</td><td>не уже, чем у родителя</td></tr>
+</table>
+
+<h2>Когда наследовать</h2>
+<ul>
+  <li>Только если «Потомок — разновидность Родителя» — правда. Иначе поле (композиция).</li>
+  <li>Потомок не нарушает обещаний родителя.</li>
+  <li><code>final class</code> — наследование запрещено (так сделан <code>String</code>).</li>
+</ul>
+
+<h2>Ошибки</h2>
+<table>
+  <tr><th>Сообщение</th><th>Причина</th></tr>
+  <tr><td><code>constructor X in class X cannot be applied to given types</code> (<code>found: no arguments</code>)</td><td>Нет <code>super(...)</code>, а у родителя нет конструктора без параметров</td></tr>
+  <tr><td><code>call to super must be first statement in constructor</code></td><td><code>super(...)</code> не первой строкой</td></tr>
+  <tr><td><code>method does not override or implement a method from a supertype</code></td><td><code>@Override</code> над методом, которого нет у родителя (опечатка, другие параметры)</td></tr>
+  <tr><td><code>x has private access in Parent</code></td><td>Обращение к <code>private</code>-полю родителя → геттер</td></tr>
+  <tr><td><code>attempting to assign weaker access privileges; was public</code></td><td>Переопределённый метод закрытее родительского</td></tr>
+  <tr><td><code>cannot find symbol ... variable p of type Parent</code></td><td>Метод есть только у потомка, а переменная типа родителя</td></tr>
+  <tr><td><code>'{' expected</code> после <code>extends A,</code></td><td>Больше одного родителя нельзя</td></tr>
+</table>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/javase/tutorial/java/IandI/subclasses.html">Oracle — Inheritance</a>, <a href="https://docs.oracle.com/javase/tutorial/java/IandI/override.html">Overriding and Hiding Methods</a>, <a href="https://docs.oracle.com/javase/tutorial/java/IandI/polymorphism.html">Polymorphism</a>, <a href="https://docs.oracle.com/javase/tutorial/java/IandI/super.html">Using super</a>. Сообщения компилятора проверены на JDK 21.</p>
+
+</main>
+</body>
+</html>
