@@ -17,13 +17,15 @@ public class Main {
             try {
                 account.withdraw(5000);
 
-            } catch (ExceedingTheLimit e) {
+            } catch (WithdrawalLimitExceededException e) {
                 System.out.println("Вы пытаетесь снять: " + e.getAmount() + " при лимите в " + e.getMaxWithdrawal());
             }
-        }//с накопительного счета не удалось снять 3000 потому что сработало переопределение метода withdraw(), которое гласит, что нельзя снять сумму, большую maxWithdrawal, в нашем случае 3000, а мы пытались снять 5000 из-за этого вылезло исключение, мы его поймали и объявили, что снять сумму нельзя по правилам.
-        //accounts.get(1).addInterest();
+        }
+        System.out.println(accounts.toString());
+        //с накопительного счета не удалось снять 5000 потому что сработало переопределение метода withdraw(), которое гласит, что нельзя снять сумму, большую maxWithdrawal, в нашем случае 3000, а мы пытались снять 5000 из-за этого вылезло исключение, мы его поймали и объявили, что снять сумму нельзя по правилам.
+        //accounts.get(2).addInterest();
         //src/lesson0005/Main.java:24: error: cannot find symbol
-        //        accounts.get(1).addInterest();
+        //        accounts.get(2).addInterest();
         //                       ^
         //  symbol:   method addInterest()
         //  location: class BankAccount
@@ -44,6 +46,11 @@ public class Main {
         //	at lesson0005.BankAccount.transferTo(BankAccount.java:48)
         //	at lesson0005.Main.main(Main.java:41)
         //соответственно я был прав. Вылезло исключение, так как мы не ловили его в  try/catch
+        //Я думаю перевод не пройдет
+        BankAccount savingsU = new SavingsAccount("Илья", 10_000, 5, 3000);
+        BankAccount otherU = new BankAccount("Валерия", 0);
+        savingsU.transferTo(otherU, 4000);
+        //я был прав, сработал полиморфизм, тип переменной указал какие методы применить, а тип объекта уже определил версию, потому мы использовали новую версию withdraw()
     }
 
 

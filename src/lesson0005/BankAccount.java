@@ -60,8 +60,9 @@ public class BankAccount {
             throw new IllegalArgumentException("Баланс на счету не может быть отрицательным: " + balance);
         }
     }
+
     @Override
-    public String toString(){
-        return (owner + ": " + balance + " руб.");
+    public String toString() {
+        return owner + ": " + balance + " руб.";
     }
 }
