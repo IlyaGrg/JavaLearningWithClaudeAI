@@ -14,11 +14,10 @@ public class FakeNotifier implements Notifier {
         return messages.size();
     }
 
-    public String getLastMessage(){
-        if (messages.size() > 0){
+    public String getLastMessage() {
+        if (messages.size() > 0) {
             return messages.get(messages.size() - 1);
-        }
-        else{
+        } else {
             throw new LastMessageException("Последнее сообщение не найдено, так как сообщений не существует");
         }
     }

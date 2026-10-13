@@ -67,7 +67,7 @@ public class BankAccount implements Comparable<BankAccount> {
     }
 
     @Override
-    public int compareTo(BankAccount other){
+    public int compareTo(BankAccount other) {
         return Integer.compare(this.balance, other.balance);
     }
 }

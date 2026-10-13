@@ -1,7 +1,6 @@
 package lesson0006;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 
 public class Main {
@@ -20,9 +19,9 @@ public class Main {
         newService.transfer(ilyaBankAccount, tilzuBankAccount, 2_000);
         fakeService.transfer(ilyaBankAccount, tilzuBankAccount, 100);
         int sentCountInService = fakeNotifier.getSentCount();
-        if (sentCountInService == 2){
+        if (sentCountInService == 2) {
             System.out.println("ОК");
-        }else {
+        } else {
             System.out.println("ОШИБКА: Ожидалось 2, получено " + sentCountInService);
         }
 
@@ -32,12 +31,18 @@ public class Main {
         //1 error
 
 
-        try{
-            fakeService.transfer(ilyaBankAccount, tilzuBankAccount, 100_000_000);
-        } catch(InsufficientFundsException e){
+        try {
+            fakeService.transfer(ilyaSavingsAccount, tilzuBankAccount, 100_000_000);
+        } catch (IllegalArgumentException e) {
+            System.out.println(fakeNotifier.getLastMessage());
+        } catch (InsufficientFundsException e) {
+            System.out.println(fakeNotifier.getLastMessage());
+        } catch (WithdrawalLimitExceededException e) {
             System.out.println(fakeNotifier.getLastMessage());
         }
-        System.out.println(fakeNotifier.getSentCount()); //Неудачный перевод он не считает
+
+
+        System.out.println(fakeNotifier.getSentCount());
 
         ArrayList<BankAccount> accountsArrays = new ArrayList<>();
         accountsArrays.add(ilyaBankAccount);
@@ -46,5 +51,6 @@ public class Main {
         Collections.sort(accountsArrays);
         System.out.println(accountsArrays);
         //Полиморфизм. Тип переменной определил какие методы можно использовать, а так как SavingsAccount наследуется от BankAccount, он может использовать все методы своего родителя
+
     }
 }

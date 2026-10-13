@@ -11,10 +11,13 @@ public class TransferService {
         try {
             from.transferTo(to, amount);
         } catch (IllegalArgumentException e) {
-            System.out.println("Ошибка перевода: " + e.getMessage());
+            notifier.send("Ошибка перевода: ", e.getMessage());
             throw e;
         } catch (InsufficientFundsException e) {
-            System.out.println("Ошибка перевода: " + e.getMessage());
+            notifier.send("Ошибка перевода: ", e.getMessage());
+            throw e;
+        } catch (WithdrawalLimitExceededException e) {
+            notifier.send("Ошибка перевода: ", e.getMessage());
             throw e;
         }
         notifier.send(from.getOwner(), "Списано " + amount + " руб.");
