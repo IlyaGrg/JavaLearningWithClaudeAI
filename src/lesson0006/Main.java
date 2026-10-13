@@ -33,14 +33,14 @@ public class Main {
         boolean thrown = false;
         try {
             fakeService.transfer(ilyaSavingsAccount, tilzuBankAccount, 150_000);
-        } catch (IllegalArgumentException | WithdrawalLimitExceededException | InsufficientFundsException e){
-            System.out.println("ОШИБКА: " + fakeNotifier.getLastMessage());
+        } catch (IllegalArgumentException | WithdrawalLimitExceededException | InsufficientFundsException e) {
+            System.out.println("Исключение: " + fakeNotifier.getLastMessage());
             thrown = true;
         }
         sentCountInService = fakeNotifier.getSentCount();
-        if (sentCountInService == 3 && thrown == true){
+        if (sentCountInService == 3 && thrown == true) {
             System.out.println("ОК");
-        }else {
+        } else {
             System.out.println("ОШИБКА: Ожидалось 3, получено " + sentCountInService);
         }
 

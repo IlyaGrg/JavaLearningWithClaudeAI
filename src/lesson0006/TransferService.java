@@ -10,7 +10,7 @@ public class TransferService {
     public void transfer(BankAccount from, BankAccount to, int amount) {
         try {
             from.transferTo(to, amount);
-        } catch (IllegalArgumentException | WithdrawalLimitExceededException | InsufficientFundsException e){
+        } catch (IllegalArgumentException | WithdrawalLimitExceededException | InsufficientFundsException e) {
             notifier.send(from.getOwner(), "Ошибка перевода: " + e.getMessage());
             throw e;
         }
