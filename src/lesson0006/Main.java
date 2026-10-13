@@ -14,7 +14,7 @@ public class Main {
 
         BankAccount ilyaBankAccount = new BankAccount("ilya", 960_000);
         BankAccount tilzuBankAccount = new BankAccount("tilzu", 7_000);
-        SavingsAccount ilyaSavingsAccount = new SavingsAccount("ilya", 120_000, 50, 119_000);
+        SavingsAccount ilyaSavingsAccount = new SavingsAccount("ilya", 120_000, 50, 219_000);
 
         newService.transfer(ilyaBankAccount, tilzuBankAccount, 2_000);
         fakeService.transfer(ilyaBankAccount, tilzuBankAccount, 100);
@@ -30,19 +30,20 @@ public class Main {
         //                     ^
         //1 error
 
-
+        boolean thrown = false;
         try {
-            fakeService.transfer(ilyaSavingsAccount, tilzuBankAccount, 100_000_000);
-        } catch (IllegalArgumentException e) {
-            System.out.println(fakeNotifier.getLastMessage());
-        } catch (InsufficientFundsException e) {
-            System.out.println(fakeNotifier.getLastMessage());
-        } catch (WithdrawalLimitExceededException e) {
-            System.out.println(fakeNotifier.getLastMessage());
+            fakeService.transfer(ilyaSavingsAccount, tilzuBankAccount, 150_000);
+        } catch (IllegalArgumentException | WithdrawalLimitExceededException | InsufficientFundsException e){
+            System.out.println("ОШИБКА: " + fakeNotifier.getLastMessage());
+            thrown = true;
+        }
+        sentCountInService = fakeNotifier.getSentCount();
+        if (sentCountInService == 3 && thrown == true){
+            System.out.println("ОК");
+        }else {
+            System.out.println("ОШИБКА: Ожидалось 3, получено " + sentCountInService);
         }
 
-
-        System.out.println(fakeNotifier.getSentCount());
 
         ArrayList<BankAccount> accountsArrays = new ArrayList<>();
         accountsArrays.add(ilyaBankAccount);

@@ -5,7 +5,7 @@ public class ConsoleSmsNotifier implements Notifier {
     //public class ConsoleSmsNotifier implements Notifier{
     //       ^
     //1 error
-    //нельзя сделать метод закрытее, чем в договоре
+    //нельзя сделать метод закрытее, чем в договоре. Отвечая на вопрос, тогда не получилось бы определить какой версией метода воспользоваться
     @Override
     public void send(String recipient, String message) {
         System.out.println("SMS => " + recipient + ": " + message);
