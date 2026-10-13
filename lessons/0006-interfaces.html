@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 6 · Интерфейсы</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0006 · Java Core · ~90 минут + домашка</div>
+<h1>Интерфейсы: договориться об умении, а не о родителе</h1>
+<p class="subtitle">После этого урока ты сможешь объявить интерфейс, реализовать его в нескольких классах, написать сервис, который работает с любой реализацией, и научить свои объекты сортироваться стандартным <code>Collections.sort</code>.</p>
+
+<div class="note">
+<p><strong>Зачем этот урок для backend.</strong> Spring-приложение почти целиком построено на интерфейсах: сервис получает «что-то, что умеет сохранять в базу» или «что-то, что умеет отправлять письма», и не знает, какой именно класс это делает. В разделе 5 ты руками сделаешь то, что Spring делает автоматически. Когда дойдём до Spring, это будет уже знакомая идея, а не магия.</p>
+</div>
+
+<h2>Разминка: вспомни урок 5</h2>
+<details class="reveal"><summary>1. Потомок переопределил <code>withdraw</code> и проверяет в нём только лимит. Выполнится ли код родительского <code>withdraw</code>?</summary>
+<p>Нет. Переопределение <strong>заменяет</strong> метод целиком. Чтобы выполнить и версию родителя, нужно явно вызвать <code>super.withdraw(amount)</code>. Ты сам поймал этот баг в домашке: снятие ничего не списывало.</p>
+</details>
+<details class="reveal"><summary>2. <code>BankAccount a = new SavingsAccount(...)</code>. Что решает тип переменной, а что — тип объекта?</summary>
+<p>Тип переменной — <em>какие методы можно вызвать</em> (проверяет компилятор). Тип объекта — <em>какая версия выполнится</em> (решается при выполнении). Сегодня эти же два правила будут работать для интерфейсов.</p>
+</details>
+<details class="reveal"><summary>3. Сколько родителей может быть у класса в Java?</summary>
+<p>Ровно один (<code>extends</code> принимает одно имя). Если не написан — <code>Object</code>. Запомни это ограничение: интерфейсы во многом нужны, чтобы его обойти.</p>
+</details>
+
+<h2>1. Проблема: общее умение без общего родителя</h2>
+<p>Магазин после оформления заказа должен уведомить покупателя. Способов несколько: SMS, письмо, позже Telegram. Код оформления заказа пишется один раз и не должен меняться, когда добавляется новый способ.</p>
+<p>Попробуем наследованием. Что общего у SMS и письма? Оба <em>умеют отправить сообщение</em>. Но «письмо — это разновидность SMS»? Нет. Проверка «является разновидностью» из урока 5 не проходит. Можно придумать общего родителя <code>Notifier</code>, но:</p>
+<ul>
+  <li>у него нет никакого общего <em>кода</em>: SMS и письмо отправляются совершенно по-разному. Родитель был бы пустым классом с методом, который ничего не делает;</li>
+  <li>родитель у класса один. Если <code>EmailNotifier</code> уже наследуется от чего-то нужного (например, от класса почтовой библиотеки), второго родителя ему не дать.</li>
+</ul>
+<p>Нам не нужен общий <em>родитель</em>. Нам нужен общий <strong>договор</strong>: «кто бы ты ни был, у тебя есть метод <code>send(получатель, текст)</code>». Это и есть интерфейс.</p>
+
+<p>Аналогия — розетка. Стандарт розетки описывает только форму: два штыря, такое-то расстояние. Что подключено — чайник, зарядка, лампа — розетке не важно. Любой прибор, сделанный по стандарту, работает с любой розеткой. Интерфейс — это стандарт, а классы — приборы.</p>
+
+<h2>2. Объявляем интерфейс</h2>
+<p class="label">Notifier.java</p>
+<pre><code>package demo;
+
+public interface Notifier {
+    void send(String recipient, String message);
+}</code></pre>
+
+<div class="annotated">
+  <div class="row"><code>public interface Notifier {</code><div><code>interface</code> вместо <code>class</code>. Файл называется <code>Notifier.java</code>, как и для класса. Имя обычно описывает умение или роль: <code>Notifier</code> («уведомитель»), <code>Comparable</code> («сравнимый»).</div></div>
+  <div class="row"><code>    void send(String recipient,
+              String message);</code><div><strong>Метод без тела</strong>: после скобок сразу <code>;</code>, фигурных скобок нет. Это только обещание: «у каждого, кто реализует <code>Notifier</code>, будет такой метод». Как он работает, решит каждый класс сам. Такой метод называется <em>абстрактным</em>.</div></div>
+  <div class="row"><code>}</code><div>Всё. Полей с данными, конструкторов и кода здесь нет.</div></div>
+</div>
+
+<p>Обрати внимание: у <code>send</code> не написано <code>public</code>. Методы интерфейса <strong>автоматически <code>public</code></strong> — договор нужен, чтобы им пользовались снаружи, так что закрытым он быть не может. Это пригодится в разделе 3.</p>
+
+<div class="compare">
+<div>
+<p class="label">Python</p>
+<pre><code>from abc import ABC, abstractmethod
+
+class Notifier(ABC):
+    @abstractmethod
+    def send(self, recipient, message):
+        ...</code></pre>
+</div>
+<div>
+<p class="label">Java</p>
+<pre><code>public interface Notifier {
+    void send(String recipient,
+              String message);
+}</code></pre>
+</div>
+</div>
+<p>В Python чаще всего обходятся вообще без этого: если у объекта есть метод <code>send</code>, его можно вызвать (так называемая «утиная типизация»). Java строже: класс должен <strong>явно пообещать</strong>, что выполняет договор, и компилятор проверит, что обещание выполнено.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/IandI/createinterface.html">Oracle — Defining an Interface</a>.</p>
+
+<h2>3. <code>implements</code>: класс выполняет договор</h2>
+<p class="label">SmsNotifier.java</p>
+<pre><code>package demo;
+
+public class SmsNotifier implements Notifier {
+    @Override
+    public void send(String recipient, String message) {
+        System.out.println("[SMS → " + recipient + "] " + message);
+    }
+}</code></pre>
+
+<p class="label">EmailNotifier.java</p>
+<pre><code>package demo;
+
+public class EmailNotifier implements Notifier {
+    private String from;
+
+    public EmailNotifier(String from) {
+        this.from = from;
+    }
+
+    @Override
+    public void send(String recipient, String message) {
+        System.out.println("[Email от " + from + " для " + recipient + "] " + message);
+    }
+}</code></pre>
+
+<div class="annotated">
+  <div class="row"><code>implements Notifier</code><div>«Реализует <code>Notifier</code>»: класс обещает, что у него есть все методы интерфейса. Для класса — <code>extends</code>, для интерфейса — <code>implements</code>.</div></div>
+  <div class="row"><code>@Override</code><div>Та же аннотация, что в уроке 5, с той же пользой: опечатка в имени или параметрах станет ошибкой компиляции.</div></div>
+  <div class="row"><code>public void send(...) { ... }</code><div>Реализация обещанного метода. Сигнатура та же, что в интерфейсе, и обязательно <code>public</code>.</div></div>
+  <div class="row"><code>private String from;
+public EmailNotifier(String from)</code><div>Свои поля и конструктор — сколько угодно. Интерфейс требует только наличия <code>send</code>, остальное — дело класса.</div></div>
+</div>
+
+<h3>Что компилятор проверяет</h3>
+<p><strong>Забыл реализовать метод.</strong> Класс написал <code>implements Notifier</code>, а <code>send</code> не написал. JDK 21:</p>
+<pre><code>error: Lazy is not abstract and does not override abstract method send(String,String) in Notifier
+public class Lazy implements Notifier {
+       ^</code></pre>
+<p>Читается так: «<code>Lazy</code> не выполнил обещание: нет метода <code>send(String,String)</code> из <code>Notifier</code>». Слова «is not abstract» пока пропусти, они про абстрактные классы (см. частые вопросы).</p>
+
+<p><strong>Реализовал без <code>public</code>.</strong></p>
+<pre><code>error: send(String,String) in Weak cannot implement send(String,String) in Notifier
+  attempting to assign weaker access privileges; was public</code></pre>
+<p>Это то же правило, что в уроке 5: нельзя сделать метод «закрытее», чем в договоре. А в интерфейсе метод <code>public</code>, хотя слово и не написано.</p>
+
+<p><strong>Попробовал создать объект интерфейса.</strong></p>
+<pre><code>Notifier n = new Notifier();
+// error: Notifier is abstract; cannot be instantiated</code></pre>
+<p>Логично: у <code>send</code> нет тела, выполнять было бы нечего. Нельзя купить «стандарт розетки», можно купить только прибор по стандарту.</p>
+
+<details class="reveal"><summary>Проверь себя: в интерфейсе три метода, класс реализовал два. Скомпилируется?</summary>
+<p>Нет. Обещание — все методы интерфейса. Ошибка <code>... does not override abstract method ...</code> назовёт тот, которого не хватает.</p>
+</details>
+
+<h2>4. Интерфейс как тип переменной</h2>
+<p>Объект интерфейса создать нельзя, но <strong>переменная</strong> типа интерфейса — можно. В неё кладут объект любого класса, который его реализует:</p>
+<pre><code>Notifier n = new SmsNotifier();
+n.send("Илья", "Привет");                // [SMS → Илья] Привет</code></pre>
+<p>Здесь работают те же два правила, что в уроке 5:</p>
+<ol>
+  <li><strong>Какие методы можно вызвать</strong> — по типу переменной. У <code>Notifier</code> есть только <code>send</code>, значит, через <code>n</code> можно вызвать только <code>send</code>.</li>
+  <li><strong>Какая версия выполнится</strong> — по объекту. Объект <code>SmsNotifier</code> — выполняется его <code>send</code>.</li>
+</ol>
+
+<p>Список «всех способов уведомить» — тоже через тип интерфейса:</p>
+<pre><code>ArrayList&lt;Notifier&gt; all = new ArrayList&lt;&gt;();
+all.add(new SmsNotifier());
+all.add(new EmailNotifier("shop@example.com"));
+for (Notifier x : all) {
+    x.send("Валерия", "Скидка 10% до пятницы");
+}</code></pre>
+<p>Вывод (проверено на JDK 21):</p>
+<pre><code>[SMS → Валерия] Скидка 10% до пятницы
+[Email от shop@example.com для Валерия] Скидка 10% до пятницы</code></pre>
+<p>Классы <code>SmsNotifier</code> и <code>EmailNotifier</code> друг с другом никак не связаны — у них разные поля и нет общего родителя, кроме <code>Object</code>. Но оба выполняют договор <code>Notifier</code>, и этого достаточно, чтобы лежать в одном списке.</p>
+
+<details class="reveal"><summary>Проверь себя: <code>Notifier n = new EmailNotifier("a@b.ru");</code> — можно ли вызвать у <code>n</code> метод, который есть только у <code>EmailNotifier</code>?</summary>
+<p>Нет, по правилу 1: компилятор смотрит на тип переменной, а у <code>Notifier</code> такого метода нет. Будет <code>cannot find symbol</code>, как в уроке 5 с <code>getDiscountPercent()</code>.</p>
+</details>
+
+<h2>5. Главное: сервис зависит от интерфейса</h2>
+<p>Теперь соберём то, ради чего всё затевалось. Сервис заказов:</p>
+<p class="label">OrderService.java</p>
+<pre><code>package demo;
+
+public class OrderService {
+    private Notifier notifier;
+
+    public OrderService(Notifier notifier) {
+        this.notifier = notifier;
+    }
+
+    public void placeOrder(String customer, Product product) {
+        System.out.println("Оформлен заказ: " + product);
+        notifier.send(customer, "Ваш заказ «" + product.getName() + "» принят");
+    }
+}</code></pre>
+
+<div class="annotated">
+  <div class="row"><code>private Notifier notifier;</code><div>Поле типа <strong>интерфейса</strong>. Сервис знает только, что у этого объекта есть <code>send</code>. Ни слова про SMS или email.</div></div>
+  <div class="row"><code>public OrderService(Notifier notifier)</code><div>Уведомитель сервису <strong>передают снаружи</strong> через конструктор, сам сервис его не создаёт. Это ключевой момент.</div></div>
+  <div class="row"><code>notifier.send(customer, ...)</code><div>Вызов по договору. Какой <code>send</code> выполнится, зависит от объекта, который передали в конструктор (правило 2).</div></div>
+</div>
+
+<p>Использование:</p>
+<pre><code>OrderService sms = new OrderService(new SmsNotifier());
+sms.placeOrder("Илья", new Product("Чай", 250));
+
+OrderService email = new OrderService(new EmailNotifier("shop@example.com"));
+email.placeOrder("Илья", new Product("Кофе", 800));</code></pre>
+<p>Вывод (проверено):</p>
+<pre><code>Оформлен заказ: Чай: 250 руб.
+[SMS → Илья] Ваш заказ «Чай» принят
+Оформлен заказ: Кофе: 800 руб.
+[Email от shop@example.com для Илья] Ваш заказ «Кофе» принят</code></pre>
+
+<p>Что мы получили:</p>
+<ul>
+  <li><strong>Новый способ уведомления — новый класс, а не правка сервиса.</strong> Появится Telegram — пишешь <code>TelegramNotifier implements Notifier</code>, и <code>OrderService</code> не меняется ни на строчку.</li>
+  <li><strong>Сервис можно проверить без настоящих SMS.</strong> Передай ему «поддельный» уведомитель, который ничего не отправляет, а только запоминает, что его просили отправить. Потом посмотри: просили? кому? какой текст? Такой класс называют <em>фейком</em> (fake). Так устроены автоматические тесты, до которых мы дойдём с JUnit. В домашке ты напишешь такой фейк сам.</li>
+</ul>
+
+<h3>Это и есть то, что делает Spring</h3>
+<p>Приём «объект не создаёт то, что ему нужно, а получает это через конструктор» называется <strong>внедрение зависимости</strong> (dependency injection). <code>Notifier</code> — <em>зависимость</em> <code>OrderService</code>. Сейчас мы внедряем её руками: <code>new OrderService(new SmsNotifier())</code>. В Spring ты напишешь только класс <code>OrderService</code> с таким же конструктором, а нужный объект Spring найдёт и передаст сам. Именно поэтому в Spring-проектах так много интерфейсов.</p>
+<p class="cite">Источник: <a href="https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html">Spring Framework — Dependency Injection</a> (заглядывать пока рано, но приятно знать, что это та же идея).</p>
+
+<details class="reveal"><summary>Проверь себя: почему в <code>OrderService</code> поле типа <code>Notifier</code>, а не <code>SmsNotifier</code>?</summary>
+<p>С полем <code>SmsNotifier</code> сервис умел бы работать только с SMS: передать ему <code>EmailNotifier</code> или фейк было бы нельзя, типы не совпадут. Тип интерфейса принимает любую реализацию.</p>
+</details>
+
+<h2>6. Интерфейс из JDK: <code>Comparable</code> и сортировка</h2>
+<p>Интерфейсы пишешь не только ты. Стандартная библиотека Java полна ими, и самый частый на практике — <code>Comparable</code>, «сравнимый». Проблема: как отсортировать список товаров? <code>Collections.sort(cart)</code> — готовый метод сортировки. Но откуда ему знать, какой товар «меньше»: по цене? по названию?</p>
+<p>Ответ: <code>Collections.sort</code> требует, чтобы элементы списка реализовывали <code>Comparable</code>. Это договор: «у меня есть метод <code>compareTo</code>, который скажет, кто из нас двоих меньше».</p>
+
+<pre><code>public class Product implements Comparable&lt;Product&gt; {
+    private String name;
+    private int price;
+
+    // конструктор, геттеры, toString — как раньше
+
+    @Override
+    public int compareTo(Product other) {
+        return Integer.compare(this.price, other.price);
+    }
+}</code></pre>
+
+<div class="annotated">
+  <div class="row"><code>implements Comparable&lt;Product&gt;</code><div>«Товар сравним <em>с товаром</em>». В угловых скобках — с чем сравниваем, как в <code>ArrayList&lt;Product&gt;</code> — что храним. Без них <code>compareTo</code> принимал бы любой <code>Object</code>.</div></div>
+  <div class="row"><code>public int compareTo(Product other)</code><div>Единственный метод договора. Сравнивает <code>this</code> с <code>other</code>.</div></div>
+  <div class="row"><code>Integer.compare(this.price, other.price)</code><div>Готовый метод сравнения двух чисел. Возвращает <strong>отрицательное</strong>, если первое меньше, <strong>0</strong>, если равны, <strong>положительное</strong>, если больше. Ровно это и требует договор <code>compareTo</code>.</div></div>
+</div>
+
+<p>Я проверил: для чая (250) и кофе (800) <code>tea.compareTo(coffee)</code> даёт <code>-1</code>, <code>coffee.compareTo(tea)</code> — <code>1</code>, а чай против мёда за те же 250 — <code>0</code>.</p>
+
+<pre><code>ArrayList&lt;Product&gt; cart = new ArrayList&lt;&gt;();
+cart.add(new Product("Кофе", 800));
+cart.add(new Product("Чай", 250));
+cart.add(new Product("Печенье", 120));
+Collections.sort(cart);                  // нужен import java.util.Collections;
+System.out.println(cart);
+// [Печенье: 120 руб., Чай: 250 руб., Кофе: 800 руб.]</code></pre>
+
+<p>Посмотри, что произошло. Метод <code>Collections.sort</code> написан разработчиками Java много лет назад. Про твой <code>Product</code> он ничего не знает. Но он вызывает <code>compareTo</code> у элементов через тип <code>Comparable</code> — и выполняется <em>твоя</em> версия (правило 2). Чужой код работает с твоим классом, потому что вы договорились через интерфейс.</p>
+
+<p><strong>Что будет без <code>implements Comparable</code>?</strong> <code>Collections.sort(list)</code> не скомпилируется. Сообщение у JDK 21 длинное и страшное, но главное в первых строках:</p>
+<pre><code>error: no suitable method found for sort(ArrayList&lt;Unsortable&gt;)
+    ...
+        upper bounds: Comparable&lt;? super T#1&gt;)</code></pre>
+<p>«Подходящего <code>sort</code> нет», а ниже мелькает <code>Comparable</code>: компилятор подсказывает, чего не хватает. Остальное — подробности про generics, их разберём в отдельном уроке.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Comparable.html">Comparable (Java 21)</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Collections.html">Collections (Java 21)</a>.</p>
+
+<details class="reveal"><summary>Проверь себя: как отсортировать товары от дорогих к дешёвым, поменяв одну строку в <code>compareTo</code>?</summary>
+<p>Поменять местами аргументы: <code>Integer.compare(other.price, this.price)</code>. Тогда «меньше» станет тот, у кого цена <em>больше</em>, и он окажется в начале списка.</p>
+</details>
+
+<h2>7. Несколько интерфейсов и <code>extends</code> вместе с <code>implements</code></h2>
+<p>Родитель у класса один, а интерфейсов — сколько угодно, через запятую:</p>
+<pre><code>public class Multi implements Notifier, Printable { ... }</code></pre>
+<p>Класс обязан реализовать методы <strong>всех</strong> перечисленных интерфейсов. Объект такого класса можно положить и в переменную <code>Notifier</code>, и в переменную <code>Printable</code> — каждая «видит» свой набор методов.</p>
+<p>Если есть и родитель, и интерфейсы, порядок фиксированный: <strong>сначала <code>extends</code>, потом <code>implements</code></strong>.</p>
+<pre><code>public class SavingsAccount extends BankAccount implements Comparable&lt;BankAccount&gt; { ... }   // ✓
+public class Order implements Notifier extends Object { }   // error: '{' expected</code></pre>
+<p>Хорошая новость для домашки: если родитель реализует интерфейс, потомки реализуют его автоматически. Сделаешь <code>BankAccount implements Comparable&lt;BankAccount&gt;</code> — и <code>SavingsAccount</code> тоже станет сравнимым, ничего не дописывая. Это обычное наследование: метод <code>compareTo</code> унаследован.</p>
+
+<h2>8. Частые вопросы</h2>
+
+<h3>Чем интерфейс отличается от абстрактного класса?</h3>
+<p>Абстрактный класс (<code>abstract class</code>) — класс, от которого нельзя создать объект и в котором часть методов может быть без тела. Отсюда и слова «is not abstract» в ошибке из раздела 3. Главная разница: у абстрактного класса <strong>могут быть поля и конструктор</strong>, он даёт потомкам общий код. Но родитель у класса один. Интерфейс — только договор, зато их можно реализовать сколько угодно. Правило на практике: нужен общий договор — интерфейс; нужен общий код и данные для очень похожих классов — абстрактный класс. В современном Java-коде интерфейсы встречаются намного чаще.</p>
+<p class="cite"><a href="https://docs.oracle.com/javase/tutorial/java/IandI/abstract.html">Oracle — Abstract Methods and Classes</a>.</p>
+
+<h3>Я видел в интерфейсе метод с телом и словом <code>default</code>. Это как?</h3>
+<p>Начиная с Java 8 интерфейс может содержать <code>default</code>-метод с готовой реализацией. Классы получают его бесплатно и могут переопределить. Нужно в основном для того, чтобы добавлять методы в старые интерфейсы, не ломая все классы, которые их уже реализуют. Я проверил: такой метод может вызывать абстрактные методы того же интерфейса. Свои интерфейсы пока пиши без <code>default</code>.</p>
+<p class="cite"><a href="https://docs.oracle.com/javase/tutorial/java/IandI/defaultmethods.html">Oracle — Default Methods</a>.</p>
+
+<h3>Ты писал <code>ArrayList&lt;Product&gt; cart = new ArrayList&lt;&gt;()</code>. А я видел <code>List&lt;Product&gt; cart = new ArrayList&lt;&gt;()</code>. В чём разница?</h3>
+<p>Отличный пример этого урока в стандартной библиотеке: <code>List</code> — <strong>интерфейс</strong> («упорядоченная коллекция»), а <code>ArrayList</code> — один из классов, который его реализует. Переменная типа <code>List</code> — это как поле <code>Notifier</code> в <code>OrderService</code>: код зависит от договора, а не от конкретного класса. Так принято писать, и в уроке про коллекции мы перейдём на это.</p>
+
+<h3>Можно ли в интерфейсе объявить поле?</h3>
+<p>Только константу: всё, что объявлено в интерфейсе как переменная, автоматически <code>public static final</code> — одно значение на всех, менять нельзя. Хранить данные объекта интерфейс не умеет.</p>
+
+<h3>Может ли интерфейс наследовать другой интерфейс?</h3>
+<p>Да, через <code>extends</code>: <code>interface UrgentNotifier extends Notifier</code>. Классу, реализующему <code>UrgentNotifier</code>, придётся реализовать методы обоих.</p>
+
+<h3>Почему интерфейс не назвать <code>INotifier</code>, чтобы было видно, что это интерфейс?</h3>
+<p>Так принято в C#, а в Java — нет. Имя интерфейса описывает роль (<code>Notifier</code>, <code>List</code>), а реализация уточняет, как именно (<code>SmsNotifier</code>, <code>ArrayList</code>).</p>
+
+<h2>9. Проверь себя</h2>
+<p>Без подглядывания. Ошибся — вернись к разделу.</p>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>1. Чем интерфейс отличается от обычного класса?</legend>
+  <label><input type="radio"> Его методы нельзя вызывать через переменную</label>
+  <label><input type="radio"> Это договор о методах, без объектов и полей</label>
+  <label><input type="radio"> Он может иметь только один метод внутри</label>
+  <label><input type="radio"> Его можно реализовать только одним классом</label>
+  <p class="feedback">Интерфейс описывает, какие методы должны быть у реализующих классов. Создать его объект нельзя, хранить данные объекта он не умеет. Методов может быть сколько угодно, реализаций — тоже.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>2. Класс написал <code>implements Notifier</code>, но не написал метод <code>send</code>. Что будет?</legend>
+  <label><input type="radio"> Java подставит пустой метод send сама</label>
+  <label><input type="radio"> Исключение при первом вызове метода send</label>
+  <label><input type="radio"> Предупреждение, но программа соберётся</label>
+  <label><input type="radio"> Ошибка компиляции: обещание не выполнено</label>
+  <p class="feedback">Компилятор проверяет, что все методы интерфейса реализованы: <code>... does not override abstract method send(String,String) in Notifier</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>3. <code>Notifier n = new EmailNotifier("a@b.ru"); n.send("Илья", "Привет");</code> Какой <code>send</code> выполнится?</legend>
+  <label><input type="radio"> Метод класса EmailNotifier, по объекту</label>
+  <label><input type="radio"> Метод интерфейса Notifier, по переменной</label>
+  <label><input type="radio"> Никакой: у интерфейса метод без тела</label>
+  <label><input type="radio"> Ошибка компиляции: типы не совпадают</label>
+  <p class="feedback">Правило 2: версия выбирается по объекту. У интерфейса тела нет, выполнять там нечего — поэтому всегда выполняется реализация класса.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>4. Почему <code>OrderService</code> получает <code>Notifier</code> через конструктор, а не создаёт <code>new SmsNotifier()</code> сам?</legend>
+  <label><input type="radio"> Иначе код просто не скомпилируется</label>
+  <label><input type="radio"> Так программа выполняется заметно быстрее</label>
+  <label><input type="radio"> Можно подставить любую реализацию или фейк</label>
+  <label><input type="radio"> Интерфейс нельзя хранить в поле класса</label>
+  <p class="feedback">Сервис не привязан к конкретному способу: снаружи можно передать SMS, email, фейк для проверки. Это внедрение зависимости — основа Spring.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>5. Что должен вернуть <code>a.compareTo(b)</code>, если <code>a</code> «больше» <code>b</code>?</legend>
+  <label><input type="radio"> Ноль, потому что объекты разные</label>
+  <label><input type="radio"> Любое положительное целое число</label>
+  <label><input type="radio"> Значение true типа boolean</label>
+  <label><input type="radio"> Любое отрицательное целое число</label>
+  <p class="feedback">Договор <code>compareTo</code>: отрицательное — <code>this</code> меньше, ноль — равны, положительное — больше. Возвращаемый тип <code>int</code>, не <code>boolean</code>.</p>
+</fieldset>
+<p class="quiz-score"></p>
+
+<h2>10. Домашнее задание</h2>
+<p>Правила прежние: сам, без ИИ, документацию читать можно. Застрял — спрашивай. Файлы — в <code>src/lesson0006/</code> с <code>package lesson0006;</code>. Скопируй туда из урока 5 <code>BankAccount</code>, <code>SavingsAccount</code> и оба исключения и поменяй <code>package</code>.</p>
+
+<div class="task">
+<h3>Шаг 1. Интерфейс и две реализации</h3>
+<ol>
+  <li>Интерфейс <code>Notifier</code> с методом <code>void send(String recipient, String message)</code>.</li>
+  <li><code>ConsoleSmsNotifier</code> — печатает сообщение в консоль в виде SMS.</li>
+  <li><code>ConsoleEmailNotifier</code> — печатает в виде письма. Адрес отправителя передаётся в конструктор.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 2. Фейк для проверки</h3>
+<p><code>FakeNotifier implements Notifier</code> ничего не печатает. Он хранит все отправленные сообщения в <code>private ArrayList&lt;String&gt;</code> (например, строки вида <code>"Илья: текст"</code>). Методы:</p>
+<ul>
+  <li><code>int getSentCount()</code> — сколько сообщений «отправлено»;</li>
+  <li><code>String getLastMessage()</code> — последнее сообщение. Подумай, что вернуть или бросить, если сообщений ещё не было (вспомни урок 2 и пустую корзину).</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Шаг 3. <code>TransferService</code> — сервис переводов</h3>
+<ol>
+  <li>Поле типа <code>Notifier</code>, получает его через конструктор. Сам <code>new</code> никакого уведомителя не делает.</li>
+  <li>Метод <code>transfer(BankAccount from, BankAccount to, int amount)</code>:
+    <ul>
+      <li>выполняет перевод через уже существующий <code>transferTo</code>;</li>
+      <li>при успехе отправляет <strong>два</strong> уведомления: отправителю «Списано N руб.», получателю «Зачислено N руб.»;</li>
+      <li>если не хватило денег — отправляет отправителю одно уведомление «Перевод не выполнен: …» с текстом исключения, и <strong>бросает исключение дальше</strong> (<code>throw e;</code> из частых вопросов урока 4). Сервис не должен «проглатывать» ошибку — решать, что с ней делать, будет вызывающий код.</li>
+    </ul>
+  </li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 4. <code>Main.java</code></h3>
+<ol>
+  <li>Создай сервис с <code>ConsoleSmsNotifier</code>, сделай удачный перевод. Потом <strong>измени одну строку</strong> — создание сервиса — на <code>ConsoleEmailNotifier</code> и запусти снова. В комментарии отметь, сколько строк <code>TransferService</code> пришлось поменять.</li>
+  <li><strong>Самопроверка без глаз.</strong> Создай сервис с <code>FakeNotifier</code> (держи фейк в отдельной переменной, чтобы потом спросить у него результаты). Сделай удачный перевод и проверь в коде: <code>getSentCount()</code> равен 2? Печатай <code>ОК</code> или <code>ОШИБКА: ожидалось 2, получено ...</code>. Затем сделай перевод, на который не хватает денег, поймай исключение в <code>Main</code> и проверь: счётчик стал 3, а <code>getLastMessage()</code> содержит «не выполнен» (метод строки <code>contains</code>). Это твой первый автоматический тест.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Сортировка счетов</h3>
+<ol>
+  <li><code>BankAccount implements Comparable&lt;BankAccount&gt;</code> — сравнение по балансу.</li>
+  <li>Список из трёх-четырёх счетов разных типов (с накопительным) с разными балансами, <code>Collections.sort</code>, печать.</li>
+  <li>В комментарии: почему <code>SavingsAccount</code> сортируется, хотя ты ему <code>compareTo</code> не писал?</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 6. Эксперименты (каждый откатывай)</h3>
+<ol>
+  <li>Убери метод <code>send</code> из <code>ConsoleSmsNotifier</code>. Запиши ошибку.</li>
+  <li>Напиши в <code>Main</code> <code>Notifier n = new Notifier();</code>. Запиши ошибку.</li>
+  <li>Убери <code>public</code> у <code>send</code> в одной реализации. Запиши ошибку и объясни своими словами, почему у реализации не может быть меньше доступа, чем в интерфейсе.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 7. Коммит</h3>
+<p>Например, <code>Добавить Notifier, TransferService и сортировку счетов</code>. Потом напиши «проверь домашку 0006».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Из раздела Oracle <a href="https://docs.oracle.com/javase/tutorial/java/IandI/index.html">Interfaces and Inheritance</a> прочитай три страницы: <a href="https://docs.oracle.com/javase/tutorial/java/IandI/createinterface.html">Defining an Interface</a>, <a href="https://docs.oracle.com/javase/tutorial/java/IandI/usinginterface.html">Implementing an Interface</a> (там как раз пример со сравнением объектов), <a href="https://docs.oracle.com/javase/tutorial/java/IandI/interfaceAsType.html">Using an Interface as a Type</a>. Около 20 минут.</p>
+
+<p>Шпаргалка — <a href="../reference/java-interfaces.html">справочник «Интерфейсы»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1. Методы</a>, <a href="0002-classes-and-objects.html">2. Классы и объекты</a>, <a href="0003-encapsulation.html">3. Инкапсуляция</a>, <a href="0004-exceptions.html">4. Исключения</a>, <a href="0005-inheritance.html">5. Наследование</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Если идея «сервис получает зависимость через конструктор» кажется надуманной — спроси, зачем так усложнять. Это хороший вопрос, и ответ на него — половина понимания Spring.</p>
+</div>
+
+<nav class="course">
+  <a href="0005-inheritance.html">← Урок 5: наследование</a>
+  <span>Урок 7: коллекции →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

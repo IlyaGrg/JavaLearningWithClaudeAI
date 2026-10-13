@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Интерфейсы</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1>Интерфейсы</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0006-interfaces.html">уроку 0006</a>.</p>
+
+<h2>Объявление и реализация</h2>
+<pre><code>public interface Notifier {
+    void send(String recipient, String message);   // без тела, неявно public
+}
+
+public class SmsNotifier implements Notifier {
+    @Override
+    public void send(String recipient, String message) {   // обязательно public
+        System.out.println("[SMS → " + recipient + "] " + message);
+    }
+}</code></pre>
+
+<h2>Интерфейс как тип</h2>
+<pre><code>Notifier n = new SmsNotifier();          // ✓ переменная типа интерфейса
+Notifier x = new Notifier();             // ✗ объект интерфейса нельзя
+ArrayList&lt;Notifier&gt; all = ...;          // разные классы в одном списке</code></pre>
+<p>Правила как у наследования: методы — по типу переменной, версия — по объекту.</p>
+
+<h2>Зависимость через конструктор</h2>
+<pre><code>public class OrderService {
+    private Notifier notifier;                     // тип интерфейса
+
+    public OrderService(Notifier notifier) {       // передают снаружи
+        this.notifier = notifier;
+    }
+}
+
+new OrderService(new SmsNotifier());           // настоящая реализация
+new OrderService(new FakeNotifier());          // фейк для проверки</code></pre>
+<p>Внедрение зависимости (dependency injection). В Spring объект в конструктор передаёт сам фреймворк.</p>
+
+<h2>Comparable</h2>
+<pre><code>public class Product implements Comparable&lt;Product&gt; {
+    @Override
+    public int compareTo(Product other) {
+        return Integer.compare(this.price, other.price);   // по возрастанию
+    }
+}
+
+Collections.sort(cart);     // import java.util.Collections;</code></pre>
+<table>
+  <tr><th><code>a.compareTo(b)</code></th><th>значит</th></tr>
+  <tr><td>&lt; 0</td><td><code>a</code> раньше <code>b</code></td></tr>
+  <tr><td>0</td><td>равны</td></tr>
+  <tr><td>&gt; 0</td><td><code>a</code> позже <code>b</code></td></tr>
+</table>
+<p>По убыванию: <code>Integer.compare(other.price, this.price)</code>.</p>
+
+<h2>Синтаксис объявления класса</h2>
+<pre><code>class A extends Parent implements I1, I2 { }   // сначала extends, потом implements
+interface I3 extends I1 { }                    // интерфейс расширяет интерфейс</code></pre>
+<p>Родитель реализует интерфейс → потомки реализуют его автоматически.</p>
+
+<h2>Интерфейс или абстрактный класс</h2>
+<table>
+  <tr><th></th><th>Интерфейс</th><th>Абстрактный класс</th></tr>
+  <tr><td>Сколько у класса</td><td>сколько угодно</td><td>один</td></tr>
+  <tr><td>Поля объекта, конструктор</td><td>нет (только константы)</td><td>да</td></tr>
+  <tr><td>Методы с телом</td><td>только <code>default</code></td><td>да</td></tr>
+  <tr><td>Когда</td><td>общий договор</td><td>общий код похожих классов</td></tr>
+</table>
+
+<h2>Ошибки</h2>
+<table>
+  <tr><th>Сообщение</th><th>Причина</th></tr>
+  <tr><td><code>X is not abstract and does not override abstract method m(...) in I</code></td><td>Не реализован метод интерфейса</td></tr>
+  <tr><td><code>I is abstract; cannot be instantiated</code></td><td><code>new</code> от интерфейса</td></tr>
+  <tr><td><code>cannot implement ... attempting to assign weaker access privileges; was public</code></td><td>Реализация без <code>public</code></td></tr>
+  <tr><td><code>no suitable method found for sort(...)</code> … <code>Comparable</code></td><td>Элементы списка не реализуют <code>Comparable</code></td></tr>
+  <tr><td><code>'{' expected</code> после <code>implements I extends P</code></td><td>Порядок: сначала <code>extends</code></td></tr>
+</table>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/javase/tutorial/java/IandI/createinterface.html">Oracle — Defining an Interface</a>, <a href="https://docs.oracle.com/javase/tutorial/java/IandI/usinginterface.html">Implementing an Interface</a>, <a href="https://docs.oracle.com/javase/tutorial/java/IandI/interfaceAsType.html">Using an Interface as a Type</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Comparable.html">Comparable (Java 21)</a>. Сообщения компилятора проверены на JDK 21.</p>
+
+</main>
+</body>
+</html>
