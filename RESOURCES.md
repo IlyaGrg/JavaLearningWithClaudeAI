@@ -20,6 +20,10 @@
   Наследование, переопределение, полиморфизм, super, Object, абстрактные классы и интерфейсы. Use for: уроки 5–6.
 - [Spring Framework Reference: Dependency Injection](https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html)
   Официальное описание внедрения зависимостей через конструктор. Use for: связать урок про интерфейсы со Spring; основной источник, когда дойдём до Spring.
+- [The Java Tutorials: Collection Interfaces (Oracle)](https://docs.oracle.com/javase/tutorial/collections/interfaces/index.html)
+  List, Set, Map, иерархия интерфейсов коллекций. Use for: урок про коллекции. Местами примеры на стримах — читать после урока 12.
+- [dev.java: The Collections Framework](https://dev.java/learn/api/collections-framework/)
+  Современный обзор коллекций от Oracle. Use for: повторение и углубление.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 

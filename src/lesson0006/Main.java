@@ -2,6 +2,8 @@ package lesson0006;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Main {
     public static void main(String[] args) {
@@ -52,6 +54,7 @@ public class Main {
         Collections.sort(accountsArrays);
         System.out.println(accountsArrays);
         //Полиморфизм. Тип переменной определил какие методы можно использовать, а так как SavingsAccount наследуется от BankAccount, он может использовать все методы своего родителя
+        Set<BankAccount> set = new HashSet<>();
 
     }
 }

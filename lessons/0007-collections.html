@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 7 · Коллекции</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0007 · Java Core · ~90 минут + домашка</div>
+<h1>Коллекции: List, Map и Set</h1>
+<p class="subtitle">После этого урока ты сможешь выбрать подходящую коллекцию под задачу, найти объект по ключу через <code>Map</code>, собрать уникальные значения через <code>Set</code> и обойти три типичные ловушки, на которых спотыкаются новички.</p>
+
+<div class="note">
+<p><strong>Хорошая новость.</strong> В Python ты уже пользовался всеми тремя: <code>list</code>, <code>dict</code> и <code>set</code>. Идеи те же самые. Новое — синтаксис, типы в угловых скобках и пара ловушек, которых в Python нет. Сегодня будем часто сравнивать.</p>
+</div>
+
+<h2>Разминка: вспомни урок 6</h2>
+<details class="reveal"><summary>1. <code>List</code> — это класс или интерфейс? А <code>ArrayList</code>?</summary>
+<p><code>List</code> — интерфейс, договор «упорядоченная коллекция с доступом по номеру». <code>ArrayList</code> — класс, который его реализует. Это было в частых вопросах урока 6, и сегодня мы наконец начнём так писать.</p>
+</details>
+<details class="reveal"><summary>2. Что делает <code>Collections.sort(list)</code> с твоими объектами и что для этого нужно?</summary>
+<p>Сортирует список, вызывая у элементов <code>compareTo</code>. Для этого класс элементов должен реализовать <code>Comparable</code>. Чужой код работает с твоим классом через интерфейс.</p>
+</details>
+<details class="reveal"><summary>3. Твой <code>FakeNotifier.getLastMessage()</code> на пустом списке бросает исключение. Почему не вернуть просто <code>messages.get(messages.size() - 1)</code>?</summary>
+<p>На пустом списке это <code>get(-1)</code> — такого индекса нет, вылетит <code>IndexOutOfBoundsException</code> с невнятным для пользователя текстом. Своя проверка даёт понятное сообщение. Граничный случай «коллекция пуста» сегодня встретится снова.</p>
+</details>
+
+<h2>1. Три вопроса — три коллекции</h2>
+<p>Массив (<code>int[]</code>) из первого урока имеет фиксированную длину. <code>ArrayList</code> из второго растёт сам. Но у реальных задач бывают разные главные вопросы:</p>
+
+<div class="ref">
+<table>
+  <tr><th>Главный вопрос задачи</th><th>Коллекция Java</th><th>В Python</th><th>Пример из банка</th></tr>
+  <tr><td>«Что лежит по порядку? Что под номером 3?»</td><td><code>List</code></td><td><code>list</code></td><td>история операций по счёту</td></tr>
+  <tr><td>«Что лежит под этим ключом?»</td><td><code>Map</code></td><td><code>dict</code></td><td>номер счёта → счёт</td></tr>
+  <tr><td>«Есть такой или нет? Без повторов»</td><td><code>Set</code></td><td><code>set</code></td><td>уникальные владельцы счетов</td></tr>
+</table>
+</div>
+
+<p>Все три — <strong>интерфейсы</strong>, а у каждого есть основная реализация: <code>ArrayList</code>, <code>HashMap</code>, <code>HashSet</code>. По уроку 6 ты уже знаешь, как принято писать: тип переменной — интерфейс, а после <code>new</code> — конкретный класс.</p>
+<pre><code>List&lt;String&gt; cart = new ArrayList&lt;&gt;();
+Map&lt;String, Integer&gt; prices = new HashMap&lt;&gt;();
+Set&lt;String&gt; customers = new HashSet&lt;&gt;();</code></pre>
+<p>Всё это лежит в пакете <code>java.util</code>, поэтому в начале файла нужен <code>import java.util.List;</code> и так далее (или сразу <code>import java.util.*;</code>).</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/collections/interfaces/index.html">Oracle — Collection Interfaces</a>.</p>
+
+<h2>2. <code>List</code>: по порядку и по номеру</h2>
+<p><code>ArrayList</code> ты знаешь. Новое — только тип переменной <code>List</code>, а методы те же. Я запустил этот код на JDK 21:</p>
+<pre><code>List&lt;String&gt; cart = new ArrayList&lt;&gt;();
+cart.add("Чай");
+cart.add("Кофе");
+cart.add("Чай");                      // повторы разрешены
+
+System.out.println(cart);             // [Чай, Кофе, Чай]
+System.out.println(cart.size());      // 3
+System.out.println(cart.get(1));      // Кофе — нумерация с 0
+System.out.println(cart.contains("Кофе"));  // true
+System.out.println(cart.indexOf("Чай"));    // 0 — первое вхождение
+
+cart.remove("Чай");                   // удаляет ПЕРВОЕ вхождение
+System.out.println(cart);             // [Кофе, Чай]</code></pre>
+
+<div class="annotated">
+  <div class="row"><code>List&lt;String&gt;</code><div>«Список строк». В угловых скобках — тип элементов. Положить туда число компилятор не даст.</div></div>
+  <div class="row"><code>new ArrayList&lt;&gt;()</code><div>Пустые скобки <code>&lt;&gt;</code> («ромб») — Java сама подставит <code>String</code> из левой части.</div></div>
+  <div class="row"><code>cart.get(1)</code><div>Элемент по номеру. Номера с 0, как в Python. Только отрицательных индексов, как <code>cart[-1]</code>, нет.</div></div>
+  <div class="row"><code>cart.get(10)</code><div>При трёх элементах — <code>IndexOutOfBoundsException: Index 10 out of bounds for length 3</code>. Python бросил бы <code>IndexError</code>, суть та же.</div></div>
+</div>
+
+<p><strong>Когда <code>List</code>:</strong> важен порядок (что добавили раньше, что позже), нужны повторы, нужен доступ по номеру. Корзина, история операций, результаты поиска.</p>
+<p><strong>Когда не <code>List</code>:</strong> если ты постоянно ищешь элемент по какому-то признаку циклом — «найди счёт с номером X». <code>contains</code> и <code>indexOf</code> в списке перебирают <em>все</em> элементы по очереди. На 10 элементах незаметно, на миллионе счетов — очень медленно. Для поиска по ключу есть <code>Map</code>.</p>
+
+<details class="reveal"><summary>Проверь себя: что останется после <code>cart.remove("Чай")</code>, если в списке <code>[Чай, Чай, Кофе]</code>?</summary>
+<p><code>[Чай, Кофе]</code>. <code>remove(объект)</code> удаляет только первое вхождение.</p>
+</details>
+
+<h2>3. Числа в коллекциях: <code>Integer</code> вместо <code>int</code></h2>
+<p>Попробуй написать <code>List&lt;int&gt;</code>. JDK 21:</p>
+<pre><code>error: unexpected type
+  required: reference
+  found:    int</code></pre>
+<p>Коллекции хранят только <strong>объекты</strong> (ссылочные типы), а <code>int</code>, <code>double</code>, <code>boolean</code> — примитивы. Для каждого примитива в Java есть класс-<em>обёртка</em>: <code>Integer</code> для <code>int</code>, <code>Double</code> для <code>double</code>, <code>Boolean</code> для <code>boolean</code>. Поэтому пишут <code>List&lt;Integer&gt;</code> и <code>Map&lt;String, Integer&gt;</code>.</p>
+<p>Переводить туда-обратно руками не нужно: Java делает это сама (это называется <em>автоупаковка</em>, autoboxing). <code>prices.put("Чай", 250)</code> — число 250 автоматически станет объектом <code>Integer</code>, а <code>int p = prices.get("Чай")</code> — обратно.</p>
+
+<h3>Две ловушки обёрток</h3>
+<p><strong>1. <code>Integer</code> может быть <code>null</code>, а <code>int</code> — нет.</strong> Если ключа в <code>Map</code> нет, <code>get</code> возвращает <code>null</code> (раздел 4). А при попытке положить его в <code>int</code>:</p>
+<pre><code>int x = prices.get("Мёд");   // ключа "Мёд" нет
+// NullPointerException: Cannot invoke "java.lang.Integer.intValue()"
+//   because the return value of "java.util.Map.get(Object)" is null</code></pre>
+<p>Сообщение проверено на JDK 21 и очень подробное: Java пыталась достать <code>int</code> из <code>Integer</code> (<code>intValue()</code>), а там был <code>null</code>, который вернул <code>Map.get</code>. Учись читать такие сообщения — в них всё сказано.</p>
+
+<p><strong>2. <code>remove</code> у <code>List&lt;Integer&gt;</code>.</strong> У списка два метода <code>remove</code>: по номеру <code>remove(int index)</code> и по объекту <code>remove(Object o)</code>. Для списка чисел это коварно:</p>
+<pre><code>List&lt;Integer&gt; nums = new ArrayList&lt;&gt;(List.of(10, 20, 30));
+nums.remove(1);                     // удалит элемент ПОД НОМЕРОМ 1
+System.out.println(nums);           // [10, 30]
+nums.remove(Integer.valueOf(10));   // удалит ЧИСЛО 10
+System.out.println(nums);           // [30]</code></pre>
+<p>Это перегрузка из урока 1: Java выбирает метод по типу аргумента. <code>1</code> — это <code>int</code>, значит, вызывается версия с индексом.</p>
+
+<h2>4. <code>Map</code>: найти по ключу</h2>
+<p><strong>Зачем:</strong> хранить пары «ключ → значение» и мгновенно находить значение по ключу. Номер счёта → счёт, название товара → цена, логин → пользователь.</p>
+<p><strong>Аналогия:</strong> гардероб. Ты сдаёшь пальто и получаешь номерок. Гардеробщик не перебирает все пальто подряд: по номерку он сразу идёт к нужному крючку. Номерок — ключ, пальто — значение. Два пальто на один номерок не повесить.</p>
+
+<pre><code>Map&lt;String, Integer&gt; prices = new HashMap&lt;&gt;();
+prices.put("Чай", 250);
+prices.put("Кофе", 800);
+prices.put("Печенье", 120);
+
+prices.get("Кофе");                  // 800
+prices.get("Мёд");                   // null — такого ключа нет
+prices.getOrDefault("Мёд", 0);       // 0 — значение по умолчанию
+prices.containsKey("Чай");           // true
+
+Integer old = prices.put("Чай", 300);  // ключ уже есть — значение ЗАМЕНЯЕТСЯ
+// old = 250, prices.get("Чай") = 300, prices.size() = 3</code></pre>
+
+<div class="annotated">
+  <div class="row"><code>Map&lt;String, Integer&gt;</code><div>Два типа: <em>ключ</em> — <code>String</code>, <em>значение</em> — <code>Integer</code>. Как <code>dict[str, int]</code> в аннотациях Python.</div></div>
+  <div class="row"><code>prices.put("Чай", 250)</code><div>Положить пару. В Python — <code>prices["Чай"] = 250</code>. Квадратных скобок у <code>Map</code> в Java нет.</div></div>
+  <div class="row"><code>prices.get("Мёд")</code><div>Ключа нет → <strong><code>null</code></strong>. В Python <code>prices["Мёд"]</code> бросил бы <code>KeyError</code>, а Java молча возвращает <code>null</code>. Это главное отличие от Python, и источник многих <code>NullPointerException</code>.</div></div>
+  <div class="row"><code>getOrDefault("Мёд", 0)</code><div>Как <code>prices.get("Мёд", 0)</code> в Python: если ключа нет, вернёт второй аргумент.</div></div>
+  <div class="row"><code>prices.put("Чай", 300)</code><div>Старое значение заменяется, а <code>put</code> возвращает его (или <code>null</code>, если ключа не было). Ключи в <code>Map</code> уникальны, значения — могут повторяться.</div></div>
+</div>
+
+<h3>Шаблон «сохрани → проверь на null → используй» — снова</h3>
+<p>Ты освоил его в уроке 2 с <code>findMostExpensive</code>. С <code>Map</code> он нужен постоянно:</p>
+<pre><code>BankAccount acc = accounts.get(number);    // сохрани
+if (acc == null) {                         // проверь
+    throw new IllegalArgumentException("Счёт не найден: " + number);
+}
+acc.withdraw(500);                         // используй</code></pre>
+<p>Без проверки <code>accounts.get("40817").getBalance()</code> упадёт с <code>NullPointerException: Cannot invoke "...getBalance()" because the return value of "java.util.Map.get(Object)" is null</code> (проверено). Сообщение честно говорит, кто вернул <code>null</code>.</p>
+
+<h3>Обход <code>Map</code></h3>
+<pre><code>for (Map.Entry&lt;String, Integer&gt; e : prices.entrySet()) {
+    System.out.println(e.getKey() + " = " + e.getValue());
+}
+for (String name : prices.keySet()) { ... }      // только ключи
+for (int price : prices.values()) { ... }        // только значения</code></pre>
+<div class="annotated">
+  <div class="row"><code>prices.entrySet()</code><div>Набор всех пар. Как <code>prices.items()</code> в Python.</div></div>
+  <div class="row"><code>Map.Entry&lt;String, Integer&gt; e</code><div>Одна пара. <code>getKey()</code> и <code>getValue()</code> — её ключ и значение. Тип длинный, но IntelliJ подставит его сам.</div></div>
+  <div class="row"><code>keySet() / values()</code><div>Как <code>keys()</code> и <code>values()</code> в Python.</div></div>
+</div>
+
+<p><strong>Порядок.</strong> Я положил «Чай», «Кофе», «Печенье», а обход напечатал «Чай, Печенье, Кофе». <code>HashMap</code> <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html">не гарантирует никакого порядка</a> — он раскладывает ключи так, чтобы быстро их находить, а не так, как ты их добавлял. В Python 3.7+ <code>dict</code> помнит порядок вставки, а <code>HashMap</code> — нет. Если порядок нужен:</p>
+<ul>
+  <li><code>LinkedHashMap</code> — в порядке добавления (как <code>dict</code> в Python);</li>
+  <li><code>TreeMap</code> — отсортированно по ключу.</li>
+</ul>
+<p>Оба реализуют тот же интерфейс <code>Map</code>, поэтому меняется только то, что после <code>new</code>. Это и есть польза от переменной типа интерфейса из урока 6.</p>
+
+<h3>Частый приём: подсчёт</h3>
+<p>Сколько раз заказывали каждый товар?</p>
+<pre><code>String[] orders = {"Чай", "Кофе", "Чай", "Чай", "Печенье", "Кофе"};
+Map&lt;String, Integer&gt; counts = new HashMap&lt;&gt;();
+for (String o : orders) {
+    counts.put(o, counts.getOrDefault(o, 0) + 1);
+}
+System.out.println(counts);    // {Чай=3, Печенье=1, Кофе=2}</code></pre>
+<p>Трассировка первых трёх шагов:</p>
+<ol>
+  <li><code>o = "Чай"</code>: ключа нет → <code>getOrDefault</code> даёт 0 → <code>put("Чай", 1)</code>.</li>
+  <li><code>o = "Кофе"</code>: ключа нет → 0 → <code>put("Кофе", 1)</code>.</li>
+  <li><code>o = "Чай"</code>: ключ есть, значение 1 → <code>put("Чай", 2)</code> заменяет старое значение.</li>
+</ol>
+<p>Этот приём встречается в задачах на собеседованиях так часто, что его стоит знать наизусть.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/collections/interfaces/map.html">Oracle — The Map Interface</a>.</p>
+
+<details class="reveal"><summary>Проверь себя: <code>Map&lt;String, BankAccount&gt; accounts</code>. Чем опасна строка <code>accounts.get(number).withdraw(100)</code>?</summary>
+<p>Если такого номера нет, <code>get</code> вернёт <code>null</code>, и вызов <code>withdraw</code> у <code>null</code> даст <code>NullPointerException</code>. Нужно сохранить результат, проверить на <code>null</code> и только потом использовать.</p>
+</details>
+
+<h2>5. <code>Set</code>: только уникальные</h2>
+<p><strong>Зачем:</strong> собрать значения без повторов и быстро проверять «есть ли такой». Уникальные владельцы, уже обработанные номера платежей, теги.</p>
+<pre><code>Set&lt;String&gt; customers = new HashSet&lt;&gt;();
+customers.add("Илья");        // true  — добавлен
+customers.add("Валерия");     // true
+customers.add("Илья");        // false — уже есть, ничего не изменилось
+customers.size();             // 2
+customers.contains("Илья");   // true — и это быстро, без перебора</code></pre>
+<p>Обрати внимание: <code>add</code> возвращает <code>boolean</code> — «добавился ли элемент». Это удобно: <code>if (!processed.add(paymentId)) { ... платёж уже был ... }</code> — проверка и добавление в одной строке. Порядка у <code>HashSet</code>, как и у <code>HashMap</code>, нет. Есть <code>LinkedHashSet</code> и <code>TreeSet</code>.</p>
+
+<h3>Откуда <code>Set</code> знает, что «Илья» уже есть?</h3>
+<p>Строки он сравнивает <strong>по содержимому</strong>, а не по ссылке. Я проверил: два разных объекта <code>new String("Илья")</code> в <code>HashSet</code> дают размер 1. А теперь твой счёт:</p>
+<pre><code>Set&lt;BankAccount&gt; set = new HashSet&lt;&gt;();
+set.add(new BankAccount("Илья", 100));
+set.add(new BankAccount("Илья", 100));
+System.out.println(set.size());   // ?</code></pre>
+<p>Подумай, что напечатается. Ответ — в домашке (шаг 5), а объяснение, почему, — тема <strong>урока 8</strong> про <code>equals</code> и <code>hashCode</code>. Это тот же вопрос, что «<code>==</code> против содержимого» из урока 3, только теперь от него зависит работа <code>Set</code> и <code>Map</code>.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/collections/interfaces/set.html">Oracle — The Set Interface</a>.</p>
+
+<h2>6. Две ловушки при работе со списком</h2>
+
+<h3>Удаление внутри for-each</h3>
+<pre><code>List&lt;String&gt; cart = new ArrayList&lt;&gt;(List.of("Чай", "Кофе", "Печенье"));
+for (String item : cart) {
+    if (item.equals("Чай")) {
+        cart.remove(item);
+    }
+}
+// Exception in thread "main" java.util.ConcurrentModificationException</code></pre>
+<p>Нельзя менять список, пока по нему идёт for-each: цикл «запомнил», каким был список, и при следующем шаге обнаружил, что его изменили. Самое неприятное: я проверил тот же код с удалением «Кофе» (предпоследний элемент) — исключения <em>нет</em>, всё «работает». Ошибка, которая проявляется не всегда, хуже ошибки, которая есть всегда. Поэтому просто не делай так никогда.</p>
+<p>Как правильно удалить по условию:</p>
+<pre><code>cart.removeIf(item -&gt; item.equals("Чай"));</code></pre>
+<p>Запись <code>item -&gt; ...</code> — <em>лямбда</em>, её разберём в уроке 11. Пока читай её как «удали каждый <code>item</code>, для которого верно условие справа от стрелки».</p>
+
+<h3>Неизменяемые списки <code>List.of</code></h3>
+<p><code>List.of("Чай", "Кофе")</code> — быстрый способ создать список из готовых значений. Но он <strong>неизменяемый</strong>: <code>add</code> или <code>remove</code> бросят <code>UnsupportedOperationException</code> (проверено). Если нужен изменяемый — оберни: <code>new ArrayList&lt;&gt;(List.of(...))</code>, как в примерах выше. То же с <code>Set.of</code> и <code>Map.of</code>.</p>
+
+<h2>7. Частые вопросы</h2>
+
+<h3>Почему <code>HashMap</code> находит по ключу быстро, а <code>List</code> — медленно?</h3>
+<p><code>HashMap</code> по ключу вычисляет число — <em>хеш-код</em> — и по нему сразу понимает, в какую «ячейку» смотреть, как гардеробщик по номерку. Список же сравнивает искомое с каждым элементом по очереди. Как именно считается хеш-код и почему для своих классов это надо настроить — урок 8.</p>
+
+<h3>Есть ещё <code>LinkedList</code>. Когда его брать?</h3>
+<p>Почти никогда. По умолчанию — <code>ArrayList</code>: он быстрее в большинстве реальных задач. Если однажды понадобится <code>LinkedList</code>, ты поймёшь это по замерам, а не заранее.</p>
+
+<h3><code>Map</code> — это тоже <code>Collection</code>?</h3>
+<p>Нет, и это частый вопрос на собеседовании. <code>List</code> и <code>Set</code> наследуют общий интерфейс <code>Collection</code> («набор элементов»), а <code>Map</code> — отдельный интерфейс, потому что хранит не элементы, а пары. Поэтому у <code>Map</code> нет метода <code>add</code>, а есть <code>put</code>.</p>
+
+<h3>Можно ли хранить в <code>Map</code> список?</h3>
+<p>Да, значение может быть любым объектом, в том числе коллекцией: <code>Map&lt;String, List&lt;BankAccount&gt;&gt;</code> — «владелец → все его счета». Понадобится в домашке.</p>
+
+<h3>Можно ли положить в <code>HashMap</code> ключ <code>null</code>?</h3>
+<p>Технически можно (один), но не стоит: это почти всегда признак ошибки. Неизменяемые <code>Map.of</code> и <code>List.of</code> <code>null</code> вообще не принимают.</p>
+
+<h2>8. Проверь себя</h2>
+<p>Без подглядывания. Ошибся — вернись к разделу.</p>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>1. Банку нужно быстро находить счёт по его номеру. Что выбрать?</legend>
+  <label><input type="radio"> List со всеми счетами и цикл поиска</label>
+  <label><input type="radio"> Set со всеми счетами без повторов</label>
+  <label><input type="radio"> Map, где ключ — номер, значение — счёт</label>
+  <label><input type="radio"> Массив счетов фиксированной длины</label>
+  <p class="feedback">Главный вопрос задачи — «что лежит под этим ключом». <code>Map</code> находит значение по ключу без перебора, а список и массив пришлось бы проходить целиком.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>2. В <code>prices</code> нет ключа «Мёд». Что вернёт <code>prices.get("Мёд")</code>?</legend>
+  <label><input type="radio"> Значение null, без исключения</label>
+  <label><input type="radio"> Исключение, как KeyError в Python</label>
+  <label><input type="radio"> Число ноль для Integer значений</label>
+  <label><input type="radio"> Ошибку при компиляции программы</label>
+  <p class="feedback">В отличие от Python, Java не бросает исключение, а возвращает <code>null</code>. Отсюда шаблон «сохрани → проверь на null → используй» или <code>getOrDefault</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>3. <code>customers.add("Илья")</code> вызвали второй раз. Что вернёт метод?</legend>
+  <label><input type="radio"> true, элемент добавлен ещё раз</label>
+  <label><input type="radio"> Исключение о повторе элемента</label>
+  <label><input type="radio"> Ошибку компиляции в этой строке</label>
+  <label><input type="radio"> false, такой элемент уже есть</label>
+  <p class="feedback"><code>Set</code> хранит только уникальные элементы. <code>add</code> возвращает, изменился ли набор: повтор не добавляется, результат <code>false</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>4. <code>List&lt;Integer&gt; nums</code> содержит <code>[10, 20, 30]</code>. Что будет после <code>nums.remove(1)</code>?</legend>
+  <label><input type="radio"> [10, 20, 30] — числа 1 там не было</label>
+  <label><input type="radio"> [10, 30] — удалён элемент номер 1</label>
+  <label><input type="radio"> [20, 30] — удалён самый первый элемент</label>
+  <label><input type="radio"> Исключение: такого числа нет в списке</label>
+  <p class="feedback"><code>1</code> — это <code>int</code>, поэтому вызывается <code>remove(int index)</code>: удаляется элемент под номером 1. Чтобы удалить число, нужно <code>remove(Integer.valueOf(1))</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>5. Зачем писать <code>List&lt;String&gt; cart = new ArrayList&lt;&gt;()</code>, а не <code>ArrayList&lt;String&gt; cart</code>?</legend>
+  <label><input type="radio"> Так программа работает заметно быстрее</label>
+  <label><input type="radio"> Переменную ArrayList нельзя объявить</label>
+  <label><input type="radio"> Код зависит от договора, а не от класса</label>
+  <label><input type="radio"> Иначе не будет работать метод add</label>
+  <p class="feedback">Идея урока 6: тип переменной — интерфейс. Реализацию можно поменять, исправив только то, что после <code>new</code>, остальной код не изменится.</p>
+</fieldset>
+<p class="quiz-score"></p>
+
+<h2>9. Домашнее задание</h2>
+<p>Правила прежние. Файлы — в <code>src/lesson0007/</code> с <code>package lesson0007;</code>. Скопируй из урока 6 <code>BankAccount</code>, <code>SavingsAccount</code> и оба исключения счёта.</p>
+
+<div class="task">
+<h3>Шаг 1. Класс <code>Bank</code></h3>
+<p>Банк хранит счета по номерам: поле <code>private Map&lt;String, BankAccount&gt; accounts</code>, номер — строка вроде <code>"40817-001"</code>. Методы:</p>
+<ol>
+  <li><code>openAccount(String number, BankAccount account)</code> — открыть счёт. Если номер уже занят — исключение. Номер не может быть пустым или <code>null</code>.</li>
+  <li><code>BankAccount findAccount(String number)</code> — найти счёт. Если нет — исключение со своим понятным сообщением, а не <code>null</code> и не <code>NullPointerException</code>. Своё ли исключение или стандартное — реши сам.</li>
+  <li><code>transfer(String fromNumber, String toNumber, int amount)</code> — перевод по номерам. Используй <code>findAccount</code> и уже готовый <code>transferTo</code>.</li>
+  <li><code>int totalBalance()</code> — сумма балансов всех счетов банка.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 2. Отчёты</h3>
+<ol>
+  <li><code>Set&lt;String&gt; owners()</code> — все владельцы без повторов. У одного человека может быть несколько счетов.</li>
+  <li><code>Map&lt;String, Integer&gt; balanceByOwner()</code> — владелец → сумма по всем его счетам. Подсказка: приём «подсчёт» из раздела 4.</li>
+  <li><code>Map&lt;String, List&lt;BankAccount&gt;&gt; accountsByOwner()</code> — владелец → список его счетов. Подумай: что делать, когда у владельца встречается первый счёт и списка для него ещё нет?</li>
+</ol>
+<p>Методы возвращают <strong>новые</strong> коллекции, а не поле <code>accounts</code>. Подумай, почему опасно вернуть наружу само поле (вспомни урок 3 и урок 2 про ссылки).</p>
+</div>
+
+<div class="task">
+<h3>Шаг 3. Самопроверки в <code>Main</code></h3>
+<p>Напиши в <code>Main</code> вспомогательный метод <code>static void check(String name, boolean condition)</code>, который печатает <code>ОК: name</code> или <code>ОШИБКА: name</code>. Открой 4–5 счетов (у кого-то из владельцев — два, один накопительный) и проверь через <code>check</code>:</p>
+<ol>
+  <li><code>owners().size()</code> равен числу разных владельцев;</li>
+  <li><code>balanceByOwner()</code> для владельца с двумя счетами равен сумме двух балансов;</li>
+  <li><code>totalBalance()</code> не изменился после перевода между счетами банка;</li>
+  <li>открытие счёта с занятым номером бросает исключение (флажок <code>thrown</code>, как в уроке 6);</li>
+  <li><code>findAccount</code> несуществующего номера бросает исключение.</li>
+</ol>
+<p>Проверки пиши <strong>по заданию, до запуска</strong>. Если какая-то упала — сначала разберись, кто неправ: код или проверка.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Эксперименты (запиши результат и откатывай)</h3>
+<ol>
+  <li>Удали счёт из <code>List</code> внутри for-each (первый элемент). Запиши исключение.</li>
+  <li>Вызови <code>add</code> у списка, созданного через <code>List.of</code>. Запиши исключение.</li>
+  <li>Вызови <code>accounts.get("нет-такого").getBalance()</code> напрямую, без <code>findAccount</code>. Перепиши сообщение <code>NullPointerException</code> и объясни, что оно говорит.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Предсказание (сначала в комментарии!)</h3>
+<pre><code>Set&lt;BankAccount&gt; set = new HashSet&lt;&gt;();
+set.add(new BankAccount("Илья", 100));
+set.add(new BankAccount("Илья", 100));
+System.out.println(set.size());
+
+Set&lt;String&gt; names = new HashSet&lt;&gt;();
+names.add(new String("Илья"));
+names.add(new String("Илья"));
+System.out.println(names.size());</code></pre>
+<p>Напиши оба числа и почему, потом запусти. Если результаты различаются — запиши свою догадку, почему. Разберём её в уроке 8.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 6. Коммит</h3>
+<p>Например, <code>Добавить Bank с поиском счетов по номеру</code>. Не забудь строку в таблицу <code>README.md</code>. Потом напиши «проверь домашку 0007».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Раздел Oracle <a href="https://docs.oracle.com/javase/tutorial/collections/interfaces/index.html">Collection Interfaces</a>: прочитай страницы про <a href="https://docs.oracle.com/javase/tutorial/collections/interfaces/list.html">List</a>, <a href="https://docs.oracle.com/javase/tutorial/collections/interfaces/set.html">Set</a> и <a href="https://docs.oracle.com/javase/tutorial/collections/interfaces/map.html">Map</a>, около 30 минут. Примеры там местами со стримами и лямбдами — их пропускай, это уроки 11–12. Более современное изложение — <a href="https://dev.java/learn/api/collections-framework/">dev.java: The Collections Framework</a>.</p>
+
+<p>Шпаргалка — <a href="../reference/0007-java-collections.html">справочник «Коллекции»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1</a>, <a href="0002-classes-and-objects.html">2</a>, <a href="0003-encapsulation.html">3</a>, <a href="0004-exceptions.html">4</a>, <a href="0005-inheritance.html">5</a>, <a href="0006-interfaces.html">6. Интерфейсы</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Особенно если не понятно, какую коллекцию выбрать для своей задачи: опиши задачу словами, и разберём вместе.</p>
+</div>
+
+<nav class="course">
+  <a href="0006-interfaces.html">← Урок 6: интерфейсы</a>
+  <span>Урок 8: equals и hashCode →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

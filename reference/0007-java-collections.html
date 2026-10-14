@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Коллекции</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1>Коллекции</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0007-collections.html">уроку 0007</a>. <code>import java.util.*;</code></p>
+
+<h2>Что выбрать</h2>
+<table>
+  <tr><th>Нужно</th><th>Тип</th><th>Реализация</th><th>Python</th></tr>
+  <tr><td>порядок, повторы, доступ по номеру</td><td><code>List&lt;E&gt;</code></td><td><code>ArrayList</code></td><td><code>list</code></td></tr>
+  <tr><td>значение по ключу</td><td><code>Map&lt;K, V&gt;</code></td><td><code>HashMap</code></td><td><code>dict</code></td></tr>
+  <tr><td>уникальность, «есть ли»</td><td><code>Set&lt;E&gt;</code></td><td><code>HashSet</code></td><td><code>set</code></td></tr>
+</table>
+<p>Порядок добавления: <code>LinkedHashMap</code>, <code>LinkedHashSet</code>. Сортировка: <code>TreeMap</code>, <code>TreeSet</code>. Переменная — тип интерфейса.</p>
+
+<h2>List</h2>
+<pre><code>List&lt;String&gt; cart = new ArrayList&lt;&gt;();
+cart.add("Чай");          cart.get(0);          cart.set(0, "Мёд");
+cart.size();              cart.contains("Чай"); cart.indexOf("Чай");
+cart.remove("Чай");       // первое вхождение
+cart.remove(0);           // по номеру
+cart.removeIf(x -&gt; x.equals("Чай"));   // по условию</code></pre>
+
+<h2>Map</h2>
+<pre><code>Map&lt;String, Integer&gt; prices = new HashMap&lt;&gt;();
+prices.put("Чай", 250);               // заменяет, возвращает старое или null
+prices.get("Чай");                    // нет ключа → null
+prices.getOrDefault("Мёд", 0);
+prices.containsKey("Чай");   prices.remove("Чай");   prices.size();
+
+for (Map.Entry&lt;String, Integer&gt; e : prices.entrySet()) {
+    e.getKey(); e.getValue();
+}
+prices.keySet();   prices.values();
+
+counts.put(k, counts.getOrDefault(k, 0) + 1);      // подсчёт</code></pre>
+
+<h2>Set</h2>
+<pre><code>Set&lt;String&gt; s = new HashSet&lt;&gt;();
+s.add("Илья");        // true — добавлен; false — уже был
+s.contains("Илья");   s.remove("Илья");   s.size();</code></pre>
+
+<h2>Обёртки</h2>
+<table>
+  <tr><td><code>int</code> → <code>Integer</code></td><td><code>double</code> → <code>Double</code></td><td><code>boolean</code> → <code>Boolean</code></td><td><code>char</code> → <code>Character</code></td></tr>
+</table>
+<p>Автоупаковка в обе стороны. <code>Integer</code> может быть <code>null</code> → <code>int x = map.get(k)</code> даёт NPE, если ключа нет.</p>
+
+<h2>Ловушки</h2>
+<table>
+  <tr><th>Что</th><th>Результат</th><th>Как правильно</th></tr>
+  <tr><td><code>remove</code> внутри for-each</td><td><code>ConcurrentModificationException</code> (не всегда!)</td><td><code>removeIf</code></td></tr>
+  <tr><td><code>List.of(...).add(...)</code></td><td><code>UnsupportedOperationException</code></td><td><code>new ArrayList&lt;&gt;(List.of(...))</code></td></tr>
+  <tr><td><code>map.get(k).method()</code></td><td>NPE, если ключа нет</td><td>сохрани → проверь на <code>null</code> → используй</td></tr>
+  <tr><td><code>listOfInteger.remove(1)</code></td><td>удалён элемент <em>под номером</em> 1</td><td><code>remove(Integer.valueOf(1))</code></td></tr>
+  <tr><td>свой класс в <code>HashSet</code> / ключом <code>HashMap</code></td><td>одинаковые объекты считаются разными</td><td><code>equals</code> + <code>hashCode</code> (урок 8)</td></tr>
+</table>
+
+<h2>Ошибки</h2>
+<table>
+  <tr><td><code>unexpected type ... required: reference, found: int</code></td><td><code>List&lt;int&gt;</code> → <code>List&lt;Integer&gt;</code></td></tr>
+  <tr><td><code>Index 10 out of bounds for length 3</code></td><td><code>get</code> с несуществующим номером</td></tr>
+  <tr><td><code>Cannot invoke "..." because the return value of "java.util.Map.get(Object)" is null</code></td><td>ключа нет, результат <code>get</code> не проверен</td></tr>
+</table>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/javase/tutorial/collections/interfaces/index.html">Oracle — Collection Interfaces</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html">Map (Java 21)</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html">HashMap (Java 21)</a>. Вывод и сообщения проверены на JDK 21.</p>
+
+</main>
+</body>
+</html>
