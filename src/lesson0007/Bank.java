@@ -1,6 +1,9 @@
 package lesson0007;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class Bank {
     private Map<String, BankAccount> accounts;
@@ -49,6 +52,28 @@ public class Bank {
         if (accounts.get(number) == null) {
             throw new BadAccessFromNumberException("Не удается найти данный номер: " + number);
         }
+    }
+
+    public Set<String> owners() {
+        Set<String> owner = new HashSet<>();
+        for (Map.Entry<String, BankAccount> e : accounts.entrySet()) {
+            owner.add(e.getValue().getOwner());
+        }
+        return owner;
+    }
+
+    public Map<String, Integer> balanceByOwner() {
+        Map<String, Integer> balanceAndOwner = new HashMap<>();
+        for (String owner : this.owners()) {
+            int balance = 0;
+            for (Map.Entry<String, BankAccount> e : accounts.entrySet()) {
+                if (e.getValue().getOwner().equals(owner)){
+                    balance += e.getValue().getBalance();
+                    balanceAndOwner.put(owner, balance);
+                }
+            }
+        }
+        return balanceAndOwner;
     }
 
 }
