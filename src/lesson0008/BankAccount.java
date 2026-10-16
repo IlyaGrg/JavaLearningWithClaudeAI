@@ -1,6 +1,8 @@
 package lesson0008;
 
 
+import java.util.Objects;
+
 public class BankAccount implements Comparable<BankAccount> {
     private String owner;
     private int balance;
@@ -69,5 +71,21 @@ public class BankAccount implements Comparable<BankAccount> {
     @Override
     public int compareTo(BankAccount other) {
         return Integer.compare(this.balance, other.balance);
+    }
+
+    @Override
+    public boolean equals(Object o){
+        if (o == null){
+            return false;
+        }
+        if (o == null || o.getClass() != getClass()){
+            return false;
+        }
+        BankAccount other = (BankAccount) o;
+        return other.getBalance() == balance && other.getOwner().equals(owner);
+    }
+    @Override
+    public int hashCode(){
+        return Objects.hash(balance, owner);
     }
 }

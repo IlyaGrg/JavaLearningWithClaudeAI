@@ -15,9 +15,12 @@ public class AccountNumber {
     public String getValue(){
         return value;
     }
-
+//src/lesson0008/AccountNumber.java:19: error: method does not override or implement a method from a supertype
+//    @Override
+//    ^
+//1 error
     @Override
-    public boolean equals(Object o){
+    public boolean equals(Object o){//AccountNumber o произойдет перегрузка
         if (this == o){
             return true;
         }
