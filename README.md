@@ -14,14 +14,15 @@
 | 4 | Исключения | `try/catch`, своё `InsufficientFundsException`, checked vs unchecked | [`lesson0004`](src/lesson0004) |
 | 5 | Наследование | `SavingsAccount extends BankAccount`, `@Override`, полиморфизм | [`lesson0005`](src/lesson0005) |
 | 6 | Интерфейсы | `Notifier`, внедрение зависимости через конструктор, фейк и самотесты, `Comparable` | [`lesson0006`](src/lesson0006) |
+| 7 | Коллекции | `Bank` с `Map` «номер → счёт», `Set` уникальных владельцев, группировка счетов по владельцу, самопроверки через `check` | [`lesson0007`](src/lesson0007) |
 
 ## Как запустить
 
-Нужен JDK 21. Из корня репозитория, на примере урока 6:
+Нужен JDK 21. Из корня репозитория, на примере урока 7:
 
 ```bash
-javac -d out src/lesson0006/*.java
-java -cp out lesson0006.Main
+javac -d out src/lesson0007/*.java
+java -cp out lesson0007.Main
 ```
 
 В уроках 1 и 2 главный класс — `Shop` вместо `Main`: `java -cp out lesson0001.Shop`.
@@ -40,7 +41,7 @@ RESOURCES.md        источники: туториалы Oracle, докуме�
 
 ## Дальше по плану
 
-Коллекции и `equals`/`hashCode` → generics → лямбды и Stream API → Maven и JUnit 5 → SQL и PostgreSQL → Spring Boot → Docker и деплой.
+`equals`/`hashCode` → generics → лямбды и Stream API → Maven и JUnit 5 → SQL и PostgreSQL → Spring Boot → Docker и деплой.
 
 ## Стек
 

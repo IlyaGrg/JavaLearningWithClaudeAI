@@ -17,23 +17,23 @@ public class Main {
         sberBank.openAccount("12SX-901", ilyaSavingsAccount);
         sberBank.openAccount("QWSX78-SABUT57-IN1SP", tilzuBankAccount);
 
-        check("Первый тест", sberBank.owners().size() == 3);
-        check("Второй тест", sberBank.balanceByOwner().get("Ilya") == ilyaBankAccount.getBalance() + ilyaSavingsAccount.getBalance());
-
+        check("Первый тест, owners().size() равен числу разных владельцев", sberBank.owners().size() == 3);
+        check("Второй тест, balanceByOwner() для владельца с двумя счетами равен сумме двух балансов", sberBank.balanceByOwner().get("Ilya") == ilyaBankAccount.getBalance() + ilyaSavingsAccount.getBalance());
+        check("Проверка работы метода accountsByOwner()", sberBank.accountsByOwner().get("Ilya").size() == 2);
         int balanceBeforeExperiment = sberBank.totalBalance();
 
         sberBank.transfer("YtR-456", "QWSX78-SABUT57-IN1SP", 1500);
 
         int balanceAfterExperiment = sberBank.totalBalance();
 
-        check("Третий тест", balanceBeforeExperiment == balanceAfterExperiment);
+        check("Третий тест, totalBalance() не изменился после перевода между счетами банка", balanceBeforeExperiment == balanceAfterExperiment);
         boolean thrown = false;
         try {
             sberBank.openAccount("YtR-456", badAccount);
         } catch (DuplicateAccountException e) {
             thrown = true;
         }
-        check("Четвертый тест", thrown);
+        check("Четвертый тест, открытие счёта с занятым номером бросает исключение", thrown);
 
         thrown = false;
         try {
@@ -41,8 +41,8 @@ public class Main {
         } catch (AccountNotFoundException e) {
             thrown = true;
         }
-        check("Пятый тест", thrown);
-        System.out.println(sberBank.balanceByOwner());
+        check("Пятый тест, findAccount несуществующего номера бросает исключение", thrown);
+
 
 //        List<Integer> numbers = new ArrayList<>();
 //        numbers.add(1);
@@ -73,6 +73,7 @@ public class Main {
         names.add(new String("Илья"));
         System.out.println(names.size());
         //1
+        System.out.println(sberBank.accountsByOwner());
     }
 
     static void check(String name, boolean condition) {

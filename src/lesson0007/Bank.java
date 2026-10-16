@@ -9,12 +9,12 @@ public class Bank {
 
     public void openAccount(String number, BankAccount account) {
         if (account == null) {
-            throw new IllegalArgumentException("Банк не моежт открыть аккаунт для этого счета");
+            throw new IllegalArgumentException("Банк не может открыть аккаунт для этого счета");
         }
         if (number == null || number.isBlank()) {
             throw new IllegalArgumentException("Некорректный номер");
         }
-        if (accounts.containsKey(number) && accounts.get(number) != null) {
+        if (accounts.containsKey(number)) {
             throw new DuplicateAccountException("Такой номер счета уже существует: " + number);
         }
 
