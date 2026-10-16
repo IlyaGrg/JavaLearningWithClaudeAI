@@ -24,6 +24,8 @@
   List, Set, Map, иерархия интерфейсов коллекций. Use for: урок про коллекции. Местами примеры на стримах — читать после урока 12.
 - [dev.java: The Collections Framework](https://dev.java/learn/api/collections-framework/)
   Современный обзор коллекций от Oracle. Use for: повторение и углубление.
+- [Java 21 API: Object](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html)
+  Первоисточник договоров equals и hashCode. Use for: урок 8, вопросы на собеседовании про equals/hashCode.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 

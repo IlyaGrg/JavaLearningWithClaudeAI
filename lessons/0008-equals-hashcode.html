@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 8 · equals и hashCode</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0008 · Java Core · ~90 минут + домашка</div>
+<h1><code>equals</code> и <code>hashCode</code>: когда два объекта «одинаковые»</h1>
+<p class="subtitle">После этого урока ты сможешь объяснить разницу между <code>==</code> и <code>equals</code>, правильно переопределить <code>equals</code> и <code>hashCode</code> у своего класса и решить, нужно ли это делать вообще. Это один из самых частых вопросов на собеседованиях junior Java.</p>
+
+<div class="note">
+<p><strong>Откуда урок.</strong> Он собран из твоих же вопросов: <code>other.owner == owner</code> в уроке 3, «2 и 1» в <code>HashSet</code> в уроке 7 и загадка с <code>Integer</code>. Сегодня все три получат одно объяснение.</p>
+</div>
+
+<h2>Разминка</h2>
+<details class="reveal"><summary>1. Обещанный повтор (урок 6): почему реализация интерфейса не может сделать метод закрытее, чем в интерфейсе?</summary>
+<p>Код, который держит переменную типа интерфейса (<code>Notifier notifier</code>), вызывает <code>notifier.send(...)</code> — компилятор разрешает это, потому что в интерфейсе метод <code>public</code>. Какой объект там окажется, компилятор не знает. Если бы реализация могла спрятать <code>send</code>, обещание договора «этот метод можно вызвать» было бы нарушено. Поэтому сужать доступ запрещено.</p>
+</details>
+<details class="reveal"><summary>2. Что напечатал твой код в уроке 7 и как ты это объяснил?</summary>
+<pre><code>Set&lt;BankAccount&gt; set = ...; set.add(new BankAccount("Илья", 100)); set.add(new BankAccount("Илья", 100));
+// 2
+Set&lt;String&gt; names = ...; names.add(new String("Илья")); names.add(new String("Илья"));
+// 1</code></pre>
+<p>Твоя догадка: «воспринимает объекты как разные, несмотря на одинаковые поля». Верно. Сегодня узнаем, <em>как именно</em> <code>HashSet</code> решает, разные они или нет, и почему строки он считает одинаковыми.</p>
+</details>
+<details class="reveal"><summary>3. Что сравнивает <code>==</code>, если слева и справа объекты?</summary>
+<p>Ссылки: указывают ли две переменные на <em>один и тот же</em> объект. Ты использовал это правильно в <code>transferTo</code>: <code>other == this</code> — «это тот же самый счёт?»</p>
+</details>
+
+<h2>1. Два вопроса про «одинаковость»</h2>
+<p>У слова «одинаковые» два разных смысла, и в Java для них два разных инструмента:</p>
+<div class="ref">
+<table>
+  <tr><th>Вопрос</th><th>Java</th><th>Python</th><th>Пример</th></tr>
+  <tr><td>Это <strong>тот же самый</strong> объект?</td><td><code>a == b</code></td><td><code>a is b</code></td><td>тот же счёт, не копия</td></tr>
+  <tr><td>Эти объекты <strong>равны по смыслу</strong>?</td><td><code>a.equals(b)</code></td><td><code>a == b</code></td><td>две купюры по 100 рублей</td></tr>
+</table>
+</div>
+<p>Осторожно: <code>==</code> в Python и <code>==</code> в Java для объектов означают <strong>разное</strong>. Питоновскому <code>==</code> соответствует <code>equals</code>, а джавовскому <code>==</code> — питоновский <code>is</code>.</p>
+<p>Аналогия: у тебя и у друга по купюре в 100 рублей. Это <em>разные</em> бумажки (<code>==</code> — false), но для оплаты они <em>равноценны</em> (<code>equals</code> — true). А вот если ты передал другу свою купюру — это <em>та же самая</em> бумажка (<code>==</code> — true).</p>
+
+<h3>Как это выглядит в коде</h3>
+<p>Возьмём класс «деньги» — сумма и валюта. Пока без <code>equals</code>:</p>
+<pre><code>public class Money {
+    private int amount;
+    private String currency;
+
+    public Money(int amount, String currency) {
+        this.amount = amount;
+        this.currency = currency;
+    }
+}
+
+Money a = new Money(100, "RUB");
+Money b = new Money(100, "RUB");
+Money c = a;
+
+a == b        // false — два разных объекта (два new)
+a == c        // true  — c ссылается на тот же объект, что a
+a.equals(b)   // false (!) — хотя поля одинаковые</code></pre>
+<p>Почему <code>equals</code> вернул <code>false</code>? Помнишь из урока 5: если класс ничего не наследует явно, его родитель — <code>Object</code>. Наш <code>Money</code> получил от <code>Object</code> метод <code>equals</code>, а тот устроен очень просто — <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html#equals(java.lang.Object)">по документации</a> он сравнивает через <code>==</code>. Java не знает, что для денег важны сумма и валюта. Это знаешь только ты, значит, <code>equals</code> нужно <strong>переопределить</strong>.</p>
+
+<p>А <code>String</code> равенство по содержимому уже умеет — разработчики Java переопределили в нём <code>equals</code>. Поэтому <code>names</code> в уроке 7 дал 1. Я проверил: <code>"Илья" == new String("Илья")</code> — <code>false</code>, а <code>"Илья".equals(new String("Илья"))</code> — <code>true</code>.</p>
+
+<details class="reveal"><summary>Проверь себя: в уроке 3 у тебя было <code>other.owner == owner</code>. Почему с литералами это работало, а с <code>new String("Илья")</code> — нет?</summary>
+<p><code>==</code> сравнивает ссылки. Одинаковые строковые литералы Java хранит в одном экземпляре (я проверил: <code>"Илья" == "Илья"</code> — <code>true</code>), поэтому ссылки совпадали случайно. <code>new String</code> создаёт новый объект — ссылка другая. Строки по содержимому всегда сравнивают через <code>equals</code>.</p>
+</details>
+
+<h2>2. Переопределяем <code>equals</code></h2>
+<p>Вот <code>equals</code> для <code>Money</code>. Это стандартный шаблон, который ты будешь писать (или генерировать в IntelliJ) много раз:</p>
+<pre><code>@Override
+public boolean equals(Object o) {
+    if (this == o) {
+        return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+        return false;
+    }
+    Money other = (Money) o;
+    return amount == other.amount &amp;&amp; currency.equals(other.currency);
+}</code></pre>
+
+<div class="annotated">
+  <div class="row"><code>@Override
+public boolean equals(Object o)</code><div>Сигнатура как у <code>Object.equals</code>: параметр — <strong><code>Object</code></strong>, не <code>Money</code>. Иначе это будет перегрузка, а не переопределение (раздел 4). <code>@Override</code> проверит.</div></div>
+  <div class="row"><code>if (this == o) {
+    return true;
+}</code><div>Сравниваем объект сам с собой — точно равны. Быстрый выход.</div></div>
+  <div class="row"><code>if (o == null || getClass() != o.getClass()) {
+    return false;
+}</code><div><code>null</code> ни чему не равен. <code>getClass()</code> — «точный класс объекта». Деньги не могут быть равны строке или счёту, даже если там тоже есть число 100. Порядок важен: сначала <code>null</code>, иначе <code>o.getClass()</code> упадёт с <code>NullPointerException</code> (тот же шаблон, что «сначала null, потом isBlank»).</div></div>
+  <div class="row"><code>Money other = (Money) o;</code><div><strong>Приведение типа</strong> (cast). Переменная <code>o</code> — типа <code>Object</code>, и по правилу 1 из урока 5 у неё нельзя спросить <code>amount</code>. Мы только что проверили, что объект на самом деле <code>Money</code>, поэтому говорим компилятору: «считай его <code>Money</code>». Объект не меняется — меняется только тип переменной, через которую мы на него смотрим.</div></div>
+  <div class="row"><code>return amount == other.amount
+    &amp;&amp; currency.equals(other.currency);</code><div>Сравнение по смыслу. <code>amount</code> — <code>int</code>, примитив, для него <code>==</code> правильно. <code>currency</code> — <code>String</code>, объект, для него <code>equals</code>. Правило: <strong>примитивы через <code>==</code>, объекты через <code>equals</code></strong>. А <code>other.amount</code> можно читать, хотя поле <code>private</code>: мы внутри класса <code>Money</code> (урок 3).</div></div>
+</div>
+
+<p>Проверено на JDK 21 с этим <code>equals</code>:</p>
+<pre><code>a.equals(b)                      // true  — сумма и валюта совпали
+a.equals(new Money(100, "USD"))  // false — валюта другая
+a.equals(null)                   // false — без исключения
+a.equals("100 RUB")              // false — другой класс
+a == b                           // false — по-прежнему два разных объекта</code></pre>
+<p>Обрати внимание на последнюю строку: <code>equals</code> ничего не меняет в <code>==</code>. Это два разных вопроса, и оба нужны.</p>
+
+<h3>Правила, которые должен соблюдать <code>equals</code></h3>
+<p>Документация <code>Object.equals</code> требует, чтобы равенство вело себя «разумно». Если ты пишешь по шаблону выше, правила выполняются сами, но знать их стоит — спрашивают на собеседованиях:</p>
+<ul>
+  <li><strong>Рефлексивность:</strong> <code>a.equals(a)</code> — всегда <code>true</code>.</li>
+  <li><strong>Симметричность:</strong> если <code>a.equals(b)</code>, то и <code>b.equals(a)</code>.</li>
+  <li><strong>Транзитивность:</strong> если <code>a</code> равно <code>b</code>, а <code>b</code> равно <code>c</code>, то <code>a</code> равно <code>c</code>.</li>
+  <li><strong>Постоянство:</strong> пока объекты не менялись, ответ не меняется.</li>
+  <li><code>a.equals(null)</code> — всегда <code>false</code>, без исключения.</li>
+</ul>
+
+<details class="reveal"><summary>Проверь себя: что будет, если в <code>equals</code> написать <code>currency == other.currency</code>?</summary>
+<p>Сравнятся ссылки на строки. С литералами <code>"RUB"</code> это случайно сработает (они в одном экземпляре), а со строкой, пришедшей, например, из формы или из базы данных, — нет. Та же ошибка, что в уроке 3. Объекты — через <code>equals</code>.</p>
+</details>
+
+<h2>3. <code>hashCode</code>: как <code>HashSet</code> ищет</h2>
+<p>Переопределили <code>equals</code> — готово? Проверим. Класс с правильным <code>equals</code>, но без <code>hashCode</code>:</p>
+<pre><code>Set&lt;EqOnly&gt; set = new HashSet&lt;&gt;();
+set.add(new EqOnly(100, "RUB"));
+set.add(new EqOnly(100, "RUB"));
+e1.equals(e2)     // true
+set.size()        // 2 (!)</code></pre>
+<p>Я проверил: <code>equals</code> говорит «равны», а <code>HashSet</code> всё равно хранит два. Почему — нужно понять, как он устроен.</p>
+
+<h3>Как устроен <code>HashSet</code> (и <code>HashMap</code>)</h3>
+<p>Помнишь гардероб из урока 7? Представь, что крючков тысяча и они разбиты на ряды. Гардеробщик не обходит все тысячу крючков: по номерку он сразу понимает ряд, и сравнивает только в нём.</p>
+<p><code>HashSet</code> делает так же, в два шага:</p>
+<ol>
+  <li><strong>Выбрать «ряд».</strong> Вызвать у объекта <code>hashCode()</code> — метод, который возвращает число (<code>int</code>). По этому числу выбирается «корзина» (bucket). Смотреть будем только в ней.</li>
+  <li><strong>Сравнить внутри ряда.</strong> С каждым объектом в этой корзине вызвать <code>equals</code>. Нашёлся равный — значит, такой элемент уже есть.</li>
+</ol>
+<p>Теперь ясно, что пошло не так. <code>hashCode</code> мы не переопределили, значит, работает версия из <code>Object</code>: она даёт разные числа для разных объектов (в документации — «as far as is reasonably practical»). Два наших объекта попали в <strong>разные корзины</strong>. До шага 2 дело не дошло: в корзине второго объекта первого нет, сравнивать не с кем. <code>equals</code> так и не был вызван.</p>
+<p>Интересная деталь: <code>list.contains(e2)</code> для этого же класса вернул <code>true</code> (проверено). <code>ArrayList</code> не использует хеши, он вызывает <code>equals</code> у каждого элемента подряд. Поэтому без <code>hashCode</code> «ломаются» только <code>HashSet</code> и <code>HashMap</code> — и это особенно коварно.</p>
+
+<h3>Договор <code>hashCode</code></h3>
+<div class="note">
+<p><strong>Если два объекта равны по <code>equals</code>, их <code>hashCode</code> обязаны совпадать.</strong></p>
+<p>Обратное <em>не</em> требуется: разные объекты могут случайно получить одинаковый <code>hashCode</code> (это называется <em>коллизия</em>). Тогда они попадут в одну корзину, и <code>equals</code> на шаге 2 их различит. Коллизии лишь чуть замедляют поиск, а нарушение главного правила ломает <code>HashSet</code>.</p>
+<p class="cite"><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html#hashCode()">Object.hashCode (Java 21)</a>: «If two objects are equal according to the equals method, then calling the hashCode method on each of the two objects must produce the same integer result.»</p>
+</div>
+
+<h3>Как написать <code>hashCode</code></h3>
+<pre><code>import java.util.Objects;
+
+@Override
+public int hashCode() {
+    return Objects.hash(amount, currency);
+}</code></pre>
+<p><code>Objects.hash(...)</code> — готовый метод: перемешивает значения полей в одно число. Правило выбора полей простое: <strong>те же поля, что сравниваются в <code>equals</code></strong>. Тогда равные объекты гарантированно дадут равные числа. У двух наших <code>Money(100, "RUB")</code> оба <code>hashCode</code> — <code>85564</code> (проверено).</p>
+<p>Теперь всё работает:</p>
+<pre><code>Set&lt;Money&gt; s = new HashSet&lt;&gt;();
+s.add(new Money(100, "RUB"));
+s.add(new Money(100, "RUB"));
+s.size()                              // 1
+s.contains(new Money(100, "RUB"))     // true — совсем новый объект, а находится
+
+Map&lt;Money, String&gt; m = new HashMap&lt;&gt;();
+m.put(a, "x");
+m.get(new Money(100, "RUB"))          // "x" — ключ найден по равному объекту</code></pre>
+
+<p><strong>Главное правило урока:</strong> <code>equals</code> и <code>hashCode</code> переопределяют <strong>всегда вместе</strong>. Только один из них — ошибка.</p>
+
+<details class="reveal"><summary>Проверь себя: <code>hashCode</code> всегда возвращает <code>42</code> для любого объекта. Договор нарушен? Будет ли работать <code>HashSet</code>?</summary>
+<p>Договор <em>не</em> нарушен: равные объекты дают равные числа (все дают 42). <code>HashSet</code> будет работать правильно, но все объекты окажутся в одной корзине, и поиск превратится в перебор, как у списка. Корректно, но медленно.</p>
+</details>
+
+<h2>4. Ловушка: <code>equals(Money other)</code> вместо <code>equals(Object o)</code></h2>
+<p>Очень частая ошибка — написать параметр «правильного» типа:</p>
+<pre><code>public boolean equals(Money other) {      // ← Money, не Object
+    return other != null &amp;&amp; amount == other.amount;
+}</code></pre>
+<p>Это не переопределение, а <strong>перегрузка</strong> (урок 1): другой тип параметра — другая сигнатура. Теперь у класса <em>два</em> метода <code>equals</code>: твой, с <code>Money</code>, и унаследованный от <code>Object</code>, с <code>Object</code>. Я проверил на классе с такой ошибкой:</p>
+<pre><code>o1.equals(o2)              // true  — вызвана твоя перегрузка (o2 типа Overload)
+Object oo = o2;
+o1.equals(oo)              // false — вызвана версия Object, по ссылкам
+set.size()                 // 2     — HashSet вызывает equals(Object)</code></pre>
+<p><code>HashSet</code> и <code>HashMap</code> написаны задолго до твоего класса и вызывают <code>equals(Object)</code>. Твою перегрузку они не видят. Спасает то же, что в уроке 5: <strong><code>@Override</code></strong>. С ним такая ошибка не скомпилируется: <code>method does not override or implement a method from a supertype</code>.</p>
+
+<h2>5. Ловушка: изменяемые поля в <code>hashCode</code></h2>
+<p>Представь, что ты сделал <code>equals</code> и <code>hashCode</code> у счёта по владельцу и <strong>балансу</strong>. Проверим (класс <code>Mut</code> — упрощённый счёт с такими методами):</p>
+<pre><code>Mut acc = new Mut("Илья", 100);
+Set&lt;Mut&gt; set = new HashSet&lt;&gt;();
+set.add(acc);
+acc.deposit(50);                // баланс изменился → hashCode изменился
+set.contains(acc)               // false (!) — тот же самый объект не находится
+set.size()                      // 1 — но он там лежит</code></pre>
+<p>Трассировка: при <code>add</code> объект положили в корзину, вычисленную по балансу 100. После <code>deposit</code> <code>hashCode</code> считается по балансу 150 — <code>contains</code> идёт в <em>другую</em> корзину и там ничего не находит. Объект «потерялся» внутри набора. Вывод: <strong>поля, которые меняются, не должны участвовать в <code>equals</code> и <code>hashCode</code></strong> объектов, которые лежат в <code>HashSet</code> или служат ключами <code>HashMap</code>.</p>
+
+<h2>6. Главный вопрос: а нужно ли вообще?</h2>
+<p>Не каждому классу нужен <code>equals</code> по полям. Есть два вида объектов:</p>
+<div class="ref">
+<table>
+  <tr><th></th><th>Объект-значение (value object)</th><th>Сущность (entity)</th></tr>
+  <tr><td>Что важно</td><td>только значение</td><td>«кто это», его личность</td></tr>
+  <tr><td>Примеры</td><td><code>Money</code>, <code>String</code>, <code>Integer</code>, номер счёта, дата</td><td>банковский счёт, клиент, заказ</td></tr>
+  <tr><td>Тест</td><td>две купюры по 100 ₽ взаимозаменяемы</td><td>два счёта Ильи по 100 ₽ — <em>разные</em> счета</td></tr>
+  <tr><td><code>equals</code></td><td>по всем полям</td><td>не переопределять (по ссылке) или по уникальному номеру</td></tr>
+</table>
+</div>
+<p>Посмотри на свой <code>BankAccount</code>. У Ильи могут быть два счёта по 100 рублей — карта и накопительный. Если сделать <code>equals</code> по владельцу и балансу, банк будет считать их одним счётом, а <code>HashSet</code> выкинет один из них. Плюс баланс меняется (раздел 5). Так что результат «2» из урока 7 для счетов — <strong>правильный</strong>. Именно так и должно быть.</p>
+<p>А вот номер счёта — это значение: строка <code>"40817-001"</code>, пришедшая из формы, и та же строка, сохранённая в банке, обозначают один и тот же счёт. Поэтому ключом <code>Map</code> у тебя служит строка, у которой <code>equals</code> по содержимому. В домашке ты сделаешь свой класс номера счёта.</p>
+<p>В Spring и базах данных это различие встретится снова: сущности там обычно сравнивают по уникальному идентификатору (id).</p>
+
+<h2>7. Загадка с <code>Integer</code></h2>
+<p>В уроке 7 я показал: два одинаковых <code>Integer</code> из <code>Map</code> через <code>==</code> — то <code>true</code>, то <code>false</code>. Теперь ты можешь объяснить это сам. Проверено на JDK 21:</p>
+<pre><code>Integer i1 = 127, i2 = 127;
+Integer i3 = 128, i4 = 128;
+i1 == i2        // true
+i3 == i4        // false
+i3.equals(i4)   // true</code></pre>
+<p><code>Integer</code> — объект, и <code>==</code> сравнивает ссылки. Но Java заранее создаёт и переиспользует объекты для маленьких чисел: <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Integer.html#valueOf(int)">документация</a> гарантирует кеш «in the range -128 to 127». Для 127 обе переменные получают один и тот же готовый объект — ссылки равны. Для 128 создаются два разных объекта — ссылки разные.</p>
+<p>Вывод тот же, что для строк: <strong>объекты, в том числе <code>Integer</code>, сравнивают через <code>equals</code></strong>. Твоя проверка в уроке 7 (<code>Integer == int</code>) была корректна только потому, что справа был примитив <code>int</code>, и Java распаковала <code>Integer</code> в число.</p>
+
+<h2>8. Частые вопросы</h2>
+
+<h3>IntelliJ может сгенерировать <code>equals</code> и <code>hashCode</code>?</h3>
+<p>Да: <strong>Alt+Insert → equals() and hashCode()</strong>, выбираешь поля. В реальной работе так и делают. В домашке напиши руками один раз, чтобы понимать каждую строку сгенерированного кода — на собеседовании попросят написать на листе.</p>
+
+<h3>Я видел <code>if (!(o instanceof Money other)) return false;</code>. Это то же самое?</h3>
+<p>Почти. <code>instanceof</code> проверяет «является ли объект <code>Money</code> или его потомком», а с Java 16 он ещё и сразу заводит переменную <code>other</code> — без отдельного приведения. Разница с <code>getClass()</code> — в потомках: <code>getClass()</code> требует точного совпадения класса. Для начала используй вариант с <code>getClass()</code>, как IntelliJ генерирует по умолчанию.</p>
+
+<h3>А если поле может быть <code>null</code>?</h3>
+<p><code>currency.equals(other.currency)</code> упадёт, если <code>currency</code> — <code>null</code>. Безопасный вариант — <code>Objects.equals(currency, other.currency)</code>: он сам обрабатывает <code>null</code> (проверено: <code>Objects.equals(null, null)</code> — <code>true</code>, <code>Objects.equals("a", null)</code> — <code>false</code>). Лучше же — не допускать <code>null</code> в поле проверкой в конструкторе, как ты уже умеешь.</p>
+
+<h3>Есть способ не писать всё это руками?</h3>
+<p>Да — <code>record</code> (Java 16+): специальный вид класса для объектов-значений, у которого <code>equals</code>, <code>hashCode</code> и <code>toString</code> по всем полям создаются автоматически. Это урок 13. Сегодня важно понять, что именно он генерирует.</p>
+
+<h3>Зачем <code>hashCode</code>, если можно сравнить всё через <code>equals</code>?</h3>
+<p>Скорость. <code>equals</code> со всеми элементами — это перебор, как у <code>List</code>. <code>hashCode</code> за один шаг сужает поиск до одной маленькой корзины. На миллионе элементов это разница между «мгновенно» и «секунды».</p>
+
+<h2>9. Проверь себя</h2>
+<p>Без подглядывания. Ошибся — вернись к разделу.</p>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>1. У <code>Money</code> правильно переопределены <code>equals</code> и <code>hashCode</code>. Чему равно <code>new Money(100, "RUB") == new Money(100, "RUB")</code>?</legend>
+  <label><input type="radio"> true, поля у объектов одинаковые</label>
+  <label><input type="radio"> false, это два разных объекта</label>
+  <label><input type="radio"> true, ведь equals переопределён</label>
+  <label><input type="radio"> Ошибка компиляции при сравнении</label>
+  <p class="feedback"><code>==</code> на объектах всегда сравнивает ссылки. Два <code>new</code> — два объекта. <code>equals</code> на <code>==</code> не влияет.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>2. В классе переопределён только <code>equals</code>, без <code>hashCode</code>. В <code>HashSet</code> добавили два равных объекта. Сколько элементов?</legend>
+  <label><input type="radio"> Ошибка компиляции, нужен hashCode</label>
+  <label><input type="radio"> Один элемент, equals ведь работает</label>
+  <label><input type="radio"> Исключение при втором добавлении</label>
+  <label><input type="radio"> Скорее всего два, разные корзины</label>
+  <p class="feedback">Без своего <code>hashCode</code> объекты получают разные числа и попадают в разные корзины. <code>equals</code> даже не вызывается. Компилятор об этом не предупредит.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>3. В классе написан <code>public boolean equals(Money other)</code> без <code>@Override</code>. Что это?</legend>
+  <label><input type="radio"> Перегрузка, HashSet её не вызовет</label>
+  <label><input type="radio"> Переопределение, всё будет работать</label>
+  <label><input type="radio"> Ошибка компиляции из-за типа Money</label>
+  <label><input type="radio"> HashSet вызовет её вместо старой</label>
+  <p class="feedback">Тип параметра другой — значит, сигнатура другая, это новый метод. Коллекции вызывают <code>equals(Object)</code>, и работает версия <code>Object</code> по ссылкам. <code>@Override</code> поймал бы ошибку.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>4. Что требует договор <code>hashCode</code>?</legend>
+  <label><input type="radio"> Разные объекты — разные hashCode</label>
+  <label><input type="radio"> Равные hashCode — объекты равны</label>
+  <label><input type="radio"> Равные по equals — равные hashCode</label>
+  <label><input type="radio"> hashCode каждого объекта уникален</label>
+  <p class="feedback">Обязательно только одно направление: равные объекты дают равные числа. Совпадение чисел у разных объектов (коллизия) допустимо.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>5. <code>Integer x = 1000, y = 1000;</code> Чему равно <code>x == y</code>?</legend>
+  <label><input type="radio"> true, числа ведь одинаковые</label>
+  <label><input type="radio"> false, сравниваются две ссылки</label>
+  <label><input type="radio"> Ошибка: Integer нельзя сравнивать</label>
+  <label><input type="radio"> true, Java кеширует любые числа</label>
+  <p class="feedback"><code>Integer</code> — объект, <code>==</code> сравнивает ссылки. Кеш гарантирован только для -128…127, а 1000 — два разных объекта. Сравнивай через <code>equals</code>.</p>
+</fieldset>
+<p class="quiz-score"></p>
+
+<h2>10. Домашнее задание</h2>
+<p>Файлы — в <code>src/lesson0008/</code> с <code>package lesson0008;</code>. Скопируй из урока 7 счета, оба исключения банка, исключения счёта и <code>Bank</code>.</p>
+
+<div class="task">
+<h3>Шаг 1. Класс <code>AccountNumber</code> — номер счёта как объект-значение</h3>
+<ol>
+  <li>Одно <code>private</code>-поле <code>String value</code>, геттер, <code>toString</code> (возвращает сам номер).</li>
+  <li>Конструктор проверяет: не <code>null</code>, не пустой. Придумай ещё одно правило формата (например, длина или только цифры и дефис) и проверь его.</li>
+  <li><strong>Руками</strong>, без генерации: <code>equals</code> и <code>hashCode</code> по шаблону урока.</li>
+  <li>В комментарии над классом: почему номер счёта — объект-значение, а счёт — нет.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 2. Банк на <code>AccountNumber</code></h3>
+<p>Переделай <code>Bank</code>: <code>Map&lt;AccountNumber, BankAccount&gt;</code>, и все методы принимают <code>AccountNumber</code> вместо <code>String</code>. Проверки «пустой номер» из банка теперь можно убрать — подумай, почему.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 3. Самопроверки</h3>
+<p>Через <code>check</code>, по заданию, до запуска:</p>
+<ol>
+  <li>Два <code>new AccountNumber("40817-001")</code> равны по <code>equals</code>, но не по <code>==</code>.</li>
+  <li>Их <code>hashCode</code> совпадают.</li>
+  <li><code>bank.findAccount(new AccountNumber("40817-001"))</code> находит счёт, открытый с <em>другим</em> объектом того же номера.</li>
+  <li><code>Set&lt;AccountNumber&gt;</code> с двумя одинаковыми номерами имеет размер 1.</li>
+  <li><code>equals(null)</code> возвращает <code>false</code>, а не бросает исключение.</li>
+</ol>
+<p><strong>Новое правило:</strong> после того как все проверки зелёные, закомментируй <code>hashCode</code> в <code>AccountNumber</code> и запусти снова. Запиши, какие проверки упали, а какие — нет, и объясни почему. Потом верни. Так ты убедишься, что тесты реально ловят ошибку.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Эксперименты (результат и объяснение — в комментарии, потом откатывай)</h3>
+<ol>
+  <li>Поменяй параметр <code>equals</code> на <code>AccountNumber other</code>, <code>@Override</code> оставь. Запиши ошибку. Потом убери <code>@Override</code> — что покажут проверки из шага 3?</li>
+  <li>Временно добавь в <code>BankAccount</code> <code>equals</code>/<code>hashCode</code> по владельцу и балансу. Положи счёт в <code>HashSet</code>, сделай <code>deposit</code>, проверь <code>contains</code>. Запиши результат и что это значит. Потом удали.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Предсказание (сначала в комментарии!)</h3>
+<pre><code>Integer a = 100, b = 100, c = 500, d = 500;
+String s1 = "банк", s2 = "банк", s3 = new String("банк");
+System.out.println(a == b);
+System.out.println(c == d);
+System.out.println(c.equals(d));
+System.out.println(s1 == s2);
+System.out.println(s1 == s3);
+System.out.println(s1.equals(s3));</code></pre>
+</div>
+
+<div class="task">
+<h3>Шаг 6. Коммит</h3>
+<p>Например, <code>Добавить AccountNumber с equals и hashCode</code>. README обновлю я. Потом напиши «проверь домашку 0008».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Раздел Oracle <a href="https://docs.oracle.com/javase/tutorial/java/IandI/objectclass.html">Object as a Superclass</a> — подразделы про <code>equals()</code> и <code>hashCode()</code>, 10 минут. Затем документация методов <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html#equals(java.lang.Object)">Object.equals</a> и <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html#hashCode()">Object.hashCode</a> — там дословно правила из разделов 2 и 3. Пригодится и <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Objects.html">java.util.Objects</a>.</p>
+
+<p>Шпаргалка — <a href="../reference/0008-java-equals-hashcode.html">справочник «equals и hashCode»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1</a>, <a href="0002-classes-and-objects.html">2</a>, <a href="0003-encapsulation.html">3</a>, <a href="0004-exceptions.html">4</a>, <a href="0005-inheritance.html">5</a>, <a href="0006-interfaces.html">6</a>, <a href="0007-collections.html">7. Коллекции</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Особенно раздел 3 про корзины: если картинка «сначала ряд по hashCode, потом equals внутри ряда» не складывается — скажи, нарисуем по шагам на твоём примере.</p>
+</div>
+
+<nav class="course">
+  <a href="0007-collections.html">← Урок 7: коллекции</a>
+  <span>Урок 9: generics →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · equals и hashCode</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1><code>equals</code> и <code>hashCode</code></h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0008-equals-hashcode.html">уроку 0008</a>.</p>
+
+<h2><code>==</code> или <code>equals</code></h2>
+<table>
+  <tr><th></th><th>Java</th><th>Python</th></tr>
+  <tr><td>тот же самый объект</td><td><code>a == b</code></td><td><code>a is b</code></td></tr>
+  <tr><td>равны по смыслу</td><td><code>a.equals(b)</code></td><td><code>a == b</code></td></tr>
+</table>
+<p>Примитивы (<code>int</code>, <code>double</code>, <code>boolean</code>) — <code>==</code>. Объекты (<code>String</code>, <code>Integer</code>, свои классы) — <code>equals</code>. Без переопределения <code>Object.equals</code> работает как <code>==</code>.</p>
+
+<h2>Шаблон</h2>
+<pre><code>import java.util.Objects;
+
+@Override
+public boolean equals(Object o) {                     // Object, не Money!
+    if (this == o) {
+        return true;
+    }
+    if (o == null || getClass() != o.getClass()) {    // сначала null
+        return false;
+    }
+    Money other = (Money) o;                          // приведение типа
+    return amount == other.amount                     // примитив — ==
+        &amp;&amp; Objects.equals(currency, other.currency);  // объект — equals (null-безопасно)
+}
+
+@Override
+public int hashCode() {
+    return Objects.hash(amount, currency);            // те же поля, что в equals
+}</code></pre>
+<p>IntelliJ: <strong>Alt+Insert → equals() and hashCode()</strong>.</p>
+
+<h2>Правила</h2>
+<ul>
+  <li><code>equals</code> и <code>hashCode</code> переопределяют <strong>только вместе</strong>.</li>
+  <li>Равны по <code>equals</code> → <strong>обязаны</strong> иметь равный <code>hashCode</code>. Обратное не требуется (коллизии допустимы).</li>
+  <li><code>equals</code>: рефлексивен, симметричен, транзитивен, постоянен; <code>x.equals(null)</code> — <code>false</code>.</li>
+  <li>Изменяемые поля не включать, если объект лежит в <code>HashSet</code> / служит ключом <code>HashMap</code>.</li>
+</ul>
+
+<h2>Как ищет <code>HashSet</code> / <code>HashMap</code></h2>
+<ol>
+  <li><code>hashCode()</code> → номер корзины.</li>
+  <li><code>equals()</code> с каждым элементом этой корзины.</li>
+</ol>
+<p><code>ArrayList.contains</code> хеши не использует — только <code>equals</code> подряд.</p>
+
+<h2>Нужно ли переопределять</h2>
+<table>
+  <tr><th>Объект-значение</th><th>Сущность</th></tr>
+  <tr><td><code>Money</code>, <code>String</code>, номер счёта, дата</td><td>счёт, клиент, заказ</td></tr>
+  <tr><td>да, по всем полям</td><td>нет (по ссылке) или по уникальному id</td></tr>
+</table>
+
+<h2>Что ломается</h2>
+<table>
+  <tr><th>Ошибка</th><th>Симптом</th></tr>
+  <tr><td>нет <code>equals</code></td><td>равные объекты «разные» везде</td></tr>
+  <tr><td><code>equals</code> без <code>hashCode</code></td><td><code>HashSet</code> хранит дубликаты, <code>HashMap.get</code> не находит; <code>List.contains</code> работает</td></tr>
+  <tr><td><code>equals(Money other)</code></td><td>перегрузка: коллекции её не видят. С <code>@Override</code> — <code>method does not override or implement a method from a supertype</code></td></tr>
+  <tr><td>изменяемое поле в <code>hashCode</code></td><td>после изменения <code>contains</code> → <code>false</code>, объект «потерян» в наборе</td></tr>
+  <tr><td><code>Integer == Integer</code></td><td><code>true</code> только для −128…127 (кеш), иначе <code>false</code></td></tr>
+  <tr><td><code>String == String</code></td><td><code>true</code> для одинаковых литералов, <code>false</code> с <code>new String</code></td></tr>
+</table>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html">Object (Java 21)</a> — equals, hashCode; <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Objects.html">Objects</a>; <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Integer.html#valueOf(int)">Integer.valueOf</a>; <a href="https://docs.oracle.com/javase/tutorial/java/IandI/objectclass.html">Oracle — Object as a Superclass</a>. Поведение проверено на JDK 21.</p>
+
+</main>
+</body>
+</html>
