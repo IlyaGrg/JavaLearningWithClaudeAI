@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 9 · Generics</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0009 · Java Core · ~90 минут + домашка</div>
+<h1>Generics: один класс для разных типов</h1>
+<p class="subtitle">После этого урока ты сможешь прочитать любые угловые скобки — <code>List&lt;E&gt;</code>, <code>Map&lt;K, V&gt;</code>, <code>Comparable&lt;T&gt;</code>, — написать свой обобщённый класс и обобщённый метод, и понять, как устроен репозиторий в Spring Data.</p>
+
+<div class="note">
+<p><strong>Зачем этот урок для backend.</strong> В Spring Data ты будешь писать <code>interface AccountRepository extends CrudRepository&lt;Account, Long&gt;</code> — и получать готовые методы сохранения и поиска для любого класса. Это работает благодаря generics. В домашке ты напишешь упрощённую версию такого репозитория сам.</p>
+</div>
+
+<h2>Разминка: вспомни урок 8</h2>
+<details class="reveal"><summary>1. <code>Integer x = 500, y = 500;</code> — что даст <code>x == y</code> и почему?</summary>
+<p><code>false</code>. <code>Integer</code> — объект, <code>==</code> сравнивает ссылки, а кеш гарантирован только для −128…127. Сравнивать нужно через <code>equals</code>.</p>
+</details>
+<details class="reveal"><summary>2. В <code>equals(Object o)</code> была строка <code>Money other = (Money) o;</code>. Зачем она?</summary>
+<p>Это приведение типа. У переменной типа <code>Object</code> нельзя спросить <code>amount</code> — компилятор смотрит на тип переменной. Мы проверили, что объект действительно <code>Money</code>, и смотрим на него через переменную типа <code>Money</code>. Сегодня увидим, сколько таких приведений приходилось писать до появления generics.</p>
+</details>
+<details class="reveal"><summary>3. Ты уже много раз писал <code>&lt;...&gt;</code>. Где?</summary>
+<p><code>ArrayList&lt;Product&gt;</code>, <code>Map&lt;AccountNumber, BankAccount&gt;</code>, <code>Comparable&lt;BankAccount&gt;</code>, <code>new HashMap&lt;&gt;()</code>. Ты пользовался generics с урока 2, не зная, как они называются. Сегодня — что за этим стоит.</p>
+</details>
+
+<h2>1. Жизнь без generics</h2>
+<p>Generics появились в Java 5 (2004 год). До этого <code>List</code> хранил просто «объекты» — <code>Object</code>. Этот старый стиль до сих пор компилируется, его называют <em>сырым типом</em> (raw type):</p>
+<pre><code>List raw = new ArrayList();         // без угловых скобок
+raw.add("Чай");
+raw.add(250);                       // компилятор не возражает: всё — Object
+
+String s = (String) raw.get(1);     // нужно приведение, и оно...
+// ClassCastException: class java.lang.Integer cannot be cast to class java.lang.String</code></pre>
+<p>Проверено на JDK 21. Проблемы видны сразу:</p>
+<ul>
+  <li><strong>Каждое чтение — с приведением типа</strong>, как <code>(Money) o</code> в <code>equals</code>.</li>
+  <li><strong>Ошибка обнаруживается при запуске</strong>, а не при компиляции. В список легко положить число, а упадёт программа где-то далеко, там, где его достают как строку. Это тот самый «дорогой» вид бага из урока 3: ошибка проявляется далеко от места, где её сделали.</li>
+</ul>
+<p>Компилятор, кстати, при сборке этого кода предупреждает: <code>Note: Main.java uses unchecked or unsafe operations</code>. Это намёк: «тут сырые типы, я не могу проверить».</p>
+
+<p>Теперь то же самое с generics:</p>
+<pre><code>List&lt;String&gt; names = new ArrayList&lt;&gt;();
+names.add(250);
+// error: incompatible types: int cannot be converted to String</code></pre>
+<p>Ошибка — при <strong>компиляции</strong>, на той самой строке, где её сделали. А при чтении приведение не нужно: <code>String s = names.get(0);</code> — компилятор знает, что там строки.</p>
+
+<p><strong>Generics переносят проверку типов из выполнения в компиляцию.</strong> Это главное, ради чего они существуют.</p>
+
+<div class="compare">
+<div>
+<p class="label">Python</p>
+<pre><code>names: list[str] = []
+names.append(250)   # запустится!
+# подсказку проверяет только
+# внешний инструмент (mypy)</code></pre>
+</div>
+<div>
+<p class="label">Java</p>
+<pre><code>List&lt;String&gt; names = new ArrayList&lt;&gt;();
+names.add(250);     // не скомпилируется
+// проверяет сам компилятор</code></pre>
+</div>
+</div>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/generics/why.html">Oracle — Why Use Generics?</a></p>
+
+<h2>2. Как читать угловые скобки</h2>
+<p>Открой документацию <code>ArrayList</code>, и увидишь <code>class ArrayList&lt;E&gt;</code>, а метод <code>add</code> записан как <code>add(E e)</code>, <code>get</code> — как <code>E get(int index)</code>. Что такое <code>E</code>?</p>
+<p><code>E</code> — <strong>параметр типа</strong> (type parameter). Это «переменная, в которую положат тип». Когда ты пишешь <code>ArrayList&lt;String&gt;</code>, ты передаёшь <strong>аргумент типа</strong> <code>String</code>, и везде вместо <code>E</code> подставляется <code>String</code>: <code>add(String e)</code>, <code>String get(int index)</code>.</p>
+
+<p>Аналогия с методом из урока 1 почти буквальная:</p>
+<div class="ref">
+<table>
+  <tr><th></th><th>Метод</th><th>Generic-класс</th></tr>
+  <tr><td>Объявление</td><td><code>int square(int x)</code></td><td><code>class Box&lt;T&gt;</code></td></tr>
+  <tr><td>Параметр</td><td><code>x</code> — какое-то число</td><td><code>T</code> — какой-то тип</td></tr>
+  <tr><td>Использование</td><td><code>square(5)</code></td><td><code>Box&lt;String&gt;</code></td></tr>
+  <tr><td>Аргумент</td><td><code>5</code></td><td><code>String</code></td></tr>
+</table>
+</div>
+
+<p>Имена параметров типа по соглашению — одна заглавная буква:</p>
+<ul>
+  <li><code>T</code> — Type, «какой-то тип»;</li>
+  <li><code>E</code> — Element, элемент коллекции (<code>List&lt;E&gt;</code>, <code>Set&lt;E&gt;</code>);</li>
+  <li><code>K</code>, <code>V</code> — Key и Value (<code>Map&lt;K, V&gt;</code>);</li>
+  <li><code>ID</code> — иногда пишут и так, для идентификатора (Spring Data).</li>
+</ul>
+<p>Теперь ты можешь прочитать <code>Comparable&lt;T&gt;</code> из урока 6: «сравнимый с чем-то типа <code>T</code>». У него метод <code>int compareTo(T o)</code>. Ты написал <code>implements Comparable&lt;BankAccount&gt;</code> — значит, <code>T = BankAccount</code>, и твой метод — <code>compareTo(BankAccount other)</code>.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/generics/types.html">Oracle — Generic Types</a>.</p>
+
+<details class="reveal"><summary>Проверь себя: у <code>HashMap&lt;K, V&gt;</code> есть метод <code>V get(Object key)</code>. Что он возвращает у <code>Map&lt;AccountNumber, BankAccount&gt;</code>?</summary>
+<p><code>BankAccount</code>: вместо <code>V</code> подставился второй аргумент типа. Поэтому в уроке 7 ты писал <code>BankAccount acc = accounts.get(number);</code> без всякого приведения.</p>
+</details>
+
+<h2>3. Свой generic-класс</h2>
+<p>Задача: вернуть из метода <em>два</em> значения разных типов — например, название товара и его цену. Можно написать класс <code>NameAndPrice</code>, потом <code>OwnerAndBalance</code>, потом ещё десяток почти одинаковых. А можно один раз:</p>
+<p class="label">Pair.java</p>
+<pre><code>public class Pair&lt;A, B&gt; {
+    private A first;
+    private B second;
+
+    public Pair(A first, B second) {
+        this.first = first;
+        this.second = second;
+    }
+
+    public A getFirst() {
+        return first;
+    }
+
+    public B getSecond() {
+        return second;
+    }
+
+    @Override
+    public String toString() {
+        return "(" + first + ", " + second + ")";
+    }
+}</code></pre>
+
+<div class="annotated">
+  <div class="row"><code>public class Pair&lt;A, B&gt;</code><div>Объявление двух параметров типа: <code>A</code> и <code>B</code>. Внутри класса они используются как обычные типы. Какими они будут — решит тот, кто создаёт объект.</div></div>
+  <div class="row"><code>private A first;</code><div>Поле «какого-то типа A». В <code>Pair&lt;String, Integer&gt;</code> это будет <code>String</code>.</div></div>
+  <div class="row"><code>public Pair(A first, B second)</code><div>Конструктор. Обрати внимание: у <em>имени</em> конструктора угловых скобок нет — только у имени класса.</div></div>
+  <div class="row"><code>public A getFirst()</code><div>Возвращает «тот самый A». Для <code>Pair&lt;String, Integer&gt;</code> — <code>String</code>, приведение не нужно.</div></div>
+</div>
+
+<p>Использование (проверено на JDK 21):</p>
+<pre><code>Pair&lt;String, Integer&gt; p = new Pair&lt;&gt;("Чай", 250);
+String name = p.getFirst();          // без приведения
+int price = p.getSecond();           // Integer → int автоматически (урок 7)
+System.out.println(p);               // (Чай, 250)
+
+Pair&lt;String, List&lt;String&gt;&gt; q = new Pair&lt;&gt;("Илья", List.of("карта", "вклад"));
+q.getSecond().size();                // 2 — внутрь можно положить даже список
+
+String s = p.getSecond();
+// error: incompatible types: Integer cannot be converted to String</code></pre>
+<p>Один класс работает для любых типов, и при этом компилятор следит за каждым. <code>new Pair&lt;&gt;(...)</code> — тот же «ромб», что у <code>new ArrayList&lt;&gt;()</code>: Java выводит аргументы типа из левой части.</p>
+
+<h3>Ограничения</h3>
+<p><strong>Только ссылочные типы.</strong> <code>Pair&lt;String, int&gt;</code> не скомпилируется — <code>unexpected type, required: reference, found: int</code>. Та же причина, что с <code>List&lt;int&gt;</code> в уроке 7: используй <code>Integer</code>.</p>
+<p><strong>Нельзя <code>new T()</code>.</strong> Внутри класса нельзя создать объект параметра типа: <code>error: unexpected type, required: class, found: type parameter T</code>. Во время выполнения Java уже не знает, какой тип был подставлен (это называется <em>стирание типов</em>, type erasure — generics существуют только для компилятора). Поэтому объекты типа <code>T</code> generic-класс получает снаружи, как <code>Pair</code> в конструкторе.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/generics/restrictions.html">Oracle — Restrictions on Generics</a>.</p>
+
+<details class="reveal"><summary>Проверь себя: какие типы у <code>getFirst()</code> и <code>getSecond()</code> для <code>Pair&lt;AccountNumber, BankAccount&gt;</code>?</summary>
+<p><code>AccountNumber</code> и <code>BankAccount</code>. Подставляется по порядку: первый аргумент — в <code>A</code>, второй — в <code>B</code>.</p>
+</details>
+
+<h2>4. Generic-метод</h2>
+<p>Параметр типа можно объявить не у всего класса, а у одного метода. Помнишь, сколько раз мы писали «если список пуст — исключение, иначе первый элемент»? Сделаем это один раз для списков чего угодно:</p>
+<pre><code>public static &lt;T&gt; T firstOrThrow(List&lt;T&gt; list) {
+    if (list.isEmpty()) {
+        throw new IllegalArgumentException("Список пуст");
+    }
+    return list.get(0);
+}</code></pre>
+<div class="annotated">
+  <div class="row"><code>public static &lt;T&gt;</code><div>Объявление параметра типа <strong>для этого метода</strong>. Стоит перед типом результата. Без него компилятор не поймёт, что такое <code>T</code> в остальной сигнатуре.</div></div>
+  <div class="row"><code>T firstOrThrow(List&lt;T&gt; list)</code><div>«Принимает список чего-то типа <code>T</code> и возвращает <code>T</code>». Связь между входом и выходом — главное: для списка строк вернётся строка, для списка счетов — счёт.</div></div>
+</div>
+<pre><code>String s = Utils.firstOrThrow(List.of("a", "b"));          // "a"
+BankAccount acc = Utils.firstOrThrow(accounts);            // без приведения
+Utils.firstOrThrow(new ArrayList&lt;Integer&gt;());              // Список пуст</code></pre>
+<p>При вызове <code>T</code> писать не нужно: компилятор сам выводит его из аргумента (<code>List&lt;String&gt;</code> → <code>T = String</code>). Это называется <em>выведение типа</em>. Явно тоже можно — <code>Utils.&lt;Integer&gt;firstOrThrow(...)</code>, — но так пишут редко.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/generics/methods.html">Oracle — Generic Methods</a>.</p>
+
+<h2>5. Ограничение типа: <code>&lt;T extends Comparable&lt;T&gt;&gt;</code></h2>
+<p>Напишем «найти максимум в списке» для любого типа. Первая попытка:</p>
+<pre><code>public static &lt;T&gt; T max(List&lt;T&gt; list) {
+    T best = list.get(0);
+    for (T item : list) {
+        if (item.compareTo(best) &gt; 0) {   // ← ошибка
+            best = item;
+        }
+    }
+    return best;
+}
+// error: cannot find symbol
+//   symbol:   method compareTo(T)
+//   location: variable item of type T</code></pre>
+<p>Почему: <code>T</code> — <em>любой</em> тип. Это может быть и <code>Pair</code>, у которого нет <code>compareTo</code>. По правилу из урока 5 компилятор разрешает только то, что точно есть у типа переменной, а про произвольный <code>T</code> он знает лишь, что это <code>Object</code>.</p>
+<p>Нужно сузить: «<code>T</code> — не любой тип, а только сравнимый». Это пишется так:</p>
+<pre><code>public static &lt;T extends Comparable&lt;T&gt;&gt; T max(List&lt;T&gt; list) {
+    T best = firstOrThrow(list);
+    for (T item : list) {
+        if (item.compareTo(best) &gt; 0) {
+            best = item;
+        }
+    }
+    return best;
+}</code></pre>
+<div class="annotated">
+  <div class="row"><code>&lt;T extends Comparable&lt;T&gt;&gt;</code><div>«<code>T</code> — любой тип, который реализует <code>Comparable&lt;T&gt;</code>», то есть умеет сравниваться с такими же, как он. В угловых скобках <code>extends</code> означает и «наследует класс», и «реализует интерфейс». Теперь компилятор знает, что у <code>item</code> есть <code>compareTo</code>.</div></div>
+  <div class="row"><code>T best = firstOrThrow(list);</code><div>Один generic-метод вызывает другой. Пустой список — понятное исключение.</div></div>
+</div>
+<p>Проверено:</p>
+<pre><code>Utils.max(List.of(3, 17, 5));                     // 17 — Integer сравним
+Utils.max(List.of("груша", "яблоко", "арбуз"));   // яблоко — String сравним
+Utils.max(List.of(new Pair&lt;&gt;("a", 1)));           // ошибка компиляции:
+// method max in class ... cannot be applied to given types</code></pre>
+<p>Последний вызов отклонён ещё при компиляции: <code>Pair</code> не реализует <code>Comparable</code>. А твой <code>BankAccount</code> — реализует, так что <code>max</code> найдёт счёт с наибольшим балансом. Это проверишь в домашке.</p>
+<p class="cite">Источник: <a href="https://docs.oracle.com/javase/tutorial/java/generics/bounded.html">Oracle — Bounded Type Parameters</a>.</p>
+
+<details class="reveal"><summary>Проверь себя: в уроке 6 сообщение об ошибке <code>Collections.sort</code> содержало <code>T#1 extends Comparable&lt;? super T#1&gt;</code>. Что это значит теперь?</summary>
+<p>У <code>Collections.sort</code> тоже ограничение: элементы списка должны быть сравнимыми. Поэтому сортировка класса без <code>Comparable</code> не компилировалась. Знак <code>?</code> — <em>wildcard</em>, его разберём в частых вопросах; суть та же.</p>
+</details>
+
+<h2>6. Как это выглядит в Spring</h2>
+<p>В Spring Data есть интерфейс <code>CrudRepository&lt;T, ID&gt;</code> (<a href="https://docs.spring.io/spring-data/commons/reference/repositories/core-concepts.html">документация</a>): <code>T</code> — тип сущности, <code>ID</code> — тип её идентификатора. В нём объявлены методы вроде <code>save(T entity)</code>, <code>findById(ID id)</code>, <code>findAll()</code>, <code>count()</code>, <code>deleteById(ID id)</code>. Ты пишешь:</p>
+<pre><code>interface AccountRepository extends CrudRepository&lt;Account, Long&gt; { }</code></pre>
+<p>и получаешь все эти методы для счетов, где <code>T = Account</code>, <code>ID = Long</code>. Одна и та же библиотека работает со счетами, клиентами, заказами — с любыми твоими классами. Без generics её пришлось бы писать заново для каждого класса или возвращать <code>Object</code> и приводить типы на каждом шагу. В домашке ты сделаешь упрощённую версию: <code>Repository&lt;T, ID&gt;</code>, хранящий данные в <code>Map</code>.</p>
+
+<h2>7. Частые вопросы</h2>
+
+<h3>Что такое <code>?</code> в <code>List&lt;? extends Number&gt;</code>?</h3>
+<p>Это <em>wildcard</em> — «какой-то тип, не важно какой». <code>List&lt;? extends Number&gt;</code> — «список чего-то, что является <code>Number</code>»: подойдёт и <code>List&lt;Integer&gt;</code>, и <code>List&lt;Double&gt;</code>. Встречается в сигнатурах библиотек. Важная деталь: <code>List&lt;Integer&gt;</code> — это <em>не</em> <code>List&lt;Number&gt;</code>, хотя <code>Integer</code> — это <code>Number</code>. Иначе можно было бы положить <code>Double</code> в список целых. Писать wildcard самому пока не нужно, достаточно узнавать при чтении.</p>
+<p class="cite"><a href="https://docs.oracle.com/javase/tutorial/java/generics/wildcards.html">Oracle — Wildcards</a>.</p>
+
+<h3>Почему нельзя <code>new T()</code>, а <code>new ArrayList&lt;T&gt;()</code> внутри generic-класса — можно?</h3>
+<p><code>new ArrayList&lt;T&gt;()</code> создаёт объект конкретного класса <code>ArrayList</code> — его Java знает. А <code>new T()</code> требует знать сам <code>T</code> во время выполнения, а он к тому времени стёрт. В домашке ты будешь создавать <code>new HashMap&lt;&gt;()</code> внутри generic-класса — это нормально.</p>
+
+<h3>Что значит предупреждение «uses unchecked or unsafe operations»?</h3>
+<p>Где-то используется сырой тип (<code>List</code> без скобок) или непроверяемое приведение. Компилятор не может гарантировать типы. В своём коде сырых типов не пиши никогда. Если видишь это предупреждение — ищи, где забыл <code>&lt;...&gt;</code>.</p>
+
+<h3>Можно ли сделать generic-интерфейс?</h3>
+<p>Да, ты им уже пользовался: <code>Comparable&lt;T&gt;</code>, <code>List&lt;E&gt;</code>, <code>Map&lt;K, V&gt;</code> — интерфейсы. Объявляется так же: <code>public interface Repository&lt;T, ID&gt; { ... }</code>. А реализующий класс либо подставляет конкретные типы (<code>implements Comparable&lt;BankAccount&gt;</code>), либо сам остаётся generic (<code>class InMemoryRepository&lt;T, ID&gt; implements Repository&lt;T, ID&gt;</code>).</p>
+
+<h2>8. Проверь себя</h2>
+<p>Без подглядывания. Ошибся — вернись к разделу.</p>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>1. <code>List&lt;String&gt; names</code>, вызов <code>names.add(250)</code>. Когда обнаружится ошибка?</legend>
+  <label><input type="radio"> При запуске, ClassCastException</label>
+  <label><input type="radio"> Нигде, число станет строкой</label>
+  <label><input type="radio"> При компиляции, типы несовместимы</label>
+  <label><input type="radio"> При чтении, get вернёт null</label>
+  <p class="feedback">Generics переносят проверку типов в компиляцию: <code>incompatible types: int cannot be converted to String</code>. Без них (сырой тип) ошибка всплыла бы при выполнении.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>2. Что такое <code>A</code> в объявлении <code>class Pair&lt;A, B&gt;</code>?</legend>
+  <label><input type="radio"> Параметр типа, его задают при создании</label>
+  <label><input type="radio"> Имя конкретного класса в программе</label>
+  <label><input type="radio"> Поле класса, которое хранит значение</label>
+  <label><input type="radio"> Ключевое слово, обязательное в Java</label>
+  <p class="feedback"><code>A</code> — как параметр метода, только для типа. В <code>Pair&lt;String, Integer&gt;</code> вместо него подставится <code>String</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>3. Зачем в <code>max</code> написано <code>&lt;T extends Comparable&lt;T&gt;&gt;</code>, а не просто <code>&lt;T&gt;</code>?</legend>
+  <label><input type="radio"> Чтобы метод работал заметно быстрее</label>
+  <label><input type="radio"> Чтобы T можно было создать через new</label>
+  <label><input type="radio"> Чтобы список никогда не был пустым</label>
+  <label><input type="radio"> Чтобы у T можно было вызвать compareTo</label>
+  <p class="feedback">Про произвольный <code>T</code> компилятор знает только, что это <code>Object</code>. Ограничение обещает, что у <code>T</code> есть <code>compareTo</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>4. Что будет с объявлением <code>Pair&lt;String, int&gt; p;</code>?</legend>
+  <label><input type="radio"> Скомпилируется, int станет Integer</label>
+  <label><input type="radio"> Ошибка: нужен ссылочный тип Integer</label>
+  <label><input type="radio"> Исключение при создании объекта Pair</label>
+  <label><input type="radio"> Скомпилируется, но с предупреждением</label>
+  <p class="feedback">Аргументы типа — только ссылочные типы: <code>unexpected type, required: reference, found: int</code>. Автоупаковка работает для значений, а не для аргументов типа.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>5. <code>List raw = new ArrayList(); raw.add(250); String s = (String) raw.get(0);</code> Что будет?</legend>
+  <label><input type="radio"> Ошибка компиляции в строке add</label>
+  <label><input type="radio"> Строка "250" в переменной s</label>
+  <label><input type="radio"> ClassCastException при выполнении</label>
+  <label><input type="radio"> Значение null в переменной s</label>
+  <p class="feedback">Сырой тип принимает любой <code>Object</code>, компилятор только предупреждает. Приведение <code>Integer</code> к <code>String</code> падает при выполнении.</p>
+</fieldset>
+<p class="quiz-score"></p>
+
+<h2>9. Домашнее задание</h2>
+<p>Файлы — в <code>src/lesson0009/</code> с <code>package lesson0009;</code>. Скопируй из урока 8 банк, счета, <code>AccountNumber</code> и исключения.</p>
+
+<div class="task">
+<h3>Шаг 1. Интерфейс <code>Repository&lt;T, ID&gt;</code></h3>
+<p>Generic-интерфейс в духе Spring Data. <code>T</code> — что храним, <code>ID</code> — по какому ключу. Методы:</p>
+<ul>
+  <li><code>void save(ID id, T item)</code> — сохранить (если такой <code>id</code> уже есть — заменить);</li>
+  <li><code>T findById(ID id)</code> — найти; если нет — исключение (своё или стандартное, реши сам);</li>
+  <li><code>boolean existsById(ID id)</code>;</li>
+  <li><code>List&lt;T&gt; findAll()</code> — все элементы, <strong>новым</strong> списком (урок 7: почему не само поле?);</li>
+  <li><code>int count()</code>;</li>
+  <li><code>void deleteById(ID id)</code>.</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Шаг 2. <code>InMemoryRepository&lt;T, ID&gt; implements Repository&lt;T, ID&gt;</code></h3>
+<p>Реализация, которая хранит всё в <code>private Map&lt;ID, T&gt;</code>. Класс сам остаётся generic — конкретные типы подставит тот, кто его создаёт. Аргументы <code>null</code> не принимай.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 3. Банк на репозитории</h3>
+<ol>
+  <li>Замени в <code>Bank</code> поле <code>Map&lt;AccountNumber, BankAccount&gt;</code> на <code>Repository&lt;BankAccount, AccountNumber&gt;</code> (тип поля — интерфейс, объект — <code>InMemoryRepository</code>). Переделай методы банка через методы репозитория.</li>
+  <li>Подумай: какие проверки остаются в банке (бизнес-правила вроде «номер занят»), а какие теперь делает репозиторий («не найдено», <code>null</code>)?</li>
+  <li>Покажи, что тот же <code>InMemoryRepository</code> работает с совсем другими типами: создай в <code>Main</code> <code>Repository&lt;String, String&gt;</code> «код валюты → название» (<code>"RUB"</code> → <code>"Российский рубль"</code>). Ни строчки нового кода в репозитории.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Generic-методы</h3>
+<p>Класс <code>CollectionUtils</code> с двумя <code>static</code>-методами из урока: <code>firstOrThrow</code> и <code>max</code> с ограничением. Напиши их сам, не подглядывая (потом сверь). Найди через <code>max</code>: наибольшее из списка чисел, «наибольшую» строку и счёт с наибольшим балансом из <code>bank</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Проверки через <code>check</code></h3>
+<p>Перенеси <strong>все</strong> проверки из урока 8 (банк должен вести себя так же, как раньше — иначе это регрессия) и добавь новые: репозиторий находит сохранённое, <code>count</code> растёт, <code>deleteById</code> удаляет, <code>findById</code> отсутствующего бросает исключение, <code>findAll</code> возвращает копию (изменение возвращённого списка не меняет репозиторий), <code>max</code> возвращает ожидаемые значения, <code>max</code> пустого списка бросает исключение.</p>
+<p>И правило прошлого урока: сломай что-нибудь нарочно (например, <code>count</code> возвращает 0, или <code>max</code> сравнивает через <code>&lt;</code>) — убедись, что упали нужные проверки, — верни. После эксперимента — <code>git diff</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 6. Эксперименты (ошибка — в комментарий, потом откатывай)</h3>
+<ol>
+  <li>Убери <code>extends Comparable&lt;T&gt;</code> у <code>max</code>.</li>
+  <li>Попробуй сохранить в <code>Repository&lt;BankAccount, AccountNumber&gt;</code> строку вместо счёта.</li>
+  <li>Объяви <code>Repository&lt;String, int&gt;</code>.</li>
+  <li>Используй сырой тип: <code>List raw = new ArrayList();</code>, положи число, достань как <code>String</code>. Запиши и предупреждение компилятора, и исключение при запуске. Объясни, в чём разница между этими двумя моментами.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 7. Коммит</h3>
+<p>Например, <code>Добавить generic Repository и CollectionUtils</code>. README обновлю я. Потом — «проверь домашку 0009».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Раздел Oracle <a href="https://docs.oracle.com/javase/tutorial/java/generics/index.html">Generics</a>: прочитай <a href="https://docs.oracle.com/javase/tutorial/java/generics/why.html">Why Use Generics?</a>, <a href="https://docs.oracle.com/javase/tutorial/java/generics/types.html">Generic Types</a>, <a href="https://docs.oracle.com/javase/tutorial/java/generics/methods.html">Generic Methods</a>, <a href="https://docs.oracle.com/javase/tutorial/java/generics/bounded.html">Bounded Type Parameters</a>, <a href="https://docs.oracle.com/javase/tutorial/java/generics/restrictions.html">Restrictions</a>. Около 30 минут. Разделы про wildcards и type erasure пока можно пролистать.</p>
+
+<p>Шпаргалка — <a href="../reference/0009-java-generics.html">справочник «Generics»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1</a>, <a href="0002-classes-and-objects.html">2</a>, <a href="0003-encapsulation.html">3</a>, <a href="0004-exceptions.html">4</a>, <a href="0005-inheritance.html">5</a>, <a href="0006-interfaces.html">6</a>, <a href="0007-collections.html">7</a>, <a href="0008-equals-hashcode.html">8. equals и hashCode</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Если запись <code>&lt;T extends Comparable&lt;T&gt;&gt;</code> выглядит как шифр — скажи, разберём её по кусочкам на твоём <code>BankAccount</code>.</p>
+</div>
+
+<nav class="course">
+  <a href="0008-equals-hashcode.html">← Урок 8: equals и hashCode</a>
+  <span>Урок 10: Git-ветки →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Generics</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1>Generics</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0009-generics.html">уроку 0009</a>.</p>
+
+<h2>Зачем</h2>
+<p>Проверка типов при <strong>компиляции</strong> вместо <code>ClassCastException</code> при выполнении, и никаких приведений при чтении.</p>
+
+<h2>Generic-класс</h2>
+<pre><code>public class Pair&lt;A, B&gt; {          // параметры типа
+    private A first;
+    private B second;
+
+    public Pair(A first, B second) { ... }   // у конструктора скобок нет
+    public A getFirst() { return first; }
+}
+
+Pair&lt;String, Integer&gt; p = new Pair&lt;&gt;("Чай", 250);   // аргументы типа, ромб &lt;&gt;</code></pre>
+
+<h2>Generic-интерфейс</h2>
+<pre><code>public interface Repository&lt;T, ID&gt; { T findById(ID id); }
+
+class InMemoryRepository&lt;T, ID&gt; implements Repository&lt;T, ID&gt; { ... }   // остаётся generic
+class BankAccount implements Comparable&lt;BankAccount&gt; { ... }          // подставляет тип</code></pre>
+
+<h2>Generic-метод</h2>
+<pre><code>public static &lt;T&gt; T firstOrThrow(List&lt;T&gt; list) { ... }
+String s = firstOrThrow(names);           // T выводится сам: String</code></pre>
+
+<h2>Ограничение</h2>
+<pre><code>public static &lt;T extends Comparable&lt;T&gt;&gt; T max(List&lt;T&gt; list) {
+    ...  item.compareTo(best)  ...        // можно: T точно сравним
+}</code></pre>
+<p><code>extends</code> в угловых скобках — и «наследует класс», и «реализует интерфейс».</p>
+
+<h2>Имена</h2>
+<table>
+  <tr><td><code>T</code></td><td>тип</td><td><code>E</code></td><td>элемент коллекции</td></tr>
+  <tr><td><code>K</code>, <code>V</code></td><td>ключ, значение</td><td><code>ID</code></td><td>идентификатор</td></tr>
+</table>
+
+<h2>Нельзя</h2>
+<table>
+  <tr><th>Что</th><th>Ошибка</th></tr>
+  <tr><td><code>Pair&lt;String, int&gt;</code></td><td><code>unexpected type, required: reference, found: int</code> → <code>Integer</code></td></tr>
+  <tr><td><code>new T()</code></td><td><code>unexpected type, required: class, found: type parameter T</code></td></tr>
+  <tr><td><code>item.compareTo(...)</code> при <code>&lt;T&gt;</code></td><td><code>cannot find symbol: method compareTo(T)</code> → добавь ограничение</td></tr>
+  <tr><td><code>names.add(250)</code> в <code>List&lt;String&gt;</code></td><td><code>incompatible types: int cannot be converted to String</code></td></tr>
+  <tr><td>вызов <code>max</code> для несравнимого типа</td><td><code>method max ... cannot be applied to given types</code></td></tr>
+  <tr><td>сырой тип <code>List</code></td><td>предупреждение <code>unchecked or unsafe operations</code>, потом <code>ClassCastException</code></td></tr>
+</table>
+
+<h2>Wildcard (читать, не писать)</h2>
+<p><code>List&lt;? extends Number&gt;</code> — список чего-то, что является <code>Number</code>. <code>List&lt;Integer&gt;</code> — это <em>не</em> <code>List&lt;Number&gt;</code>.</p>
+
+<h2>Spring Data</h2>
+<pre><code>interface AccountRepository extends CrudRepository&lt;Account, Long&gt; { }   // T = Account, ID = Long</code></pre>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/javase/tutorial/java/generics/index.html">Oracle — Generics</a>, <a href="https://docs.oracle.com/javase/tutorial/java/generics/restrictions.html">Restrictions on Generics</a>, <a href="https://docs.spring.io/spring-data/commons/reference/repositories/core-concepts.html">Spring Data — Core concepts</a>. Сообщения компилятора проверены на JDK 21.</p>
+
+</main>
+</body>
+</html>

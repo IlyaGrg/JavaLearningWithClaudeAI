@@ -26,6 +26,10 @@
   Современный обзор коллекций от Oracle. Use for: повторение и углубление.
 - [Java 21 API: Object](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html)
   Первоисточник договоров equals и hashCode. Use for: урок 8, вопросы на собеседовании про equals/hashCode.
+- [The Java Tutorials: Generics (Oracle)](https://docs.oracle.com/javase/tutorial/java/generics/index.html)
+  Generic-типы и методы, ограничения, wildcards, стирание типов. Use for: урок 9, чтение сигнатур библиотек.
+- [Spring Data Commons: Core concepts](https://docs.spring.io/spring-data/commons/reference/repositories/core-concepts.html)
+  `CrudRepository<T, ID>` и иерархия репозиториев. Use for: связь generics со Spring; основной источник по репозиториям позже.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 
