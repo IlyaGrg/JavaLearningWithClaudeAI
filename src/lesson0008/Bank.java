@@ -8,7 +8,10 @@ public class Bank {
 
 
     public void openAccount(AccountNumber number, BankAccount account) {
-
+        checkNumber(number);
+        if (account == null) {
+            throw new IllegalArgumentException("Невозможно создать аккаунт для такого пользователя: " + account);
+        }
         if (accounts.containsKey(number)) {
             throw new DuplicateAccountException("Такой номер счета уже существует: " + number);
         }
@@ -17,14 +20,18 @@ public class Bank {
     }
 
     public BankAccount findAccount(AccountNumber number) {
-
+        checkNumber(number);
+        if (accounts.get(number) == null) {
+            throw new AccountNotFoundException("Аккаунт не найден: " + number.getValue());
+        }
         return accounts.get(number);
     }
 
 
     public void transfer(AccountNumber fromNumber, AccountNumber toNumber, int amount) {
-
-        accounts.get(fromNumber).transferTo(accounts.get(toNumber), amount);
+        checkNumber(fromNumber);
+        checkNumber(toNumber);
+        findAccount(fromNumber).transferTo(findAccount(toNumber), amount);
     }
 
     public int totalBalance() {
@@ -35,6 +42,12 @@ public class Bank {
         return totalSum;
     }
 
+    private void checkNumber(AccountNumber number) {
+        if (number == null) {
+            throw new IllegalArgumentException("Некорректное значение: " + number);
+        }
+
+    }
 
     public Set<String> owners() {
         Set<String> owner = new HashSet<>();
