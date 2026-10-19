@@ -1,11 +1,12 @@
 package lesson0009;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class InMemoryRepository<ID, T> implements Repository<ID, T> {
-    private Map<ID, T> memory;
+    private Map<ID, T> memory = new HashMap<>();
 
     public void save(ID id, T item) {
         if (id == null || item == null) {
@@ -21,7 +22,7 @@ public class InMemoryRepository<ID, T> implements Repository<ID, T> {
         if (memory.containsKey(id)) {
             return memory.get(id);
         } else {
-            throw new FindByIdException("По такому ID ничего не найдено: " + id);
+            throw new AccountNotFoundException("По такому ID ничего не найдено: " + id);
         }
     }
 

@@ -77,4 +77,12 @@ public class Bank {
         return userAccounts;
     }
 
+    public Repository<AccountNumber, BankAccount> getAccounts(){
+        return accounts;
+    }
+
+    public void deleteUser(AccountNumber number){
+        accounts.deleteById(number);
+    }
+
 }
