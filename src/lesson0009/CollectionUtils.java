@@ -29,3 +29,4 @@ public class CollectionUtils {
         return best;
     }
 }
+//Проверка связи
