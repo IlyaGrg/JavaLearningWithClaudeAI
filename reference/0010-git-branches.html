@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Git-ветки</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Git</div>
+<h1>Git-ветки</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0010-git-branches.html">уроку 0010</a>.</p>
+
+<h2>Модель</h2>
+<p><strong>Ветка</strong> — подвижный указатель на коммит. <strong>HEAD</strong> — где я сейчас (текущая ветка). Коммит сдвигает указатель текущей ветки.</p>
+
+<h2>Команды</h2>
+<table>
+  <tr><th>Команда</th><th>Что делает</th></tr>
+  <tr><td><code>git branch</code></td><td>список веток, <code>*</code> — текущая</td></tr>
+  <tr><td><code>git switch -c имя</code></td><td>создать ветку от текущего коммита и перейти</td></tr>
+  <tr><td><code>git switch имя</code></td><td>перейти; файлы в папке заменятся снимком ветки</td></tr>
+  <tr><td><code>git merge имя</code></td><td>влить ветку <em>имя</em> в текущую</td></tr>
+  <tr><td><code>git merge --abort</code></td><td>отменить слияние с конфликтом</td></tr>
+  <tr><td><code>git branch -d имя</code></td><td>удалить слитую ветку</td></tr>
+  <tr><td><code>git branch -D имя</code></td><td>удалить в любом случае (коммиты пропадут)</td></tr>
+  <tr><td><code>git log --oneline --graph --all</code></td><td>граф всех веток</td></tr>
+  <tr><td><code>git push -u origin имя</code></td><td>отправить ветку на GitHub (первый раз)</td></tr>
+  <tr><td><code>git restore файл</code></td><td>откатить незакоммиченные изменения файла</td></tr>
+</table>
+<p><code>git checkout -b имя</code> — старый вариант <code>git switch -c имя</code>.</p>
+
+<h2>Два вида слияния</h2>
+<pre><code>fast-forward:   в main не было новых коммитов → main просто сдвигается
+                «Fast-forward»
+
+коммит слияния: обе ветки ушли вперёд → новый коммит с двумя родителями
+                «Merge made by the 'ort' strategy.»</code></pre>
+
+<h2>Рабочий цикл</h2>
+<pre><code>git switch main && git status        # чисто?
+git switch -c feature/задача
+# код → проверки ОК → git commit
+git switch main
+git merge feature/задача
+git branch -d feature/задача
+git push</code></pre>
+
+<h2>Эксперимент</h2>
+<pre><code>git switch -c experiment/что-ломаю
+# сломать → запустить → записать → git commit -am "..."
+git switch main
+git branch -D experiment/что-ломаю</code></pre>
+
+<h2>Ловушки</h2>
+<table>
+  <tr><th>Ситуация</th><th>Что будет</th></tr>
+  <tr><td>незакоммиченные изменения + <code>switch</code></td><td>едут с тобой; если файл в ветках разный — отказ «Ваши локальные изменения … будут перезаписаны»</td></tr>
+  <tr><td><code>-d</code> неслитой ветки</td><td><code>error: the branch '…' is not fully merged</code></td></tr>
+  <tr><td>обе ветки меняли одну строку</td><td><code>КОНФЛИКТ (содержимое)</code>, маркеры <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code> / <code>=======</code> / <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code></td></tr>
+  <tr><td>открылся vim при merge</td><td><code>Esc</code>, <code>:wq</code>, Enter</td></tr>
+</table>
+
+<h2>Имена</h2>
+<p><code>feature/…</code> — новое, <code>fix/…</code> — исправление, <code>refactor/…</code> — переделка без смены поведения, <code>experiment/…</code> — на выброс.</p>
+
+<p class="cite">Источники: <a href="https://git-scm.com/book/ru/v2">Pro Git, глава 3</a>, <a href="https://git-scm.com/docs/git-switch">git switch</a>, <a href="https://git-scm.com/docs/git-merge">git merge</a>. Вывод проверен на Git 2.53, русская локаль.</p>
+
+</main>
+</body>
+</html>

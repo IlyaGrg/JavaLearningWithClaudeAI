@@ -22,7 +22,7 @@ public class CollectionUtils {
     public static <T extends Comparable<T>> T max(List<T> list) {
         T best = firstOrThrow(list);
         for (T item : list) {
-            if (item.compareTo(best) > 0) {
+            if (item.compareTo(best) < 0) {
                 best = item;
             }
         }

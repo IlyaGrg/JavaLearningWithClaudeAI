@@ -32,6 +32,10 @@
   `CrudRepository<T, ID>` и иерархия репозиториев. Use for: связь generics со Spring; основной источник по репозиториям позже.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
+- [Git Reference: git switch](https://git-scm.com/docs/git-switch) и [git merge](https://git-scm.com/docs/git-merge)
+  Официальная документация команд, все флаги. Use for: урок 10, точное поведение `-c`, `--no-edit`, `--abort`.
+- [GitHub Docs: About branches](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-branches)
+  Ветки на GitHub, защита main, связь с pull request. Use for: урок 10, январские уроки про PR.
 
 ## Wisdom (Communities)
 

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 10 · Git-ветки</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0010 · Git · ~60 минут + домашка</div>
+<h1>Git-ветки: работать, не ломая main</h1>
+<p class="subtitle">После этого урока ты сможешь делать задачу в отдельной ветке, сливать её в <code>main</code>, читать граф коммитов и безопасно выбрасывать неудачные эксперименты.</p>
+
+<div class="note">
+<p><strong>Зачем этот урок для backend.</strong> В команде никто не коммитит прямо в <code>main</code>. Каждая задача делается в своей ветке и попадает в <code>main</code> через слияние (обычно через pull request на GitHub). На собеседовании про ветки спрашивают почти всегда, а в первый рабочий день ты создашь ветку раньше, чем напишешь строчку кода.</p>
+<p>А лично тебе ветки решат знакомую проблему: в уроках 7, 8 и 9 эксперименты оставались в коде. В ветке эксперимент можно выбросить одной командой, и <code>main</code> его даже не увидит.</p>
+</div>
+
+<h2>Разминка: вспомни урок 9</h2>
+<details class="reveal"><summary>1. Что даёт <code>&lt;T extends Comparable&lt;T&gt;&gt;</code> в объявлении <code>max</code>?</summary>
+<p>Обещание компилятору, что у <code>T</code> есть <code>compareTo</code>. Без него про <code>T</code> известно только, что это <code>Object</code>, и <code>item.compareTo(best)</code> не компилируется: <code>cannot find symbol</code>.</p>
+</details>
+<details class="reveal"><summary>2. Почему в <code>Bank</code> метод <code>getCount()</code> лучше, чем <code>getAccounts()</code>, возвращавший репозиторий?</summary>
+<p>Через репозиторий можно было вызвать <code>save</code> в обход <code>openAccount</code> и подменить чужой счёт. Число «пересохранить» нельзя. Банк отдаёт наружу ровно то, что нужно, — это инкапсуляция из урока 3.</p>
+</details>
+<details class="reveal"><summary>3. Ты закоммитил код, в выводе которого было две «ОШИБКА». Как Git помог бы, если бы баг нашёлся через неделю?</summary>
+<p>Коммиты — это снимки. По <code>git log</code> видно, когда изменился <code>max</code>, а <code>git diff</code> между коммитами покажет, какая строка. Сегодня добавим ещё одно правило: в <code>main</code> попадает только то, что прошло проверки. Ветки дают для этого место.</p>
+</details>
+
+<h2>1. Что такое ветка</h2>
+<p>Каждый коммит хранит снимок проекта и ссылку на предыдущий коммит (родителя). Получается цепочка. <strong>Ветка — это просто подвижный указатель на один коммит</strong> (<a href="https://git-scm.com/book/ru/v2/%D0%92%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2-Git-%D0%9E-%D0%B2%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B8-%D0%B2-%D0%B4%D0%B2%D1%83%D1%85-%D1%81%D0%BB%D0%BE%D0%B2%D0%B0%D1%85">Pro Git, 3.1</a>). Не копия файлов, не папка — файл размером 41 байт с номером коммита. Поэтому ветки создаются мгновенно.</p>
+<pre><code>A ← B ← C        ← main ← HEAD</code></pre>
+<p>Когда ты делаешь коммит, указатель текущей ветки сдвигается на новый коммит. <strong><code>HEAD</code></strong> — это «где я сейчас»: указатель на текущую ветку. Его показывает <code>git status</code> в первой строке («Текущая ветка: main»).</p>
+
+<h2>2. Создать ветку и переключиться</h2>
+<pre><code>git switch -c fix-max      # создать ветку fix-max и сразу перейти в неё
+Переключились на новую ветку «fix-max»
+
+git branch                 # список веток, * — текущая
+* fix-max
+  main</code></pre>
+<p>Теперь два указателя смотрят на один коммит. Новый коммит сдвинет только <code>fix-max</code>:</p>
+<pre><code>A ← B ← C        ← main
+         ↖
+          D      ← fix-max ← HEAD</code></pre>
+<p>Вернуться — <code>git switch main</code>. Git <strong>заменит файлы в папке</strong> на снимок коммита <code>C</code>: исправления из <code>D</code> пропадут из IntelliJ. Они не потеряны, они в ветке <code>fix-max</code>. Переключишься обратно — вернутся.</p>
+
+<div class="note">
+<p><strong><code>switch</code> или <code>checkout</code>?</strong> В старых статьях и в части Pro Git пишут <code>git checkout -b fix-max</code>. Это то же самое. <code>git checkout</code> умеет слишком много разного, поэтому в Git 2.23 для веток добавили отдельную команду <a href="https://git-scm.com/docs/git-switch"><code>git switch</code></a>. Пользуйся ей, а <code>checkout</code> просто узнавай.</p>
+</div>
+
+<h3>Незакоммиченные изменения переезжают с тобой</h3>
+<p>Ловушка: если ты поменял файл и <em>не</em> закоммитил, <code>git switch</code> перенесёт эти изменения в другую ветку (проверено):</p>
+<pre><code>git switch c1
+Переключились на ветку «c1»
+M	A.txt                     # изменение приехало вместе с тобой</code></pre>
+<p>А если тот же файл в другой ветке отличается, Git откажется переключаться:</p>
+<pre><code>error: Ваши локальные изменения в указанных файлах будут перезаписаны при переключении на состояние:
+	Bank.java
+Сделайте коммит или спрячьте ваши изменения перед переключением веток.
+Прерываю</code></pre>
+<p>Правило: <strong>перед <code>git switch</code> — <code>git status</code>, и он должен быть чистым.</strong> Закоммить или откати (<code>git restore файл</code>).</p>
+
+<h2>3. Слияние: fast-forward</h2>
+<p>Работа в ветке готова, проверки ОК. Переходишь в ту ветку, <em>куда</em> сливаешь, и вызываешь <code>git merge</code> с той, <em>откуда</em>:</p>
+<pre><code>git switch main
+git merge fix-max
+Обновление a82a8d8..2accf07
+Fast-forward
+ Bank.java | 1 +
+ 1 file changed, 1 insertion(+)</code></pre>
+<p>В <code>main</code> новых коммитов не было, <code>D</code> просто «стоит дальше» по той же линии. Git ничего не объединяет, а <strong>сдвигает указатель <code>main</code> вперёд</strong>. Это называется <em>fast-forward</em> (перемотка):</p>
+<pre><code>A ← B ← C ← D    ← main, fix-max</code></pre>
+<p>Ветка больше не нужна — удали указатель (коммиты остаются в <code>main</code>):</p>
+<pre><code>git branch -d fix-max
+Ветка fix-max удалена (была 2accf07).</code></pre>
+
+<h2>4. Слияние двух линий: коммит слияния</h2>
+<p>Пусть ты сделал две ветки от одного коммита: <code>a</code> поменяла <code>A.txt</code>, <code>b</code> поменяла <code>B.txt</code>. Первая сольётся перемоткой. А для второй перемотать нельзя: <code>main</code> уже ушёл в другую сторону. Git сравнит обе линии с общим предком и создаст <strong>коммит слияния</strong> с двумя родителями (<a href="https://git-scm.com/book/ru/v2/%D0%92%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2-Git-%D0%9E%D1%81%D0%BD%D0%BE%D0%B2%D1%8B-%D0%B2%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F-%D0%B8-%D1%81%D0%BB%D0%B8%D1%8F%D0%BD%D0%B8%D1%8F">Pro Git, 3.2</a>):</p>
+<pre><code>git merge a
+Fast-forward ...
+git merge b
+Merge made by the 'ort' strategy.
+ B.txt | 1 +</code></pre>
+<p>Без флага <code>--no-edit</code> Git откроет редактор с готовым сообщением «Merge branch 'b'». Сохрани и закрой его. Если открылся vim: <code>Esc</code>, потом <code>:wq</code> и Enter.</p>
+<p>Посмотреть граф:</p>
+<pre><code>git log --oneline --graph --all
+*   5b29014 Merge branch 'b'
+|\
+| * ff7dbc8 B
+* | a5087fe A
+|/
+* 2accf07 Исправить max
+* a82a8d8 Начало</code></pre>
+<p>Читай снизу вверх. <code>*</code> — коммит, линии — родители. От <code>2accf07</code> разошлись две линии, а <code>5b29014</code> их соединил. Эту команду стоит запускать после каждого слияния, пока граф не начнёт читаться с одного взгляда.</p>
+
+<h3>А если обе ветки поменяли одну строку?</h3>
+<p>Тогда Git не может выбрать сам — это <strong>конфликт</strong>. Подробно будем разбирать в январе, сейчас достаточно узнать его в лицо:</p>
+<pre><code>КОНФЛИКТ (содержимое): Конфликт слияния в Bank.java
+Сбой автоматического слияния; исправьте конфликты, затем зафиксируйте результат.</code></pre>
+<pre><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+b1                 ← версия текущей ветки (main)
+=======
+b2                 ← версия сливаемой ветки
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; c2</code></pre>
+<p>Если увидел это и растерялся — <code>git merge --abort</code> вернёт всё как было до <code>merge</code>. Ничего не сломается.</p>
+
+<h2>5. Ветка для эксперимента</h2>
+<p>Вот решение для «сломай нарочно — убедись, что тест упал»:</p>
+<pre><code>git switch -c experiment/break-count
+# ломаешь getCount(), запускаешь, видишь ОШИБКА
+git commit -am "Сломать getCount для проверки тестов"
+git switch main                        # в main всё целое
+git branch -d experiment/break-count
+error: the branch 'experiment/break-count' is not fully merged
+hint: If you are sure you want to delete it, run 'git branch -D experiment/break-count'</code></pre>
+<p>Git защищает от потери коммитов: <code>-d</code> удаляет только слитую ветку. Ты уверен, что эксперимент не нужен, — значит <code>-D</code> (большая). Коммит со сломанным кодом исчезнет из истории, в <code>main</code> он не попадал никогда.</p>
+<p>Косая черта в имени — просто соглашение, как папка: <code>feature/…</code>, <code>fix/…</code>, <code>experiment/…</code>. Так ветки удобно группировать.</p>
+
+<h2>6. Ветка на GitHub</h2>
+<p>Локальная ветка живёт только на твоём компьютере. Отправить её:</p>
+<pre><code>git push -u origin lesson0010
+ * [new branch]      lesson0010 -> lesson0010
+branch 'lesson0010' set up to track 'origin/lesson0010'.</code></pre>
+<p><code>-u</code> нужен один раз: он связывает локальную ветку с удалённой, дальше хватает просто <code>git push</code>. На GitHub появится переключатель веток и кнопка «Compare &amp; pull request». Pull request — это просьба влить ветку в <code>main</code>, на которой коллеги делают ревью (<a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-branches">GitHub Docs</a>). Его будем делать в январе, пока только посмотри на кнопку.</p>
+
+<h2>Типичный рабочий цикл</h2>
+<pre><code>git switch main
+git status                         # чисто?
+git switch -c feature/что-делаю
+...код, проверки, git commit...    # сколько угодно коммитов
+git switch main
+git merge feature/что-делаю
+git log --oneline --graph --all
+git branch -d feature/что-делаю
+git push</code></pre>
+
+<h2>Проверь себя</h2>
+<div class="quiz-score"></div>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>1. Что такое ветка в Git?</legend>
+  <label><input type="radio"> Полная копия всех файлов проекта</label>
+  <label><input type="radio"> Подвижный указатель на один коммит</label>
+  <label><input type="radio"> Отдельная папка внутри репозитория</label>
+  <label><input type="radio"> Список изменений без самих коммитов</label>
+  <p class="feedback">Ветка — указатель на коммит, файл с его номером. Поэтому создаётся мгновенно и ничего не копирует.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>2. В <code>main</code> после создания <code>fix</code> новых коммитов не было. Что сделает <code>git merge fix</code>, запущенный в <code>main</code>?</legend>
+  <label><input type="radio"> Создаст новый коммит слияния</label>
+  <label><input type="radio"> Сообщит о конфликте во всех файлах</label>
+  <label><input type="radio"> Удалит ветку fix автоматически</label>
+  <label><input type="radio"> Просто сдвинет указатель main вперёд</label>
+  <p class="feedback">Fast-forward: коммиты <code>fix</code> уже стоят «после» <code>main</code> на одной линии, объединять нечего.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>3. Обе ветки получили свои коммиты, в разных файлах. Что сделает <code>git merge</code>?</legend>
+  <label><input type="radio"> Создаст коммит с двумя родителями</label>
+  <label><input type="radio"> Откажется и попросит сделать rebase</label>
+  <label><input type="radio"> Потеряет коммиты сливаемой ветки</label>
+  <label><input type="radio"> Перезапишет файлы версией из main</label>
+  <p class="feedback">Перемотать нельзя — линии разошлись. Git объединяет изменения и записывает коммит слияния, у которого два родителя.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>4. В ветке <code>experiment</code> есть коммит, которого нет в <code>main</code>. Что ответит <code>git branch -d experiment</code>?</legend>
+  <label><input type="radio"> Удалит ветку вместе с файлами</label>
+  <label><input type="radio"> Сольёт ветку в main и удалит</label>
+  <label><input type="radio"> Ошибка: ветка слита не полностью</label>
+  <label><input type="radio"> Удалит только последний коммит ветки</label>
+  <p class="feedback"><code>-d</code> защищает от потери работы. Удалить несмотря ни на что — <code>-D</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>5. Ты поменял <code>Main.java</code>, не закоммитил и вызвал <code>git switch main</code>. В <code>main</code> этот файл такой же, как в твоей ветке. Что будет?</legend>
+  <label><input type="radio"> Изменения пропадут без предупреждения</label>
+  <label><input type="radio"> Изменения переедут в ветку main</label>
+  <label><input type="radio"> Git сам сделает коммит изменений</label>
+  <label><input type="radio"> Git откажется переключаться совсем</label>
+  <p class="feedback">Незакоммиченное не принадлежит никакой ветке и едет с тобой. Отказ будет, только если файл в двух ветках различается. Поэтому перед <code>switch</code> — чистый <code>git status</code>.</p>
+</fieldset>
+
+<h2>Домашка</h2>
+<p>Код этой домашки — продолжение банка. Все Git-команды делай в терминале (не кнопками IntelliJ), чтобы видеть их ответы. Ответы на вопросы и вывод команд записывай в <code>src/lesson0010/GIT-NOTES.md</code>.</p>
+
+<div class="task">
+<h3>Шаг 1. База в <code>main</code></h3>
+<p>Убедись, что <code>git status</code> чистый и ты в <code>main</code>. Скопируй <code>src/lesson0009</code> в <code>src/lesson0010</code>, поменяй <code>package</code>, проверь, что все 16 проверок ОК. Закоммить прямо в <code>main</code>: это стартовая точка.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 2. Ветка <code>refactor/repository</code></h3>
+<p>Создай ветку и в ней приведи в порядок <code>InMemoryRepository</code>: <code>existsById</code> и <code>findAll</code> в одну строку, сообщение «нельзя невозможно», понятное имя исключения вместо <code>BadRequestByIdException</code> (переименовывай <em>без</em> галочки «Search in comments and strings»). Проверки ОК — коммит. Можно несколькими коммитами.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 3. Ветка <code>feature/currency-checks</code> — от <code>main</code>!</h3>
+<p><strong>Предскажи до команды</strong> и запиши: что ты увидишь в <code>InMemoryRepository.java</code> после <code>git switch main</code>? Переключись, проверь.</p>
+<p>Создай от <code>main</code> вторую ветку. В ней — только <code>Main.java</code>: проверки для валют (<code>count</code>, <code>existsById</code> для есть/нет, <code>findById</code> отсутствующего бросает исключение). Коммит.</p>
+<p>Ловушка: если на шаге 2 ты переименовал исключение, в этой ветке его старое имя. Это нормально — ветки ещё не знают друг о друге. Ловить в проверке лучше <code>RuntimeException</code> или старое имя; после слияния исправишь.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Слить обе ветки в <code>main</code></h3>
+<p><strong>Предскажи до команд</strong>: какое из двух слияний будет fast-forward, а какое создаст коммит слияния? Почему? Потом слей <code>refactor/repository</code>, затем <code>feature/currency-checks</code>. Скопируй в заметки вывод обоих <code>merge</code> и <code>git log --oneline --graph --all</code>.</p>
+<p>После слияния скомпилируй и запусти: все проверки должны быть ОК. Если не компилируется из-за имени исключения — поправь и закоммить в <code>main</code>. Удали обе ветки через <code>-d</code>.</p>
+<p>Обе ветки могли задеть <code>Main.java</code> (переименование исключения меняет и <code>catch</code>). Если Git написал «КОНФЛИКТ» — не паникуй: <code>git merge --abort</code> и напиши мне, разберём вместе. Это будет первый конфликт раньше плана, и это даже хорошо.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Эксперимент, который нельзя забыть откатить</h3>
+<p>Ветка <code>experiment/break-max</code>: сломай <code>max</code> (верни <code>&lt; 0</code>), запусти, запиши, какие проверки упали. Закоммить. Перейди в <code>main</code>, запусти снова — запиши, что вывелось. Удали ветку сначала через <code>-d</code> (запиши ошибку), потом через <code>-D</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 6. На GitHub</h3>
+<p><code>git push</code> для <code>main</code>. Дополнительно: создай ветку <code>lesson0010-notes</code>, закоммить в неё заметки, отправь через <code>git push -u origin lesson0010-notes</code>, найди её на GitHub и посмотри на кнопку «Compare &amp; pull request» (PR не создавай). Потом слей её в <code>main</code> локально и снова <code>git push</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 7. Вопросы (в заметки, своими словами)</h3>
+<ol>
+  <li>Почему ветки создаются мгновенно даже в огромном проекте?</li>
+  <li>Чем <code>git branch -d</code> отличается от <code>-D</code> и зачем нужна защита?</li>
+  <li>Что такое <code>HEAD</code>?</li>
+  <li>Как бы ты сделал «сломай — проверь — откати» из прошлых уроков теперь?</li>
+</ol>
+<p>Потом — «проверь домашку 0010». README обновлю я.</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Pro Git на русском, глава 3: <a href="https://git-scm.com/book/ru/v2/%D0%92%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2-Git-%D0%9E-%D0%B2%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B8-%D0%B2-%D0%B4%D0%B2%D1%83%D1%85-%D1%81%D0%BB%D0%BE%D0%B2%D0%B0%D1%85">3.1 О ветвлении в двух словах</a>, <a href="https://git-scm.com/book/ru/v2/%D0%92%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2-Git-%D0%9E%D1%81%D0%BD%D0%BE%D0%B2%D1%8B-%D0%B2%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F-%D0%B8-%D1%81%D0%BB%D0%B8%D1%8F%D0%BD%D0%B8%D1%8F">3.2 Основы ветвления и слияния</a>, <a href="https://git-scm.com/book/ru/v2/%D0%92%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2-Git-%D0%A3%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2%D0%B5%D1%82%D0%BA%D0%B0%D0%BC%D0%B8">3.3 Управление ветками</a>. Около 30 минут, с картинками указателей. Там встретится <code>checkout</code> — читай его как <code>switch</code>. Справочник по командам: <a href="https://git-scm.com/docs/git-switch">git switch</a>, <a href="https://git-scm.com/docs/git-merge">git merge</a>.</p>
+<p class="cite">Вывод всех команд в уроке проверен на Git 2.53 с русской локалью, как у тебя.</p>
+
+<p>Шпаргалка — <a href="../reference/0010-git-branches.html">справочник «Git-ветки»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1</a>, <a href="0002-classes-and-objects.html">2</a>, <a href="0003-encapsulation.html">3</a>, <a href="0004-exceptions.html">4</a>, <a href="0005-inheritance.html">5</a>, <a href="0006-interfaces.html">6</a>, <a href="0007-collections.html">7</a>, <a href="0008-equals-hashcode.html">8</a>, <a href="0009-generics.html">9. Generics</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Если граф <code>git log --graph</code> не читается или Git написал что-то пугающее — скопируй вывод мне, разберём. Испортить репозиторий ветками почти невозможно: коммиты не пропадают, пока ты сам не скажешь <code>-D</code>.</p>
+</div>
+
+<nav class="course">
+  <a href="0009-generics.html">← Урок 9: Generics</a>
+  <span>Урок 11: лямбды и Comparator →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
