@@ -16,14 +16,15 @@
 | 6 | Интерфейсы | `Notifier`, внедрение зависимости через конструктор, фейк и самотесты, `Comparable` | [`lesson0006`](src/lesson0006) |
 | 7 | Коллекции | `Bank` с `Map` «номер → счёт», `Set` уникальных владельцев, группировка счетов по владельцу, самопроверки через `check` | [`lesson0007`](src/lesson0007) |
 | 8 | `equals` и `hashCode` | `AccountNumber` — номер счёта как объект-значение с `equals`/`hashCode`, ключ `Map` в банке; эксперименты с перегрузкой `equals` и изменяемым `hashCode` | [`lesson0008`](src/lesson0008) |
+| 9 | Generics | Свой generic-интерфейс `Repository<T, ID>` в духе Spring Data и `InMemoryRepository` на `Map`; банк и справочник валют на одном классе; `max` с `<T extends Comparable<T>>` | [`lesson0009`](src/lesson0009) |
 
 ## Как запустить
 
-Нужен JDK 21. Из корня репозитория, на примере урока 8:
+Нужен JDK 21. Из корня репозитория, на примере урока 9:
 
 ```bash
-javac -d out src/lesson0008/*.java
-java -cp out lesson0008.Main
+javac -d out src/lesson0009/*.java
+java -cp out lesson0009.Main
 ```
 
 В уроках 1 и 2 главный класс — `Shop` вместо `Main`: `java -cp out lesson0001.Shop`.
@@ -42,7 +43,7 @@ RESOURCES.md        источники: туториалы Oracle, докуме�
 
 ## Дальше по плану
 
-Generics → лямбды и Stream API → Maven и JUnit 5 → SQL и PostgreSQL → Spring Boot → Docker и деплой.
+Git-ветки → лямбды и Stream API → enum, record, Optional → Maven и JUnit 5 → SQL и PostgreSQL → Spring Boot → Docker и деплой.
 
 ## Стек
 

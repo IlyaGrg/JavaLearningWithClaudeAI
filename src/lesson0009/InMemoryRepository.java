@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class InMemoryRepository<ID, T> implements Repository<ID, T> {
+public class InMemoryRepository<T, ID> implements Repository<T, ID> {
     private Map<ID, T> memory = new HashMap<>();
 
     public void save(ID id, T item) {
@@ -22,7 +22,7 @@ public class InMemoryRepository<ID, T> implements Repository<ID, T> {
         if (memory.containsKey(id)) {
             return memory.get(id);
         } else {
-            throw new AccountNotFoundException("По такому ID ничего не найдено: " + id);
+            throw new BadRequestByIdException("По такому ID ничего не найдено: " + id);
         }
     }
 
@@ -50,12 +50,9 @@ public class InMemoryRepository<ID, T> implements Repository<ID, T> {
             throw new IllegalArgumentException("Некорректные данные");
         }
         if (!memory.containsKey(id)) {
-            throw new FindByIdException("По такому ID нельзя невозможно удалить: " + id);
+            throw new BadRequestByIdException("По такому ID нельзя невозможно удалить: " + id);
         } else {
             memory.remove(id);
         }
-
     }
-
-
 }

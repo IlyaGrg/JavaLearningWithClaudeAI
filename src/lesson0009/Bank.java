@@ -4,7 +4,7 @@ import java.util.*;
 
 public class Bank {
     //Bank должен создавать Map сам для того, чтобы нельзя было его поменять из другой части кода в обход всем проверкам. Нужно чтобы ссылки на Map не было.
-    private Repository<AccountNumber, BankAccount> accounts = new InMemoryRepository<>();
+    private Repository<BankAccount, AccountNumber> accounts = new InMemoryRepository<>();
 
 
     public void openAccount(AccountNumber number, BankAccount account) {
@@ -77,11 +77,11 @@ public class Bank {
         return userAccounts;
     }
 
-    public Repository<AccountNumber, BankAccount> getAccounts(){
-        return accounts;
+    public int getCount() {
+        return accounts.count();
     }
 
-    public void deleteUser(AccountNumber number){
+    public void deleteUser(AccountNumber number) {
         accounts.deleteById(number);
     }
 
