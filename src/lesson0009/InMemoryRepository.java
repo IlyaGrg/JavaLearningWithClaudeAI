@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class InMemoryRepository<T, ID> implements Repository<T, ID> {
+public class InMemoryRepository<ID, T> implements Repository<ID, T> {
     private Map<ID, T> memory;
 
     public void save(ID id, T item) {

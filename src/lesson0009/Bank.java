@@ -4,7 +4,7 @@ import java.util.*;
 
 public class Bank {
     //Bank должен создавать Map сам для того, чтобы нельзя было его поменять из другой части кода в обход всем проверкам. Нужно чтобы ссылки на Map не было.
-    private Map<AccountNumber, BankAccount> accounts = new HashMap<>();
+    private Repository<AccountNumber, BankAccount> accounts = new InMemoryRepository<>();
 
 
     public void openAccount(AccountNumber number, BankAccount account) {
@@ -12,19 +12,15 @@ public class Bank {
         if (account == null) {
             throw new IllegalArgumentException("Невозможно создать аккаунт для такого пользователя: " + account);
         }
-        if (accounts.containsKey(number)) {
+        if (accounts.existsById(number)) {
             throw new DuplicateAccountException("Такой номер счета уже существует: " + number);
         }
 
-        accounts.put(number, account);
+        accounts.save(number, account);
     }
 
     public BankAccount findAccount(AccountNumber number) {
-        checkNumber(number);
-        if (accounts.get(number) == null) {
-            throw new AccountNotFoundException("Аккаунт не найден: " + number.getValue());
-        }
-        return accounts.get(number);
+        return accounts.findById(number);
     }
 
 
@@ -36,7 +32,7 @@ public class Bank {
 
     public int totalBalance() {
         int totalSum = 0;
-        for (BankAccount user : accounts.values()) {
+        for (BankAccount user : accounts.findAll()) {
             totalSum += user.getBalance();
         }
         return totalSum;
@@ -51,7 +47,7 @@ public class Bank {
 
     public Set<String> owners() {
         Set<String> owner = new HashSet<>();
-        for (BankAccount user : accounts.values()) {
+        for (BankAccount user : accounts.findAll()) {
             owner.add(user.getOwner());
         }
         return owner;
@@ -59,7 +55,7 @@ public class Bank {
 
     public Map<String, Integer> balanceByOwner() {
         Map<String, Integer> balanceAndOwner = new HashMap<>();
-        for (BankAccount user : accounts.values()) {
+        for (BankAccount user : accounts.findAll()) {
             String owner = user.getOwner();
             balanceAndOwner.put(owner, balanceAndOwner.getOrDefault(owner, 0) + user.getBalance());
         }
@@ -68,7 +64,7 @@ public class Bank {
 
     public Map<String, List<BankAccount>> accountsByOwner() {
         Map<String, List<BankAccount>> userAccounts = new HashMap<>();
-        for (BankAccount user : accounts.values()) {
+        for (BankAccount user : accounts.findAll()) {
             String owner = user.getOwner();
             List<BankAccount> ownerAccounts = userAccounts.get(owner);
             if (ownerAccounts == null) {
