@@ -1,4 +1,4 @@
-package lesson0008;
+package lesson0009;
 
 public class WithdrawalLimitExceededException extends RuntimeException {
     private int amount;
