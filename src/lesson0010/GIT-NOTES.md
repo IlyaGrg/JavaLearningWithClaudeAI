@@ -1,3 +1,4 @@
+
 **git add .
 git commit -m "Начать урок 0010 Git ветки"**
 
@@ -72,5 +73,10 @@ _Предскажи до команды и запиши: что ты увиди�
 В InMemoryRepository.java я увижу метод, реализованный в несколько строчек, а не в одну.
 
 
+
+
+**git switch -c feature/currency-checks**
+
+Переключились на новую ветку «feature/currency-checks»
 
 
