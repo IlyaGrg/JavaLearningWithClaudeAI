@@ -121,7 +121,7 @@ create mode 100644 src/lesson0010/EntityNotFoundByIdException.java
 * b64ae40 Начать урок 0010 Git ветки
 
 
-**Если конфликт то:**
+**Если конфликт, то:**
 1. Открыть файл и найти маркеры <<<<<<<, =======, >>>>>>>.
 2. Решить, что должно получиться: взять одну версию, другую или соединить обе. Обычно правильный ответ — соединить: каждая ветка добавляла что-то нужное.
 3. Удалить маркеры, затем git add файл.
@@ -144,4 +144,10 @@ hint: Disable this message with "git config set advice.forceDeleteBranch false
 **git branch -d feature/currency-checks**
 
 Ветка feature/currency-checks удалена (была 41a3532).
+
+**git branch -d experiment/break-max**
+
+error: the branch 'experiment/break-max' is not fully merged
+hint: If you are sure you want to delete it, run 'git branch -D experiment/break-max'
+hint: Disable this message with "git config set advice.forceDeleteBranch false"
 
