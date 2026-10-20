@@ -22,7 +22,7 @@ public class InMemoryRepository<T, ID> implements Repository<T, ID> {
         if (memory.containsKey(id)) {
             return memory.get(id);
         } else {
-            throw new BadRequestByIdException("По такому ID ничего не найдено: " + id);
+            throw new EntityNotFoundByIdException("По такому ID ничего не найдено: " + id);
         }
     }
 
@@ -47,7 +47,7 @@ public class InMemoryRepository<T, ID> implements Repository<T, ID> {
             throw new IllegalArgumentException("Некорректные данные");
         }
         if (!memory.containsKey(id)) {
-            throw new BadRequestByIdException("По такому ID невозможно удалить: " + id);
+            throw new EntityNotFoundByIdException("По такому ID невозможно удалить: " + id);
         } else {
             memory.remove(id);
         }

@@ -78,7 +78,7 @@ public class Main {
         boolean thrown = false;
         try {
             sberBank.findAccount(qwerty);
-        } catch (BadRequestByIdException e) {
+        } catch (EntityNotFoundByIdException e) {
             thrown = true;
         }
         check("findAccount() от некорректного значения", thrown);
@@ -121,7 +121,7 @@ public class Main {
         thrown = false;
         try {
             sberBank.findAccount(newNumber);
-        } catch (BadRequestByIdException e) {
+        } catch (EntityNotFoundByIdException e) {
             thrown = true;
         }
         check("findById неверного ID вызывает исключение", thrown);
