@@ -129,4 +129,19 @@ create mode 100644 src/lesson0010/EntityNotFoundByIdException.java
 5. Выполнить git commit.
 
 
+**git branch -d refactor/repository**
+
+warning: not deleting branch 'refactor/repository' that is not yet merged to
+'refs/remotes/origin/refactor/repository', even though it is merged to HEAD
+error: the branch 'refactor/repository' is not fully merged
+hint: If you are sure you want to delete it, run 'git branch -D refactor/repository'
+hint: Disable this message with "git config set advice.forceDeleteBranch false
+
+**git branch -D refactor/repository** 
+
+Ветка refactor/repository удалена (была c3e634c).
+
+**git branch -d feature/currency-checks**
+
+Ветка feature/currency-checks удалена (была 41a3532).
 
