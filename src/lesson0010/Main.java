@@ -20,7 +20,7 @@ public class Main {
         boolean thrown = false;
         try {
             value.findById("REB");
-        } catch (RuntimeException e){
+        } catch (EntityNotFoundByIdException e){
             thrown = true;
         }
         check("findById несуществующего ID бросает исключение", thrown);

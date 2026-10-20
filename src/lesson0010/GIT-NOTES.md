@@ -79,4 +79,54 @@ _Предскажи до команды и запиши: что ты увиди�
 
 Переключились на новую ветку «feature/currency-checks»
 
+Я думаю первое слияние будет fast-fetch а второе коммит слияния.
+
+**git merge refactor/repository** 
+
+Обновление b64ae40..c3e634c
+Fast-forward
+learning-records/0010-generics-homework.md      |  4 ++--
+src/lesson0010/BadRequestByIdException.java     |  7 ------
+src/lesson0010/EntityNotFoundByIdException.java |  7 ++++++
+src/lesson0010/GIT-NOTES.md                     | 76 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+src/lesson0010/InMemoryRepository.java          |  9 +++-----
+src/lesson0010/Main.java                        |  4 ++--
+6 files changed, 90 insertions(+), 17 deletions(-)
+delete mode 100644 src/lesson0010/BadRequestByIdException.java
+create mode 100644 src/lesson0010/EntityNotFoundByIdException.java
+
+**git merge feature/currency-checks** 
+
+Автослияние src/lesson0010/GIT-NOTES.md
+КОНФЛИКТ (содержимое): Конфликт слияния в src/lesson0010/GIT-NOTES.md
+Автослияние src/lesson0010/Main.java
+Сбой автоматического слияния; исправьте конфликты, затем зафиксируйте результат.
+
+**git add src/lesson0010/GIT-NOTES.md**
+**git restore --source=HEAD --staged --worktree src/lesson0009/Main.java**
+**git merge feature/currency-checks** 
+
+Уже актуально.
+
+**git log --oneline --graph --all**
+
+
+*   211d33a (HEAD -> main) Merge branch 'feature/currency-checks'
+    |\  
+    | * 41a3532 (origin/feature/currency-checks, feature/currency-checks) Реализовать проверки для валюты в Main.java
+* | c3e634c (refactor/repository) Дописать GIT-NOTES.md
+* | 4537b46 (origin/refactor/repository) Переименовать BadRequestByIdException на EntityNotFoundByIdException
+* | 0439ad8 Исправить existsById в одну строчку
+  |/
+* b64ae40 Начать урок 0010 Git ветки
+
+
+**Если конфликт то:**
+1. Открыть файл и найти маркеры <<<<<<<, =======, >>>>>>>.
+2. Решить, что должно получиться: взять одну версию, другую или соединить обе. Обычно правильный ответ — соединить: каждая ветка добавляла что-то нужное.
+3. Удалить маркеры, затем git add файл.
+4. Скомпилировать и запустить проверки. Git соединяет текст, а не смысл. Слияние без конфликта тоже может дать код, который не компилируется. Например, одна ветка переименовала метод, а другая добавила его вызов со старым именем.
+5. Выполнить git commit.
+
+
 
