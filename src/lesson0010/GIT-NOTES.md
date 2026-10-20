@@ -151,3 +151,5 @@ error: the branch 'experiment/break-max' is not fully merged
 hint: If you are sure you want to delete it, run 'git branch -D experiment/break-max'
 hint: Disable this message with "git config set advice.forceDeleteBranch false"
 
+
+закоммитить заметки
