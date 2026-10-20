@@ -9,33 +9,15 @@ public class Main {
     public static void main(String[] args) {
         Repository<String, String> value = new InMemoryRepository<>();
         value.save("RUB", "Российский рубль");
+        int firstCount = value.count();
+
+        value.save("USD", "Доллар США");
+
         tests();
         check("Ожидается: Российский рубль", value.findById("RUB").equals("Российский рубль"));
-        Repository<AccountNumber, BankAccount> repository = new InMemoryRepository<>();
-        //repository.save("BANK121212", new BankAccount("Ilya", 121212)); src/lesson0009/Main.java:14: error: incompatible types: String cannot be converted to AccountNumber
-        //        repository.save("BANK121212", new BankAccount("Ilya", 121212));
-        //                        ^
-        //Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
-        //1 error
-        //ошибка из-за неверного типа данных
-
-        //Repository<String, int> repository1 = new InMemoryRepository<>();
-        //src/lesson0009/Main.java:21: error: unexpected type
-        //        Repository<String, int> repository1 = new InMemoryRepository<>();
-        //                           ^
-        //  required: reference
-        //  found:    int
-        //1 error
-        //должен быть Integer
+        check("count растет", value.count() == firstCount + 1);
 
 
-//        List raw = new ArrayList();
-//        raw.add("Чай");
-//        raw.add(250);
-//        String s = (String) raw.get(1);
-        //Exception in thread "main" java.lang.ClassCastException: class java.lang.Integer cannot be cast to class java.lang.String (java.lang.Integer and java.lang.String are in module java.base of loader 'bootstrap')
-        //	at lesson0009.Main.main(Main.java:34)
-        //сыртой тип дает скомпилировать, но компилятор предупреждает, что используется сырой тип, и на моменте работы программы все ложится из за приведения не к тому типу данных
     }
 
     static void check(String message, boolean condition) {
