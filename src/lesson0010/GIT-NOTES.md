@@ -153,3 +153,5 @@ hint: Disable this message with "git config set advice.forceDeleteBranch false"
 
 
 закоммитить заметки
+
+Заметки
