@@ -46,6 +46,31 @@ To github.com:IlyaGrg/JavaLearningWithClaudeAI.git
 * [new branch]      refactor/repository -> refactor/repository
   branch 'refactor/repository' set up to track 'origin/refactor/repository'.
 
+**git add .
+git commit -m "Переименовать BadRequestByIdException на EntityNotFoundByIdException"**
+
+[refactor/repository 4537b46] Переименовать BadRequestByIdException на EntityNotFoundByIdException
+6 files changed, 44 insertions(+), 13 deletions(-)
+delete mode 100644 src/lesson0010/BadRequestByIdException.java
+create mode 100644 src/lesson0010/EntityNotFoundByIdException.java
+
+**git push -u origin refactor/repository**
+
+Перечисление объектов: 18, готово.
+Подсчет объектов: 100% (18/18), готово.
+При сжатии изменений используется до 12 потоков
+Сжатие объектов: 100% (10/10), готово.
+Запись объектов: 100% (10/10), 1.86 KiB | 1.86 MiB/s, готово.
+Total 10 (delta 7), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (7/7), completed with 7 local objects.
+To github.com:IlyaGrg/JavaLearningWithClaudeAI.git
+0439ad8..4537b46  refactor/repository -> refactor/repository
+branch 'refactor/repository' set up to track 'origin/refactor/repository'.
+
+_Предскажи до команды и запиши: что ты увидишь в InMemoryRepository.java после git switch main?_
+
+В InMemoryRepository.java я увижу метод, реализованный в несколько строчек, а не в одну.
+
 
 
 
