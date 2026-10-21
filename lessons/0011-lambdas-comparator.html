@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 11 · Лямбды и Comparator</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0011 · Java Core · ~90 минут + домашка</div>
+<h1>Лямбды и Comparator: передать поведение как значение</h1>
+<p class="subtitle">После этого урока ты сможешь писать лямбды и ссылки на методы, сортировать счета по любому признаку без изменения класса и переписать свои циклы группировки в одну строку.</p>
+
+<div class="note">
+<p><strong>Зачем этот урок для backend.</strong> Лямбды в современном Java-коде везде: сортировка, фильтры, Stream API (урок 12), обработчики в Spring, настройка Spring Security — это цепочки лямбд. Без них код Spring-проекта просто не читается. А на собеседовании почти наверняка спросят «что такое функциональный интерфейс».</p>
+</div>
+
+<h2>Разминка</h2>
+<details class="reveal"><summary>1. Урок 10: ты в ветке <code>feature/x</code>, в <code>main</code> с тех пор новых коммитов нет. Что сделает <code>git merge feature/x</code> из <code>main</code>?</summary>
+<p>Fast-forward: указатель <code>main</code> просто сдвинется на последний коммит ветки. Коммита слияния не будет — линии не расходились.</p>
+</details>
+<details class="reveal"><summary>2. Урок 6: сколько методов в твоём интерфейсе <code>Notifier</code>? И сколько классов ты написал, чтобы его реализовать?</summary>
+<p>Один метод: <code>send(String recipient, String message)</code>. Классов — три: <code>ConsoleSmsNotifier</code>, <code>ConsoleEmailNotifier</code>, <code>FakeNotifier</code>. Целый файл ради одного метода. Сегодня увидишь, как сделать то же одной строкой.</p>
+</details>
+<details class="reveal"><summary>3. Урок 9: как записать <code>findAll</code> в одну строку?</summary>
+<p><code>return new ArrayList&lt;&gt;(memory.values());</code> — у <code>ArrayList</code> есть конструктор, который копирует любую коллекцию. Это хвост урока 9, в домашке доделаешь.</p>
+</details>
+
+<h2>1. Проблема: поведение, которое хочется передать</h2>
+<p>Твой <code>BankAccount</code> реализует <code>Comparable</code> — сравнивает по балансу. Это его «естественный порядок» (урок 6). А если в одном месте нужен список по владельцу, в другом — по убыванию баланса? Менять <code>compareTo</code> нельзя: он один на класс.</p>
+<p>Нужен способ передать в <code>sort</code> <strong>правило сравнения</strong> отдельно от класса. Для этого есть интерфейс <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Comparator.html"><code>Comparator&lt;T&gt;</code></a> с одним методом <code>compare(a, b)</code>. До Java 8 его реализовывали <em>анонимным классом</em> — классом без имени, объявленным прямо на месте:</p>
+<pre><code>accounts.sort(new Comparator&lt;BankAccount&gt;() {
+    @Override
+    public int compare(BankAccount a, BankAccount b) {
+        return a.getOwner().compareTo(b.getOwner());
+    }
+});</code></pre>
+<p>Шесть строк, из которых полезная — одна. Остальное — церемония.</p>
+
+<h2>2. Лямбда</h2>
+<p>Лямбда — это та же реализация, но без церемонии (<a href="https://docs.oracle.com/javase/tutorial/java/javaOO/lambdaexpressions.html">Oracle: Lambda Expressions</a>):</p>
+<pre><code>accounts.sort((a, b) -&gt; a.getOwner().compareTo(b.getOwner()));</code></pre>
+<div class="annotated">
+  <div class="row"><code>(a, b)</code><div>параметры метода <code>compare</code>. Типы не пишем — компилятор знает, что это <code>BankAccount</code>, из <code>List&lt;BankAccount&gt;</code></div></div>
+  <div class="row"><code>-&gt;</code><div>«превращается в»</div></div>
+  <div class="row"><code>a.getOwner()…</code><div>тело. Если это одно выражение — без <code>{}</code> и без <code>return</code>, его значение и есть результат</div></div>
+</div>
+<p>Варианты записи:</p>
+<pre><code>acc -&gt; acc.getBalance() &gt; 1000            // один параметр — скобки можно опустить
+() -&gt; new ArrayList&lt;&gt;()                   // без параметров
+(a, b) -&gt; {                                // несколько строк — фигурные скобки и return
+    int byOwner = a.getOwner().compareTo(b.getOwner());
+    return byOwner != 0 ? byOwner : Integer.compare(a.getBalance(), b.getBalance());
+}</code></pre>
+
+<h3>Где можно написать лямбду</h3>
+<p>Только там, где ожидается <strong>функциональный интерфейс</strong> — интерфейс ровно с одним абстрактным методом. Лямбда и есть реализация этого метода. Твой <code>Notifier</code> — функциональный интерфейс:</p>
+<pre><code>Notifier sms = (to, msg) -&gt; System.out.println("SMS " + to + ": " + msg);
+sms.send("Ilya", "Перевод 100");     // SMS Ilya: Перевод 100
+
+List&lt;String&gt; sent = new ArrayList&lt;&gt;();
+Notifier fake = (to, msg) -&gt; sent.add(to + ":" + msg);   // фейк без отдельного класса</code></pre>
+<p>Если методов два — лямбду не написать (проверено на JDK 21):</p>
+<pre><code>error: incompatible types: Two is not a functional interface
+    multiple non-overriding abstract methods found in interface Two</code></pre>
+<p>Аннотация <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/FunctionalInterface.html"><code>@FunctionalInterface</code></a> над интерфейсом просит компилятор проверить это правило — как <code>@Override</code> для методов.</p>
+
+<h3>Готовые функциональные интерфейсы</h3>
+<p>Чтобы не объявлять свой интерфейс на каждый случай, в пакете <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/function/package-summary.html"><code>java.util.function</code></a> есть стандартные. Четыре главных:</p>
+<table>
+  <tr><th>Интерфейс</th><th>Метод</th><th>Смысл</th><th>Пример</th></tr>
+  <tr><td><code>Predicate&lt;T&gt;</code></td><td><code>boolean test(T)</code></td><td>условие</td><td><code>acc -&gt; acc.getBalance() &gt; 1000</code></td></tr>
+  <tr><td><code>Function&lt;T, R&gt;</code></td><td><code>R apply(T)</code></td><td>превратить T в R</td><td><code>acc -&gt; acc.getOwner()</code></td></tr>
+  <tr><td><code>Consumer&lt;T&gt;</code></td><td><code>void accept(T)</code></td><td>сделать что-то с T</td><td><code>acc -&gt; System.out.println(acc)</code></td></tr>
+  <tr><td><code>Supplier&lt;T&gt;</code></td><td><code>T get()</code></td><td>выдать новое T</td><td><code>() -&gt; new ArrayList&lt;&gt;()</code></td></tr>
+</table>
+<p>Видишь generics из урока 9? <code>Predicate&lt;BankAccount&gt;</code> — условие про счёт, <code>Function&lt;BankAccount, String&gt;</code> — из счёта получить строку.</p>
+
+<h3>Переменные снаружи — только «фактически final»</h3>
+<pre><code>int total = 0;
+list.forEach(x -&gt; total += x);
+// error: local variables referenced from a lambda expression must be final or effectively final</code></pre>
+<p>Лямбда может <em>читать</em> локальные переменные снаружи, но только те, которые после присваивания не меняются. Менять их изнутри нельзя. При этом менять <em>объект</em> по ссылке можно: <code>sent.add(...)</code> в фейке выше работает, потому что сама переменная <code>sent</code> не меняется — меняется список, на который она указывает (урок 2, ссылки).</p>
+
+<h2>3. Ссылки на методы</h2>
+<p>Когда лямбда только вызывает один готовый метод, её можно сократить ещё (<a href="https://docs.oracle.com/javase/tutorial/java/javaOO/methodreferences.html">Oracle: Method References</a>):</p>
+<table>
+  <tr><th>Лямбда</th><th>Ссылка на метод</th></tr>
+  <tr><td><code>acc -&gt; acc.getOwner()</code></td><td><code>BankAccount::getOwner</code></td></tr>
+  <tr><td><code>x -&gt; System.out.println(x)</code></td><td><code>System.out::println</code></td></tr>
+  <tr><td><code>(a, b) -&gt; Integer.sum(a, b)</code></td><td><code>Integer::sum</code></td></tr>
+  <tr><td><code>() -&gt; new ArrayList&lt;&gt;()</code></td><td><code>ArrayList::new</code></td></tr>
+</table>
+<p>Читается как «метод <code>getOwner</code> класса <code>BankAccount</code>». Скобок нет — метод не вызывается сейчас, а передаётся, чтобы его вызвали потом.</p>
+
+<h2>4. Comparator: собрать сортировку из кусочков</h2>
+<p>Писать <code>compare</code> руками почти не приходится. У <code>Comparator</code> есть методы, которые строят его из ссылки на геттер:</p>
+<pre><code>accounts.sort(Comparator.comparing(BankAccount::getOwner));          // по владельцу, А→Я
+accounts.sort(Comparator.comparingInt(BankAccount::getBalance));     // по балансу (int)
+
+accounts.sort(Comparator.comparing(BankAccount::getOwner)
+                        .thenComparingInt(BankAccount::getBalance)); // по владельцу, при равенстве — по балансу
+
+accounts.sort(Comparator.comparingInt(BankAccount::getBalance)
+                        .reversed());                                // по убыванию баланса</code></pre>
+<p>Проверено на счетах <code>Valeria 500, Ilya 120, Ilya 900, Anna 500</code>: «по владельцу, потом по балансу» даёт <code>[Anna: 500, Ilya: 120, Ilya: 900, Valeria: 500]</code>.</p>
+<p><code>comparingInt</code> вместо <code>comparing</code> для <code>int</code> — чтобы не упаковывать числа в <code>Integer</code> (урок 7). Работает и <code>comparing</code>, но так точнее.</p>
+
+<h3>Ловушка: <code>reversed()</code> после лямбды</h3>
+<pre><code>Comparator.comparing(b -&gt; b.getOwner()).reversed()
+// error: cannot find symbol
+//   symbol:   method getOwner()
+//   location: variable b of type Object</code></pre>
+<p>Компилятор выводит тип <code>b</code> из того, куда идёт результат. Но здесь результат сначала уходит в <code>.reversed()</code>, и компилятор не успевает понять, что <code>b</code> — счёт, считает его <code>Object</code>. Решение — ссылка на метод <code>BankAccount::getOwner</code>: в ней тип написан явно.</p>
+
+<h2>5. Map с лямбдами: было и стало</h2>
+<p>Твой <code>balanceByOwner</code> из урока 7 — шаблон «подсчёт»:</p>
+<pre><code>balanceAndOwner.put(owner, balanceAndOwner.getOrDefault(owner, 0) + user.getBalance());</code></pre>
+<p>У <code>Map</code> есть <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html#merge(K,V,java.util.function.BiFunction)"><code>merge</code></a>: «если ключа нет — положи значение, если есть — объедини старое с новым функцией»:</p>
+<pre><code>balanceAndOwner.merge(owner, user.getBalance(), Integer::sum);
+// Ilya 100, Ilya 50, Anna 7  →  {Anna=7, Ilya=150}</code></pre>
+<p>А шаблон «достань → если <code>null</code> создай и положи → добавь» из <code>accountsByOwner</code> — это <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html#computeIfAbsent(K,java.util.function.Function)"><code>computeIfAbsent</code></a>. Он возвращает список из мапы — существующий или только что созданный лямбдой:</p>
+<pre><code>userAccounts.computeIfAbsent(owner, k -&gt; new ArrayList&lt;&gt;()).add(user);</code></pre>
+<p>Пять строк — в одну. Логика та же, которую ты уже понимаешь, — поэтому и учим это сейчас, а не в уроке 7.</p>
+
+<h3>Ещё два метода коллекций</h3>
+<pre><code>accounts.removeIf(acc -&gt; acc.getBalance() == 0);   // удалить по условию — без ConcurrentModificationException
+accounts.forEach(System.out::println);             // для каждого</code></pre>
+<p><code>removeIf</code> решает проблему урока 7: удалять из списка внутри <code>for-each</code> нельзя, а так — можно.</p>
+
+<h2>Частые вопросы</h2>
+<details class="reveal"><summary>Лямбда — это объект?</summary>
+<p>Да: это объект, реализующий функциональный интерфейс. Его можно положить в переменную, передать в метод, вернуть из метода. Отсюда и выражение «передать поведение как значение».</p>
+</details>
+<details class="reveal"><summary>Когда лямбда, а когда обычный класс?</summary>
+<p>Лямбда — когда реализация короткая (одна-три строки) и нужна в одном месте. Если логика большая, нужна в нескольких местах или у реализации есть своё состояние и другие методы — обычный класс. Твои <code>ConsoleSmsNotifier</code> и <code>FakeNotifier</code> остаются нормальным решением, лямбда — просто короче.</p>
+</details>
+<details class="reveal"><summary><code>Comparable</code> или <code>Comparator</code>?</summary>
+<p><code>Comparable</code> — один «естественный» порядок, зашитый в класс (<code>compareTo</code>). <code>Comparator</code> — сколько угодно порядков снаружи, класс не меняется. Для сущностей вроде счёта естественного порядка часто нет вовсе, и тогда пишут только компараторы.</p>
+</details>
+
+<h2>Проверь себя</h2>
+<div class="quiz-score"></div>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>1. Что такое функциональный интерфейс?</legend>
+  <label><input type="radio"> Интерфейс, у которого вообще нет методов</label>
+  <label><input type="radio"> Интерфейс из пакета java.util.function</label>
+  <label><input type="radio"> Интерфейс ровно с одним абстрактным методом</label>
+  <label><input type="radio"> Интерфейс с аннотацией @FunctionalInterface</label>
+  <p class="feedback">Правило — один абстрактный метод. Пакет <code>java.util.function</code> содержит готовые, но твой <code>Notifier</code> тоже функциональный. Аннотация только просит компилятор проверить.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>2. Чему равна ссылка на метод <code>BankAccount::getOwner</code>?</legend>
+  <label><input type="radio"> Лямбде acc -&gt; acc.getOwner()</label>
+  <label><input type="radio"> Строке с именем первого владельца</label>
+  <label><input type="radio"> Вызову getOwner() прямо сейчас</label>
+  <label><input type="radio"> Новому объекту класса BankAccount</label>
+  <p class="feedback">Ссылка на метод — сокращённая лямбда. Метод не вызывается сейчас: его вызовут позже, для каждого счёта.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>3. Как отсортирует <code>Comparator.comparingInt(BankAccount::getBalance).reversed()</code>?</legend>
+  <label><input type="radio"> По владельцу в обратном алфавите</label>
+  <label><input type="radio"> По балансу от меньшего к большему</label>
+  <label><input type="radio"> В обратном порядке добавления в список</label>
+  <label><input type="radio"> По балансу от большего к меньшему</label>
+  <p class="feedback"><code>comparingInt</code> — по возрастанию баланса, <code>reversed()</code> переворачивает порядок.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>4. <code>int total = 0; list.forEach(x -&gt; total += x);</code> Что будет?</legend>
+  <label><input type="radio"> Сумма всех элементов окажется в total</label>
+  <label><input type="radio"> Ошибка компиляции: total должен быть final</label>
+  <label><input type="radio"> Исключение ConcurrentModificationException при запуске</label>
+  <label><input type="radio"> total останется нулём, без всяких ошибок</label>
+  <p class="feedback">Лямбда не может менять локальные переменные снаружи: <code>must be final or effectively final</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>5. В мапе <code>{Ilya=100}</code>. Что станет после <code>map.merge("Ilya", 50, Integer::sum)</code>?</legend>
+  <label><input type="radio"> Значение станет 150, ключ тот же</label>
+  <label><input type="radio"> Значение станет 50, старое потеряно</label>
+  <label><input type="radio"> Появится второй ключ Ilya со значением 50</label>
+  <label><input type="radio"> Исключение, потому что ключ уже есть</label>
+  <p class="feedback">Ключ есть — <code>merge</code> объединяет старое и новое функцией <code>Integer::sum</code>: 100 + 50. Не было бы ключа — положил бы 50.</p>
+</fieldset>
+
+<h2>Домашка</h2>
+<p>Работай в ветке — как в уроке 10.</p>
+
+<div class="task">
+<h3>Шаг 1. Ветка и копия</h3>
+<p><code>git status</code> чистый? <code>git switch -c feature/lambdas</code>. Скопируй <code>src/lesson0010</code> в <code>src/lesson0011</code> (без <code>GIT-NOTES.md</code>), поменяй <code>package</code>, все 20 проверок ОК, коммит.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 2. Хвосты урока 9</h3>
+<p>В <code>InMemoryRepository</code>: <code>existsById</code> — без двойного отрицания, <code>findAll</code> — одной строкой. Проверки ОК, коммит.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 3. Сначала проверки, потом рефакторинг</h3>
+<p>Ты собираешься переписать <code>balanceByOwner</code> и <code>accountsByOwner</code>. Но проверок для них в <code>Main</code> сейчас нет — значит, если перепишешь неправильно, никто не заметит (урок 8, регрессия). Поэтому <strong>сначала</strong> добавь проверки на текущий код: у владельца с двумя счетами сумма балансов правильная; у него в группе ровно 2 счёта (а не «размер мапы» — помнишь урок 7?); у владельца с одним счётом — 1. Убедись, что ОК, коммит.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Рефакторинг</h3>
+<p>Перепиши <code>balanceByOwner</code> через <code>merge</code>, <code>accountsByOwner</code> через <code>computeIfAbsent</code>. Проверки шага 3 не трогай — они должны остаться ОК. Коммит.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Сортировки в банке</h3>
+<p>Добавь в <code>Bank</code> методы, возвращающие <strong>новый</strong> список счетов (урок 7: почему не сам внутренний?):</p>
+<ul>
+  <li><code>sortedByOwner()</code> — по владельцу, при одинаковом владельце — по балансу;</li>
+  <li><code>sortedByBalanceDesc()</code> — от большего баланса к меньшему.</li>
+</ul>
+<p><code>compareTo</code> в <code>BankAccount</code> не меняй. Только <code>Comparator</code> со ссылками на методы. Проверки: порядок первых элементов совпадает с ожидаемым (посчитай ожидание <strong>сам, до запуска</strong>), список банка не изменился после сортировки.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 6. Метод с <code>Predicate</code></h3>
+<p>Добавь <code>List&lt;BankAccount&gt; findAccounts(Predicate&lt;BankAccount&gt; filter)</code>. Вызови его в проверках с двумя разными лямбдами: «баланс больше N» и «владелец — Ilya». Один метод — любые условия: так устроены запросы в Spring Data, до которых мы дойдём в марте.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 7. Эксперименты — в ветке <code>experiment/lambda-errors</code></h3>
+<ol>
+  <li><code>Comparator.comparing(a -&gt; a.getOwner()).reversed()</code> — и потом то же со ссылкой на метод.</li>
+  <li>Посчитай сумму балансов через <code>forEach</code> с локальной <code>int</code>-переменной.</li>
+  <li>Объяви маленький интерфейс с <em>двумя</em> абстрактными методами и попробуй присвоить переменной этого типа лямбду. Потом добавь над ним <code>@FunctionalInterface</code> — где теперь появилась ошибка?</li>
+</ol>
+<p>Тексты ошибок копируй из терминала. Потом <code>git switch feature/lambdas</code>, запиши ошибки и объяснения в <code>src/lesson0011/EXPERIMENTS.md</code>, закоммить уже там. Ветку эксперимента — <code>-D</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 8. Слить и отправить</h3>
+<p>Перед слиянием: все проверки ОК, в выводе ни одной «ОШИБКА». <code>git switch main</code>, <code>git merge feature/lambdas</code> (предскажи: перемотка или коммит слияния?), проверь <code>git show --stat</code> — не задеты ли другие уроки. Удали ветку, <code>git push</code>. Потом — «проверь домашку 0011».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Oracle: <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/lambdaexpressions.html">Lambda Expressions</a> (до раздела «Serialization» можно не дочитывать) и <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/methodreferences.html">Method References</a>. Около 30 минут. Более современное изложение — <a href="https://dev.java/learn/lambdas/">dev.java: Lambda Expressions</a>, там же есть раздел про <code>Comparator</code>. Методы <code>Comparator</code> — в <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Comparator.html">документации Java 21</a>.</p>
+<p class="cite">Все примеры и тексты ошибок проверены на JDK 21.</p>
+
+<p>Шпаргалка — <a href="../reference/0011-java-lambdas.html">справочник «Лямбды и Comparator»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1</a>, <a href="0002-classes-and-objects.html">2</a>, <a href="0003-encapsulation.html">3</a>, <a href="0004-exceptions.html">4</a>, <a href="0005-inheritance.html">5</a>, <a href="0006-interfaces.html">6</a>, <a href="0007-collections.html">7</a>, <a href="0008-equals-hashcode.html">8</a>, <a href="0009-generics.html">9</a>, <a href="0010-git-branches.html">10. Git-ветки</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Если лямбда кажется магией — скажи, распишем одну и ту же сортировку тремя способами: отдельным классом, анонимным классом, лямбдой, и ты увидишь, что это одно и то же.</p>
+</div>
+
+<nav class="course">
+  <a href="0010-git-branches.html">← Урок 10: Git-ветки</a>
+  <span>Урок 12: Stream API →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

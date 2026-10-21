@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Лямбды и Comparator</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1>Лямбды и Comparator</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0011-lambdas-comparator.html">уроку 0011</a>.</p>
+
+<h2>Синтаксис</h2>
+<pre><code>acc -&gt; acc.getBalance() &gt; 1000          // один параметр
+(a, b) -&gt; a.getOwner().compareTo(b.getOwner())
+() -&gt; new ArrayList&lt;&gt;()                 // без параметров
+(a, b) -&gt; { ...; return x; }             // блок: {} и return</code></pre>
+<p>Лямбда пишется только там, где ожидается <strong>функциональный интерфейс</strong> — ровно один абстрактный метод. <code>@FunctionalInterface</code> — проверка компилятором.</p>
+
+<h2>java.util.function</h2>
+<table>
+  <tr><th>Интерфейс</th><th>Метод</th><th>Смысл</th></tr>
+  <tr><td><code>Predicate&lt;T&gt;</code></td><td><code>boolean test(T)</code></td><td>условие</td></tr>
+  <tr><td><code>Function&lt;T, R&gt;</code></td><td><code>R apply(T)</code></td><td>T → R</td></tr>
+  <tr><td><code>Consumer&lt;T&gt;</code></td><td><code>void accept(T)</code></td><td>сделать с T</td></tr>
+  <tr><td><code>Supplier&lt;T&gt;</code></td><td><code>T get()</code></td><td>выдать T</td></tr>
+</table>
+
+<h2>Ссылки на методы</h2>
+<table>
+  <tr><td><code>BankAccount::getOwner</code></td><td><code>acc -&gt; acc.getOwner()</code></td></tr>
+  <tr><td><code>System.out::println</code></td><td><code>x -&gt; System.out.println(x)</code></td></tr>
+  <tr><td><code>Integer::sum</code></td><td><code>(a, b) -&gt; a + b</code></td></tr>
+  <tr><td><code>ArrayList::new</code></td><td><code>() -&gt; new ArrayList&lt;&gt;()</code></td></tr>
+</table>
+
+<h2>Comparator</h2>
+<pre><code>list.sort(Comparator.comparing(BankAccount::getOwner));
+list.sort(Comparator.comparingInt(BankAccount::getBalance).reversed());
+list.sort(Comparator.comparing(BankAccount::getOwner)
+                    .thenComparingInt(BankAccount::getBalance));</code></pre>
+<p><code>Comparable</code> — один естественный порядок внутри класса. <code>Comparator</code> — любые порядки снаружи.</p>
+
+<h2>Коллекции</h2>
+<pre><code>map.merge(key, value, Integer::sum);                      // подсчёт / сумма
+map.computeIfAbsent(key, k -&gt; new ArrayList&lt;&gt;()).add(x);  // группировка
+list.removeIf(acc -&gt; acc.getBalance() == 0);              // удалить по условию
+list.forEach(System.out::println);                        // для каждого</code></pre>
+
+<h2>Ошибки</h2>
+<table>
+  <tr><th>Что</th><th>Ошибка</th></tr>
+  <tr><td>менять локальную переменную в лямбде</td><td><code>local variables referenced from a lambda expression must be final or effectively final</code></td></tr>
+  <tr><td><code>comparing(b -&gt; b.getOwner()).reversed()</code></td><td><code>cannot find symbol … variable b of type Object</code> → <code>BankAccount::getOwner</code></td></tr>
+  <tr><td>лямбда для интерфейса с двумя методами</td><td><code>… is not a functional interface</code></td></tr>
+  <tr><td><code>@FunctionalInterface</code> на двух методах</td><td><code>Unexpected @FunctionalInterface annotation</code></td></tr>
+</table>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/lambdaexpressions.html">Oracle — Lambda Expressions</a>, <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/methodreferences.html">Method References</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Comparator.html">Comparator (Java 21)</a>. Проверено на JDK 21.</p>
+
+</main>
+</body>
+</html>

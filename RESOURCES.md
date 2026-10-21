@@ -30,6 +30,12 @@
   Generic-типы и методы, ограничения, wildcards, стирание типов. Use for: урок 9, чтение сигнатур библиотек.
 - [Spring Data Commons: Core concepts](https://docs.spring.io/spring-data/commons/reference/repositories/core-concepts.html)
   `CrudRepository<T, ID>` и иерархия репозиториев. Use for: связь generics со Spring; основной источник по репозиториям позже.
+- [The Java Tutorials: Lambda Expressions](https://docs.oracle.com/javase/tutorial/java/javaOO/lambdaexpressions.html) и [Method References](https://docs.oracle.com/javase/tutorial/java/javaOO/methodreferences.html) (Oracle)
+  Синтаксис лямбд, функциональные интерфейсы, четыре вида ссылок на методы. Use for: урок 11.
+- [dev.java: Lambda Expressions](https://dev.java/learn/lambdas/)
+  Современный официальный курс от команды Java, с разделом про Comparator. Use for: урок 11, повторение перед Stream API.
+- [Java 21 API: Comparator](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Comparator.html), [Map](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html), [java.util.function](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/function/package-summary.html)
+  Точные контракты `comparing`, `thenComparing`, `merge`, `computeIfAbsent`. Use for: уроки 11–12.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 - [Git Reference: git switch](https://git-scm.com/docs/git-switch) и [git merge](https://git-scm.com/docs/git-merge)
