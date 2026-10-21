@@ -152,9 +152,7 @@ hint: If you are sure you want to delete it, run 'git branch -D experiment/break
 hint: Disable this message with "git config set advice.forceDeleteBranch false"
 
 
-закоммитить заметки
 
-Заметки
 
 **Почему ветки создаются мгновенно даже в огромном проекте?**
 
