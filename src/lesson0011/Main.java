@@ -1,9 +1,6 @@
 package lesson0011;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class Main {
     public static void main(String[] args) {
@@ -45,6 +42,14 @@ public class Main {
             }
         }
         check("sortedByOwner правильно работает", flag);
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Введите N: ");
+        int N = scanner.nextInt();
+        scanner.close();
+
+
+        System.out.println(tBank.findAccounts(acc -> acc.getBalance() > N));
+        System.out.println(tBank.findAccounts(acc -> acc.getOwner() == "Ilya"));
     }
 
     static void check(String message, boolean condition) {

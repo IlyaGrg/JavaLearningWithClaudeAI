@@ -1,6 +1,7 @@
 package lesson0011;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 public class Bank {
     private Repository<BankAccount, AccountNumber> accounts = new InMemoryRepository<>();
@@ -87,4 +88,13 @@ public class Bank {
         return sortedAccounts;
     }
 
+    List<BankAccount> findAccounts(Predicate<BankAccount> filter){
+        List<BankAccount> newList = new ArrayList<>();
+        for (BankAccount user : accounts.findAll()){
+            if (filter.test(user)){
+                newList.add(user);
+            }
+        }
+        return newList;
+    }
 }
