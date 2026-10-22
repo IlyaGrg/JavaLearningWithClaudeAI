@@ -27,15 +27,11 @@ public class InMemoryRepository<T, ID> implements Repository<T, ID> {
     }
 
     public boolean existsById(ID id) {
-        return !(id == null || !memory.containsKey(id));
+        return (id != null && memory.containsKey(id));
     }
 
     public List<T> findAll() {
-        List<T> all = new ArrayList<>();
-        for (T things : memory.values()) {
-            all.add(things);
-        }
-        return all;
+        return new ArrayList<>(memory.values());
     }
 
     public int count() {
