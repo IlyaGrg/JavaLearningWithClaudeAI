@@ -52,7 +52,8 @@ public class Main {
                 flag = false;
             }
         }
-        check("findAccounts от лямбды с балансом работает корректно", flag);
+
+        check("findAccounts от лямбды с балансом работает корректно", flag && allAccounts.get(0).getOwner().equals("Ilya") && allAccounts.get(0).getBalance() == 123_123);
         allAccounts = tBank.findAccounts(acc -> acc.getOwner().equals("Ilya"));
         flag = true;
         for (BankAccount user : allAccounts){
@@ -60,9 +61,9 @@ public class Main {
                 flag = false;
             }
         }
-        check("findAccounts от лямбды с владельцем работает корректно", flag);
 
-        check("sortedByOwner правильно работает",  sortedAccountListByOwner.get(0).getOwner().equals("Ilya") && sortedAccountListByOwner.get(2).getOwner().equals("Valeria"));
+        check("findAccounts от лямбды с владельцем работает корректно", flag);
+        check("sortedByOwner правильно работает",  sortedAccountListByOwner.get(0).getOwner().equals("Ilya") && sortedAccountListByOwner.get(2).getOwner().equals("Valeria") && sortedAccountListByOwner.get(1).getBalance() == 123_123);
         check("sortedByBalanceDesc работает правильно", sortedAccountListByBalance.get(0).getBalance() == 123_123 && sortedAccountListByBalance.get(0).getOwner().equals("Ilya") && sortedAccountListByBalance.size() == 3);
 
     }

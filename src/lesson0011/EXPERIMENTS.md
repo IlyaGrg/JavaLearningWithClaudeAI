@@ -35,3 +35,15 @@ multiple non-overriding abstract methods found in interface Interface
 2 errors
 
 **Interface не является функциональным интерфейсом**
+
+src/lesson0011/Interface.java:2: error: Unexpected @FunctionalInterface annotation
+@FunctionalInterface
+^
+Interface is not a functional interface
+multiple non-overriding abstract methods found in interface Interface
+src/lesson0011/Main.java:68: error: incompatible types: Interface is not a functional interface
+Interface interfaces = (a, b) -> System.out.println(a + b);
+^
+multiple non-overriding abstract methods found in interface Interface
+2 errors
+

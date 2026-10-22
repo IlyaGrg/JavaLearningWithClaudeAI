@@ -84,11 +84,11 @@ public class Bank {
     }
     public List<BankAccount> sortedByBalanceDesc(){
         List<BankAccount> sortedAccounts = new ArrayList<>(accounts.findAll());
-        sortedAccounts.sort(Comparator.comparing(BankAccount::getBalance).reversed());
+        sortedAccounts.sort(Comparator.comparingInt(BankAccount::getBalance).reversed());
         return sortedAccounts;
     }
 
-    List<BankAccount> findAccounts(Predicate<BankAccount> filter){
+    public List<BankAccount> findAccounts(Predicate<BankAccount> filter){
         List<BankAccount> newList = new ArrayList<>();
         for (BankAccount user : accounts.findAll()){
             if (filter.test(user)){
