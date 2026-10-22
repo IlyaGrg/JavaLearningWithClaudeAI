@@ -48,8 +48,22 @@ public class Main {
         scanner.close();
 
 
-        System.out.println(tBank.findAccounts(acc -> acc.getBalance() > N));
-        System.out.println(tBank.findAccounts(acc -> acc.getOwner() == "Ilya"));
+        List<BankAccount> allAccounts = tBank.findAccounts(acc -> acc.getBalance() > N);
+        flag = true;
+        for (BankAccount user : allAccounts){
+            if (user.getBalance() <= N){
+                flag = false;
+            }
+        }
+        check("findAccounts от лямбды с балансом работает корректно", flag);
+        allAccounts = tBank.findAccounts(acc -> acc.getOwner().equals("Ilya"));
+        flag = true;
+        for (BankAccount user : allAccounts){
+            if (!user.getOwner().equals("Ilya")){
+                flag = false;
+            }
+        }
+        check("findAccounts от лямбды с владельцем работает корректно", flag);
     }
 
     static void check(String message, boolean condition) {
