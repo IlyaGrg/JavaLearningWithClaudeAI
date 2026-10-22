@@ -23,6 +23,28 @@ public class Main {
         int ilyaBalance = tBank.balanceByOwner().get("Ilya");
         check("balanceByOwner правильно считает баланс для пользователя с двумя счетами", ilyaBalance == 123_123 + 100_000);
         check("accountsByOwner работает корректно", tBank.accountsByOwner().get("Valeria").size() == 1 && tBank.accountsByOwner().get("Ilya").size() == 2);
+        List<BankAccount> sortedAccountListByBalance = tBank.sortedByBalanceDesc();
+        boolean flag = true;
+        for (int i = 0; i < sortedAccountListByBalance.size() - 1; i ++){
+            if (sortedAccountListByBalance.get(i).getBalance() < sortedAccountListByBalance.get(i + 1).getBalance()){
+                flag = false;
+            }
+        }
+        check("sortedByBalanceDesc работает правильно", flag);
+
+        List<BankAccount> sortedAccountListByOwner = tBank.sortedByOwner();
+        flag = true;
+        for (int i = 0; i < sortedAccountListByOwner.size() - 1; i ++){
+            BankAccount firstUser = sortedAccountListByOwner.get(i);
+            BankAccount secondUser = sortedAccountListByOwner.get(i + 1);
+            if (firstUser.getOwner().compareTo(secondUser.getOwner()) > 0){
+                flag = false;
+            }
+            if (firstUser.getOwner().equals(secondUser.getOwner()) && firstUser.getBalance() > secondUser.getBalance()){
+                flag = false;
+            }
+        }
+        check("sortedByOwner правильно работает", flag);
     }
 
     static void check(String message, boolean condition) {
@@ -139,7 +161,7 @@ public class Main {
         thrown = false;
         try {
             value.findById("REB");
-        } catch (EntityNotFoundByIdException e){
+        } catch (EntityNotFoundByIdException e) {
             thrown = true;
         }
         check("findById несуществующего ID бросает исключение", thrown);

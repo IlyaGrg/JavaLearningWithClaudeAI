@@ -76,4 +76,15 @@ public class Bank {
         accounts.deleteById(number);
     }
 
+    public List<BankAccount> sortedByOwner(){
+        List<BankAccount> sortedAccounts = new ArrayList<>(accounts.findAll());
+        sortedAccounts.sort(Comparator.comparing(BankAccount::getOwner).thenComparingInt(BankAccount::getBalance));
+        return sortedAccounts;
+    }
+    public List<BankAccount> sortedByBalanceDesc(){
+        List<BankAccount> sortedAccounts = new ArrayList<>(accounts.findAll());
+        sortedAccounts.sort(Comparator.comparing(BankAccount::getBalance).reversed());
+        return sortedAccounts;
+    }
+
 }
