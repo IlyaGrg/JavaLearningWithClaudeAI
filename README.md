@@ -18,14 +18,15 @@
 | 8 | `equals` и `hashCode` | `AccountNumber` — номер счёта как объект-значение с `equals`/`hashCode`, ключ `Map` в банке; эксперименты с перегрузкой `equals` и изменяемым `hashCode` | [`lesson0008`](src/lesson0008) |
 | 9 | Generics | Свой generic-интерфейс `Repository<T, ID>` в духе Spring Data и `InMemoryRepository` на `Map`; банк и справочник валют на одном классе; `max` с `<T extends Comparable<T>>` | [`lesson0009`](src/lesson0009) |
 | 10 | Git-ветки | Рефакторинг и новые проверки в отдельных ветках, fast-forward и коммит слияния, первый конфликт разрешён вручную, эксперимент в ветке на выброс; журнал команд в [`GIT-NOTES.md`](src/lesson0010/GIT-NOTES.md) | [`lesson0010`](src/lesson0010) |
+| 11 | Лямбды и `Comparator` | Сортировки счетов через `Comparator.comparing(...).thenComparingInt(...)` и `reversed()`, `findAccounts(Predicate)`, группировка через `merge` и `computeIfAbsent` — сначала проверки, потом рефакторинг; эксперименты с ошибками лямбд в [`EXPERIMENTS.md`](src/lesson0011/EXPERIMENTS.md) | [`lesson0011`](src/lesson0011) |
 
 ## Как запустить
 
-Нужен JDK 21. Из корня репозитория, на примере урока 10:
+Нужен JDK 21. Из корня репозитория, на примере урока 11:
 
 ```bash
-javac -d out src/lesson0010/*.java
-java -cp out lesson0010.Main
+javac -d out src/lesson0011/*.java
+java -cp out lesson0011.Main
 ```
 
 В уроках 1 и 2 главный класс — `Shop` вместо `Main`: `java -cp out lesson0001.Shop`.
@@ -44,7 +45,7 @@ RESOURCES.md        источники: туториалы Oracle, докуме�
 
 ## Дальше по плану
 
-Лямбды и Comparator → Stream API → enum, record, Optional → Maven и JUnit 5 → SQL и PostgreSQL → Spring Boot → Docker и деплой.
+Stream API → enum, record, Optional → Maven и JUnit 5 → SQL и PostgreSQL → Spring Boot → Docker и деплой.
 
 ## Стек
 
