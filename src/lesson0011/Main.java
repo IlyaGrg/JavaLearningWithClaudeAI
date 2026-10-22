@@ -42,10 +42,7 @@ public class Main {
             }
         }
         check("sortedByOwner правильно работает", flag);
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("Введите N: ");
-        int N = scanner.nextInt();
-        scanner.close();
+        int N = 101_000;
 
 
         List<BankAccount> allAccounts = tBank.findAccounts(acc -> acc.getBalance() > N);
@@ -64,6 +61,10 @@ public class Main {
             }
         }
         check("findAccounts от лямбды с владельцем работает корректно", flag);
+
+        check("sortedByOwner правильно работает",  sortedAccountListByOwner.get(0).getOwner().equals("Ilya") && sortedAccountListByOwner.get(2).getOwner().equals("Valeria"));
+        check("sortedByBalanceDesc работает правильно", sortedAccountListByBalance.get(0).getBalance() == 123_123 && sortedAccountListByBalance.get(0).getOwner().equals("Ilya") && sortedAccountListByBalance.size() == 3);
+
     }
 
     static void check(String message, boolean condition) {

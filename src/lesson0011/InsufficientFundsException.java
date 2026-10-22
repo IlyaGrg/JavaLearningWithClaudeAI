@@ -1,6 +1,4 @@
 package lesson0011;
-
-
 public class InsufficientFundsException extends RuntimeException {
     private int requested;
     private int available;
