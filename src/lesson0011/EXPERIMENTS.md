@@ -34,7 +34,7 @@ Interface newInterface = (str1, a) -> System.out.println(str1 * a);
 multiple non-overriding abstract methods found in interface Interface
 2 errors
 
-**Interface не является функциональным интерфейсом**
+
 
 src/lesson0011/Interface.java:2: error: Unexpected @FunctionalInterface annotation
 @FunctionalInterface
@@ -46,4 +46,6 @@ Interface interfaces = (a, b) -> System.out.println(a + b);
 ^
 multiple non-overriding abstract methods found in interface Interface
 2 errors
+
+**Мы объявляем интерфейс функциональным интерфейсом, у которого два метода, что уже противоречие для функционального интерфейса**
 
