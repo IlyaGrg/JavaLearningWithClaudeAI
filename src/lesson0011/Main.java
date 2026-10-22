@@ -7,23 +7,22 @@ import java.util.Set;
 
 public class Main {
     public static void main(String[] args) {
-        Repository<String, String> value = new InMemoryRepository<>();
-        value.save("RUB", "Российский рубль");
-        int firstCount = value.count();
-
-        value.save("USD", "Доллар США");
         tests();
-        check("Ожидается: Российский рубль", value.findById("RUB").equals("Российский рубль"));
-        check("count растет", value.count() == firstCount + 1);
-        check("existsById для существующего ID", value.existsById("RUB"));
-        check("existsById для несуществующего ID", !value.existsById("SDRUB"));
-        boolean thrown = false;
-        try {
-            value.findById("REB");
-        } catch (EntityNotFoundByIdException e){
-            thrown = true;
-        }
-        check("findById несуществующего ID бросает исключение", thrown);
+
+        BankAccount newIlyaAccount = new BankAccount("Ilya", 123_123);
+        SavingsAccount newIlyaSavingsAccount = new SavingsAccount("Ilya", 100_000, 10, 100_000);
+        BankAccount newValeriaAccount = new BankAccount("Valeria", 100_000);
+        AccountNumber ilyaNumber = new AccountNumber("BANK-123");
+        AccountNumber valeriaNumber = new AccountNumber("BANK-1234");
+        AccountNumber ilyaSavingsNumber = new AccountNumber("BANK-12345");
+        Bank tBank = new Bank();
+        tBank.openAccount(ilyaNumber, newIlyaAccount);
+        tBank.openAccount(valeriaNumber, newValeriaAccount);
+        tBank.openAccount(ilyaSavingsNumber, newIlyaSavingsAccount);
+
+        int ilyaBalance = tBank.balanceByOwner().get("Ilya");
+        check("balanceByOwner правильно считает баланс для пользователя с двумя счетами", ilyaBalance == 123_123 + 100_000);
+        check("accountsByOwner работает корректно", tBank.accountsByOwner().get("Valeria").size() == 1 && tBank.accountsByOwner().get("Ilya").size() == 2);
     }
 
     static void check(String message, boolean condition) {
@@ -126,6 +125,24 @@ public class Main {
         List<String> strings = List.of("яблоко", "груша", "пиццерия");
         check("Ожидаемое значение: 1000", CollectionUtils.max(nums) == 1000);
         check("Ожидаемое значение: яблоко", CollectionUtils.max(strings).equals("яблоко"));
+
+
+        Repository<String, String> value = new InMemoryRepository<>();
+        value.save("RUB", "Российский рубль");
+        int firstCount = value.count();
+
+        value.save("USD", "Доллар США");
+        check("Ожидается: Российский рубль", value.findById("RUB").equals("Российский рубль"));
+        check("count растет", value.count() == firstCount + 1);
+        check("existsById для существующего ID", value.existsById("RUB"));
+        check("existsById для несуществующего ID", !value.existsById("SDRUB"));
+        thrown = false;
+        try {
+            value.findById("REB");
+        } catch (EntityNotFoundByIdException e){
+            thrown = true;
+        }
+        check("findById несуществующего ID бросает исключение", thrown);
 
     }
 
