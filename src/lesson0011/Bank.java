@@ -3,9 +3,7 @@ package lesson0011;
 import java.util.*;
 
 public class Bank {
-    //Bank должен создавать Map сам для того, чтобы нельзя было его поменять из другой части кода в обход всем проверкам. Нужно чтобы ссылки на Map не было.
     private Repository<BankAccount, AccountNumber> accounts = new InMemoryRepository<>();
-
 
     public void openAccount(AccountNumber number, BankAccount account) {
         checkNumber(number);
@@ -22,7 +20,6 @@ public class Bank {
     public BankAccount findAccount(AccountNumber number) {
         return accounts.findById(number);
     }
-
 
     public void transfer(AccountNumber fromNumber, AccountNumber toNumber, int amount) {
         checkNumber(fromNumber);
@@ -57,7 +54,7 @@ public class Bank {
         Map<String, Integer> balanceAndOwner = new HashMap<>();
         for (BankAccount user : accounts.findAll()) {
             String owner = user.getOwner();
-            balanceAndOwner.put(owner, balanceAndOwner.getOrDefault(owner, 0) + user.getBalance());
+            balanceAndOwner.merge(owner, user.getBalance(), Integer::sum);
         }
         return balanceAndOwner;
     }
@@ -65,13 +62,7 @@ public class Bank {
     public Map<String, List<BankAccount>> accountsByOwner() {
         Map<String, List<BankAccount>> userAccounts = new HashMap<>();
         for (BankAccount user : accounts.findAll()) {
-            String owner = user.getOwner();
-            List<BankAccount> ownerAccounts = userAccounts.get(owner);
-            if (ownerAccounts == null) {
-                ownerAccounts = new ArrayList<>();
-                userAccounts.put(owner, ownerAccounts);
-            }
-            ownerAccounts.add(user);
+            userAccounts.computeIfAbsent(user.getOwner(), k -> new ArrayList<>()).add(user);
         }
 
         return userAccounts;
