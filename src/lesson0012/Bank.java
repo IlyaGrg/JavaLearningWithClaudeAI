@@ -73,7 +73,7 @@ public class Bank {
         return accounts.findAll().stream().sorted(Comparator.comparing(BankAccount::getOwner).thenComparingInt(BankAccount::getBalance)).toList();
     }
     public List<BankAccount> sortedByBalanceDesc(){
-        return accounts.findAll()
+        return accounts.findAll().stream().sorted(Comparator.comparing(BankAccount::getBalance).reversed()).toList();
     }
 
     public List<BankAccount> findAccounts(Predicate<BankAccount> filter){
