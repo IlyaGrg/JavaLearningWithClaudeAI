@@ -29,11 +29,7 @@ public class Bank {
     }
 
     public int totalBalance() {
-        int totalSum = 0;
-        for (BankAccount user : accounts.findAll()) {
-            totalSum += user.getBalance();
-        }
-        return totalSum;
+        return accounts.findAll().stream().mapToInt(BankAccount::getBalance).sum();
     }
 
     private void checkNumber(AccountNumber number) {
