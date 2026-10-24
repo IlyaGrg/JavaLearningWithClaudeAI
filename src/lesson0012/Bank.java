@@ -81,12 +81,6 @@ public class Bank {
     }
 
     public List<BankAccount> findAccounts(Predicate<BankAccount> filter){
-        List<BankAccount> newList = new ArrayList<>();
-        for (BankAccount user : accounts.findAll()){
-            if (filter.test(user)){
-                newList.add(user);
-            }
-        }
-        return newList;
+        return accounts.findAll().stream().filter(filter).toList();
     }
 }
