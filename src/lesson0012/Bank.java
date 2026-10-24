@@ -2,6 +2,7 @@ package lesson0012;
 
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class Bank {
     private Repository<BankAccount, AccountNumber> accounts = new InMemoryRepository<>();
@@ -44,21 +45,11 @@ public class Bank {
     }
 
     public Map<String, Integer> balanceByOwner() {
-        Map<String, Integer> balanceAndOwner = new HashMap<>();
-        for (BankAccount user : accounts.findAll()) {
-            String owner = user.getOwner();
-            balanceAndOwner.merge(owner, user.getBalance(), Integer::sum);
-        }
-        return balanceAndOwner;
+        return accounts.findAll().stream().collect(Collectors.groupingBy(BankAccount::getOwner, Collectors.summingInt(BankAccount::getBalance)));
     }
 
     public Map<String, List<BankAccount>> accountsByOwner() {
-        Map<String, List<BankAccount>> userAccounts = new HashMap<>();
-        for (BankAccount user : accounts.findAll()) {
-            userAccounts.computeIfAbsent(user.getOwner(), k -> new ArrayList<>()).add(user);
-        }
-
-        return userAccounts;
+        return accounts.findAll().stream().collect(Collectors.groupingBy(BankAccount::getOwner));
     }
 
     public int getCount() {
