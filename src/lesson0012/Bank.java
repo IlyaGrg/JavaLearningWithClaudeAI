@@ -1,0 +1,100 @@
+package lesson0012;
+
+import java.util.*;
+import java.util.function.Predicate;
+
+public class Bank {
+    private Repository<BankAccount, AccountNumber> accounts = new InMemoryRepository<>();
+
+    public void openAccount(AccountNumber number, BankAccount account) {
+        checkNumber(number);
+        if (account == null) {
+            throw new IllegalArgumentException("Невозможно создать аккаунт для такого пользователя: " + account);
+        }
+        if (accounts.existsById(number)) {
+            throw new DuplicateAccountException("Такой номер счета уже существует: " + number);
+        }
+
+        accounts.save(number, account);
+    }
+
+    public BankAccount findAccount(AccountNumber number) {
+        return accounts.findById(number);
+    }
+
+    public void transfer(AccountNumber fromNumber, AccountNumber toNumber, int amount) {
+        checkNumber(fromNumber);
+        checkNumber(toNumber);
+        findAccount(fromNumber).transferTo(findAccount(toNumber), amount);
+    }
+
+    public int totalBalance() {
+        int totalSum = 0;
+        for (BankAccount user : accounts.findAll()) {
+            totalSum += user.getBalance();
+        }
+        return totalSum;
+    }
+
+    private void checkNumber(AccountNumber number) {
+        if (number == null) {
+            throw new IllegalArgumentException("Некорректное значение: " + number);
+        }
+
+    }
+
+    public Set<String> owners() {
+        Set<String> owner = new HashSet<>();
+        for (BankAccount user : accounts.findAll()) {
+            owner.add(user.getOwner());
+        }
+        return owner;
+    }
+
+    public Map<String, Integer> balanceByOwner() {
+        Map<String, Integer> balanceAndOwner = new HashMap<>();
+        for (BankAccount user : accounts.findAll()) {
+            String owner = user.getOwner();
+            balanceAndOwner.merge(owner, user.getBalance(), Integer::sum);
+        }
+        return balanceAndOwner;
+    }
+
+    public Map<String, List<BankAccount>> accountsByOwner() {
+        Map<String, List<BankAccount>> userAccounts = new HashMap<>();
+        for (BankAccount user : accounts.findAll()) {
+            userAccounts.computeIfAbsent(user.getOwner(), k -> new ArrayList<>()).add(user);
+        }
+
+        return userAccounts;
+    }
+
+    public int getCount() {
+        return accounts.count();
+    }
+
+    public void deleteUser(AccountNumber number) {
+        accounts.deleteById(number);
+    }
+
+    public List<BankAccount> sortedByOwner(){
+        List<BankAccount> sortedAccounts = new ArrayList<>(accounts.findAll());
+        sortedAccounts.sort(Comparator.comparing(BankAccount::getOwner).thenComparingInt(BankAccount::getBalance));
+        return sortedAccounts;
+    }
+    public List<BankAccount> sortedByBalanceDesc(){
+        List<BankAccount> sortedAccounts = new ArrayList<>(accounts.findAll());
+        sortedAccounts.sort(Comparator.comparingInt(BankAccount::getBalance).reversed());
+        return sortedAccounts;
+    }
+
+    public List<BankAccount> findAccounts(Predicate<BankAccount> filter){
+        List<BankAccount> newList = new ArrayList<>();
+        for (BankAccount user : accounts.findAll()){
+            if (filter.test(user)){
+                newList.add(user);
+            }
+        }
+        return newList;
+    }
+}

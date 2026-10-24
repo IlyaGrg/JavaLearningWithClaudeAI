@@ -36,6 +36,12 @@
   Современный официальный курс от команды Java, с разделом про Comparator. Use for: урок 11, повторение перед Stream API.
 - [Java 21 API: Comparator](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Comparator.html), [Map](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html), [java.util.function](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/function/package-summary.html)
   Точные контракты `comparing`, `thenComparing`, `merge`, `computeIfAbsent`. Use for: уроки 11–12.
+- [The Java Tutorials: Aggregate Operations](https://docs.oracle.com/javase/tutorial/collections/streams/index.html) и [Reduction](https://docs.oracle.com/javase/tutorial/collections/streams/reduction.html) (Oracle)
+  Конвейер, промежуточные и терминальные операции, `collect`, `groupingBy`. Use for: урок 12.
+- [dev.java: Map, Filter, Reduce](https://dev.java/learn/api/streams/map-filter-reduce/)
+  Современное изложение Stream API от команды Java. Use for: урок 12, повторение.
+- [Java 21 API: Stream](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Stream.html) и [Collectors](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Collectors.html)
+  Точные контракты операций (например, `allMatch` на пустом стриме — `true`). Use for: уроки 12+, Spring-сервисы.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 - [Git Reference: git switch](https://git-scm.com/docs/git-switch) и [git merge](https://git-scm.com/docs/git-merge)

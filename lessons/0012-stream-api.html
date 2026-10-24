@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 12 · Stream API</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0012 · Java Core · ~90 минут + домашка</div>
+<h1>Stream API: описать, что нужно, а не как перебирать</h1>
+<p class="subtitle">После этого урока ты сможешь заменить циклы «отфильтруй — преобразуй — посчитай» цепочкой из трёх строк, сгруппировать счета одной командой и знать две ловушки, на которых спотыкаются на собеседованиях.</p>
+
+<div class="note">
+<p><strong>Зачем этот урок для backend.</strong> В Spring-сервисе типичный метод — «взять сущности из репозитория, отфильтровать, превратить в ответ для клиента». Это почти всегда стрим: <code>repository.findAll().stream().filter(...).map(...).toList()</code>. Stream API — одна из самых частых тем на собеседовании junior Java.</p>
+</div>
+
+<h2>Разминка</h2>
+<details class="reveal"><summary>1. Урок 11: чему равно <code>BankAccount::getOwner</code>?</summary>
+<p>Лямбде <code>acc -&gt; acc.getOwner()</code>. Это <code>Function&lt;BankAccount, String&gt;</code>: из счёта получить строку. Сегодня такие функции будут в каждой строке.</p>
+</details>
+<details class="reveal"><summary>2. Урок 11: проверка «каждый найденный счёт принадлежит Ilya» прошла на сломанном <code>findAccounts</code>. Почему?</summary>
+<p>Метод вернул пустой список. Цикл не выполнился ни разу, <code>flag</code> остался <code>true</code>. «Все элементы пустого списка подходят» — формально правда. Запомни это: сегодня встретишь то же самое в виде метода <code>allMatch</code>.</p>
+</details>
+<details class="reveal"><summary>3. Урок 7: что будет, если удалить элемент из списка внутри <code>for-each</code>?</summary>
+<p><code>ConcurrentModificationException</code>. Решение из урока 11 — <code>removeIf</code>. Стримы вообще не меняют исходную коллекцию — они строят новую.</p>
+</details>
+
+<h2>1. От цикла к конвейеру</h2>
+<p>Твой <code>totalBalance</code>:</p>
+<pre><code>int totalSum = 0;
+for (BankAccount user : accounts.findAll()) {
+    totalSum += user.getBalance();
+}
+return totalSum;</code></pre>
+<p>Ты описываешь <em>как</em>: заведи переменную, перебери, прибавь. Со стримом описываешь <em>что</em>: «балансы всех счетов, сложить»:</p>
+<pre><code>return accounts.findAll().stream()
+        .mapToInt(BankAccount::getBalance)
+        .sum();</code></pre>
+<p>Стрим — это <strong>конвейер</strong> (<a href="https://docs.oracle.com/javase/tutorial/collections/streams/index.html">Oracle: Aggregate Operations</a>). Элементы коллекции едут по нему по одному, на каждом участке с ними что-то делают:</p>
+<div class="annotated">
+  <div class="row"><code>.stream()</code><div><strong>Источник.</strong> Из коллекции получаем стрим. Сама коллекция не меняется.</div></div>
+  <div class="row"><code>.filter(...)</code>, <code>.map(...)</code><div><strong>Промежуточные операции.</strong> Возвращают новый стрим, их можно нанизывать сколько угодно.</div></div>
+  <div class="row"><code>.sum()</code>, <code>.toList()</code>, <code>.count()</code><div><strong>Терминальная операция.</strong> Запускает конвейер и выдаёт результат: число, список, мапу. После неё стрим закончился.</div></div>
+</div>
+
+<h2>2. Основные операции</h2>
+<p>Проверено на счетах <code>Ilya 123 123, Valeria 100 000, Ilya 100 000, Anna 0</code>:</p>
+
+<h3>filter — оставить подходящие</h3>
+<p>Принимает <code>Predicate</code> — как твой <code>findAccounts</code>:</p>
+<pre><code>accounts.stream()
+        .filter(acc -&gt; acc.getBalance() &gt; 101_000)
+        .toList();                              // [Ilya: 123123]</code></pre>
+<p>Весь твой <code>findAccounts</code> — это одна такая строка.</p>
+
+<h3>map — превратить каждый элемент</h3>
+<p>Принимает <code>Function</code>: из счёта — что-то другое:</p>
+<pre><code>accounts.stream()
+        .filter(acc -&gt; acc.getBalance() &gt;= 100_000)
+        .map(BankAccount::getOwner)             // счёт → имя
+        .distinct()                             // убрать повторы
+        .sorted()                               // по алфавиту
+        .toList();                              // [Ilya, Valeria]</code></pre>
+<p>Читай сверху вниз: «счета от 100 000 → их владельцы → без повторов → по алфавиту → в список». Цикл с <code>Set</code> и сортировкой занял бы строк восемь.</p>
+
+<h3>mapToInt — когда нужны числа</h3>
+<p><code>map(BankAccount::getBalance)</code> дал бы стрим <code>Integer</code> — с упаковкой каждого числа. <code>mapToInt</code> даёт <code>IntStream</code> из примитивов, а у него есть <code>sum()</code>, <code>max()</code>, <code>average()</code>:</p>
+<pre><code>accounts.stream().mapToInt(BankAccount::getBalance).sum();   // 323123</code></pre>
+
+<h3>Терминальные операции</h3>
+<table>
+  <tr><th>Операция</th><th>Результат</th><th>Пример</th></tr>
+  <tr><td><code>toList()</code></td><td>новый список (неизменяемый!)</td><td>см. выше</td></tr>
+  <tr><td><code>count()</code></td><td><code>long</code> — сколько</td><td><code>.filter(acc -&gt; acc.getOwner().equals("Ilya")).count()</code> → 2</td></tr>
+  <tr><td><code>anyMatch</code> / <code>allMatch</code> / <code>noneMatch</code></td><td><code>boolean</code></td><td><code>.allMatch(acc -&gt; acc.getBalance() &gt;= 0)</code> → true</td></tr>
+  <tr><td><code>collect(Collectors.toSet())</code></td><td><code>Set</code></td><td><code>.map(BankAccount::getOwner).collect(Collectors.toSet())</code></td></tr>
+  <tr><td><code>max(comparator)</code>, <code>findFirst()</code></td><td><code>Optional</code> — «может быть, есть»</td><td><code>Optional[Ilya: 123123]</code> или <code>Optional.empty</code></td></tr>
+</table>
+<p><code>Optional</code> — коробка, в которой результат может быть, а может не быть (если стрим пуст). Подробно — в уроке 13, пока просто узнавай его в выводе.</p>
+
+<h3>sorted и limit — «топ»</h3>
+<pre><code>accounts.stream()
+        .sorted(Comparator.comparingInt(BankAccount::getBalance).reversed())
+        .limit(2)
+        .toList();                              // [Ilya: 123123, Valeria: 100000]</code></pre>
+<p>Компаратор из урока 11 работает в стримах без изменений.</p>
+
+<h2>3. Группировка: groupingBy</h2>
+<p>Твой <code>accountsByOwner</code> с <code>computeIfAbsent</code> — это одна терминальная операция (<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Collectors.html">Collectors</a>):</p>
+<pre><code>accounts.stream()
+        .collect(Collectors.groupingBy(BankAccount::getOwner));
+// {Anna=[Anna: 0], Ilya=[Ilya: 123123, Ilya: 100000], Valeria=[Valeria: 100000]}</code></pre>
+<p>А <code>balanceByOwner</code> с <code>merge</code> — та же группировка, только вместо списка счетов в каждой группе считается сумма:</p>
+<pre><code>accounts.stream()
+        .collect(Collectors.groupingBy(BankAccount::getOwner,
+                                       Collectors.summingInt(BankAccount::getBalance)));
+// {Anna=0, Ilya=223123, Valeria=100000}</code></pre>
+<p>Первый аргумент — «по чему группировать», второй — «что делать с каждой группой». Без второго группа — это список.</p>
+
+<h2>4. Три ловушки</h2>
+
+<h3>Ловушка 1: allMatch на пустом стриме — true</h3>
+<pre><code>List&lt;BankAccount&gt; empty = List.of();
+empty.stream().allMatch(acc -&gt; acc.getBalance() &gt; 1_000_000);   // true</code></pre>
+<p>Это твоя ошибка из урока 11, встроенная в стандартную библиотеку. «Все счета миллионеров?» — у пустого списка нет ни одного счёта, который это опровергнет, значит <code>true</code>. Так устроена логика (<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Stream.html#allMatch(java.util.function.Predicate)">в документации так и написано</a>: «If the stream is empty then true is returned»). Поэтому проверка через <code>allMatch</code> без проверки размера — та же дыра, что твой <code>flag</code>.</p>
+
+<h3>Ловушка 2: стрим одноразовый</h3>
+<pre><code>Stream&lt;BankAccount&gt; s = accounts.stream();
+s.count();
+s.count();
+// java.lang.IllegalStateException: stream has already been operated upon or closed</code></pre>
+<p>Стрим — не коллекция, а конвейер, который проезжают один раз. Нужно ещё раз — вызови <code>accounts.stream()</code> заново. Хранить стрим в поле или переменной почти никогда не нужно.</p>
+
+<h3>Ловушка 3: toList() даёт неизменяемый список</h3>
+<pre><code>List&lt;BankAccount&gt; list = accounts.stream().toList();
+list.add(...);   // java.lang.UnsupportedOperationException</code></pre>
+<p>Как <code>List.of</code> из урока 7. Обычно это хорошо: метод банка возвращает список, и вызывающий не сможет его испортить. Если список нужно менять — <code>collect(Collectors.toList())</code>, он даёт изменяемый <code>ArrayList</code>.</p>
+
+<h3>И одна особенность: стрим ленивый</h3>
+<pre><code>Stream&lt;BankAccount&gt; s = accounts.stream()
+        .filter(acc -&gt; { System.out.println("проверяю " + acc); return acc.getBalance() &gt; 0; });
+System.out.println("стрим создан");    // напечатается только это
+s.count();                             // а вот теперь — четыре «проверяю …» и 3</code></pre>
+<p>Промежуточные операции ничего не делают, пока нет терминальной. Отсюда правило: <strong>в <code>filter</code> и <code>map</code> не должно быть побочных эффектов</strong> — печати, изменения полей, записи в коллекции. Они нужны только чтобы вычислить результат.</p>
+
+<h2>Частые вопросы</h2>
+<details class="reveal"><summary>Стрим всегда лучше цикла?</summary>
+<p>Нет. Стрим хорош для «отфильтруй — преобразуй — собери». Если в цикле сложная логика с <code>break</code>, исключениями, изменением нескольких переменных — цикл честнее. Твой <code>transfer</code> никто не стал бы переписывать на стрим.</p>
+</details>
+<details class="reveal"><summary>А <code>forEach</code> у стрима — то же, что цикл?</summary>
+<p>Почти. Но если внутри <code>forEach</code> ты складываешь во внешнюю переменную или коллекцию — это сигнал, что нужна другая терминальная операция: <code>sum</code>, <code>toList</code>, <code>groupingBy</code>. Помнишь ошибку <code>effectively final</code> из урока 11? Она как раз об этом.</p>
+</details>
+<details class="reveal"><summary>Стримы быстрее циклов?</summary>
+<p>Нет, обычно чуть медленнее или так же. Выбирают их ради читаемости, а не скорости. Бывают «параллельные стримы» (<code>parallelStream()</code>), но без серьёзной причины их не используют — это тема для опытных.</p>
+</details>
+
+<h2>Проверь себя</h2>
+<div class="quiz-score"></div>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>1. Что сделает строка <code>accounts.stream().filter(acc -&gt; acc.getBalance() &gt; 0);</code> сама по себе?</legend>
+  <label><input type="radio"> Удалит из списка счета с нулём</label>
+  <label><input type="radio"> Вернёт новый список подходящих счетов</label>
+  <label><input type="radio"> Бросит исключение без терминальной операции</label>
+  <label><input type="radio"> Ничего, пока нет терминальной операции</label>
+  <p class="feedback">Стрим ленивый: <code>filter</code> только описывает участок конвейера. Запустит его терминальная операция — <code>toList</code>, <code>count</code>, <code>sum</code>. И исходный список стрим не меняет никогда.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>2. Что вернёт <code>accounts.stream().mapToInt(BankAccount::getBalance).sum()</code>?</legend>
+  <label><input type="radio"> Количество счетов в списке банка</label>
+  <label><input type="radio"> Сумму балансов всех счетов списка</label>
+  <label><input type="radio"> Список балансов каждого из счетов</label>
+  <label><input type="radio"> Самый большой баланс среди счетов</label>
+  <p class="feedback"><code>mapToInt</code> превращает каждый счёт в его баланс, <code>sum</code> складывает. Это весь твой <code>totalBalance</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>3. Список пуст. Что вернёт <code>list.stream().allMatch(acc -&gt; acc.getOwner().equals("Ilya"))</code>?</legend>
+  <label><input type="radio"> false, потому что совпадений нет</label>
+  <label><input type="radio"> Исключение NoSuchElementException при запуске</label>
+  <label><input type="radio"> true, потому что нет опровержений</label>
+  <label><input type="radio"> Optional.empty, ведь элементов нет</label>
+  <p class="feedback">Для пустого стрима <code>allMatch</code> — <code>true</code>. Это ловушка твоего <code>flag</code> из урока 11. Проверяй размер отдельно.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>4. <code>Stream s = list.stream(); s.count(); s.count();</code> Что будет на второй <code>count</code>?</legend>
+  <label><input type="radio"> Исключение IllegalStateException, стрим закрыт</label>
+  <label><input type="radio"> Тот же результат, что и в первый раз</label>
+  <label><input type="radio"> Ноль, потому что элементы уже прочитаны</label>
+  <label><input type="radio"> Ошибка компиляции во второй строке count</label>
+  <p class="feedback">Стрим одноразовый: <code>stream has already been operated upon or closed</code>. Нужен ещё раз — <code>list.stream()</code> заново.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>5. <code>List&lt;BankAccount&gt; l = accounts.stream().toList(); l.add(acc);</code> Что будет?</legend>
+  <label><input type="radio"> Счёт добавится и в исходный список</label>
+  <label><input type="radio"> Исключение UnsupportedOperationException при add</label>
+  <label><input type="radio"> Счёт добавится только в новый список</label>
+  <label><input type="radio"> Ошибка компиляции, у списка нет add</label>
+  <p class="feedback"><code>toList()</code> возвращает неизменяемый список, как <code>List.of</code>. Изменяемый — через <code>collect(Collectors.toList())</code>.</p>
+</fieldset>
+
+<h2>Домашка</h2>
+<p>В ветке <code>feature/streams</code>. Правило, которое мы три раза отрабатывали в уроке 11: <strong>каждую проверку один раз видишь красной</strong>.</p>
+
+<div class="task">
+<h3>Шаг 1. Ветка и копия</h3>
+<p><code>git status</code> чистый → <code>git switch -c feature/streams</code> → <code>src/lesson0011</code> в <code>src/lesson0012</code> (без <code>EXPERIMENTS.md</code>), <code>package</code>, 28 проверок ОК, коммит.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 2. Сначала недостающие проверки</h3>
+<p>Ты будешь переписывать <code>totalBalance</code> и <code>owners</code>, а проверок для них нет. Добавь на текущий код: точная сумма балансов тестового банка (посчитай руками); <code>owners()</code> содержит ровно нужные имена и нужного размера. ОК → коммит. Это тот же шаг 3 из урока 11 — ты его уже умеешь.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 3. Переписать банк на стримы</h3>
+<p>Каждый метод — отдельный коммит, после каждого — все проверки ОК:</p>
+<ol>
+  <li><code>totalBalance</code> — через <code>mapToInt</code> и <code>sum</code>;</li>
+  <li><code>owners</code> — через <code>map</code> и <code>Collectors.toSet()</code>;</li>
+  <li><code>findAccounts</code> — через <code>filter</code>;</li>
+  <li><code>sortedByOwner</code>, <code>sortedByBalanceDesc</code> — через <code>sorted</code>;</li>
+  <li><code>accountsByOwner</code> и <code>balanceByOwner</code> — через <code>groupingBy</code>.</li>
+</ol>
+<p>Внимание к пункту 4: у тебя есть проверка «список банка не изменился после сортировки»? Если нет — самое время. И подумай: что изменилось бы, если бы ты вернул <code>toList()</code>, а вызывающий код попробовал бы его отсортировать?</p>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Два новых метода</h3>
+<ul>
+  <li><code>List&lt;String&gt; richOwners(int minBalance)</code> — имена владельцев, у которых <em>хотя бы один</em> счёт не меньше <code>minBalance</code>, без повторов, по алфавиту;</li>
+  <li><code>long countAccounts(Predicate&lt;BankAccount&gt; filter)</code> — сколько счетов подходит.</li>
+</ul>
+<p>Проверки — с точными ожиданиями, посчитанными руками до запуска. Для <code>richOwners</code> подбери такой порог, при котором у Ilya подходит только один из двух счетов — это проверит <code>distinct</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Проверки тоже на стримы</h3>
+<p>Перепиши проверки <code>findAccounts</code> из урока 11 (цикл с <code>flag</code>) через <code>allMatch</code>. Затем сломай <code>findAccounts</code> на «всегда пустой список» и посмотри: поймает ли твоя проверка? Если нет — почему (ловушка 1) и как исправить. Запиши ответ в <code>src/lesson0012/EXPERIMENTS.md</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 6. Эксперименты — в ветке <code>experiment/stream-traps</code></h3>
+<ol>
+  <li>Вызови две терминальные операции на одном стриме.</li>
+  <li>Получи список через <code>toList()</code> и попробуй добавить в него счёт.</li>
+  <li>Поставь <code>System.out.println</code> внутрь <code>filter</code>, но не вызывай терминальную операцию. Что напечатается? Потом добавь <code>count()</code>.</li>
+</ol>
+<p>Вывод — в терминале. Потом <code>git switch feature/streams</code>, запиши в <code>EXPERIMENTS.md</code> вывод и объяснение своими словами, коммит. Ветку эксперимента — <code>-D</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 7. Слить и отправить</h3>
+<p>Ни одной «ОШИБКА» в выводе, <code>git switch main</code>, <code>git merge feature/streams</code>, <code>git show --stat</code>, удалить ветку, <code>git push</code>. Потом — «проверь домашку 0012».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Oracle: <a href="https://docs.oracle.com/javase/tutorial/collections/streams/index.html">Aggregate Operations</a> и <a href="https://docs.oracle.com/javase/tutorial/collections/streams/reduction.html">Reduction</a> — про <code>sum</code>, <code>collect</code> и <code>groupingBy</code>. Около 30 минут. Современный вариант — <a href="https://dev.java/learn/api/streams/map-filter-reduce/">dev.java: Map, Filter, Reduce</a>. Все операции — в документации <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Stream.html">Stream</a> и <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Collectors.html">Collectors</a> (Java 21).</p>
+<p class="cite">Все примеры и тексты исключений проверены на JDK 21.</p>
+
+<p>Шпаргалка — <a href="../reference/0012-java-streams.html">справочник «Stream API»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1</a>, <a href="0002-classes-and-objects.html">2</a>, <a href="0003-encapsulation.html">3</a>, <a href="0004-exceptions.html">4</a>, <a href="0005-inheritance.html">5</a>, <a href="0006-interfaces.html">6</a>, <a href="0007-collections.html">7</a>, <a href="0008-equals-hashcode.html">8</a>, <a href="0009-generics.html">9</a>, <a href="0010-git-branches.html">10</a>, <a href="0011-lambdas-comparator.html">11. Лямбды и Comparator</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Если цепочка из пяти вызовов не читается — пришли её, разберём, что лежит в стриме после каждого шага. Это лучший способ научиться их читать.</p>
+</div>
+
+<nav class="course">
+  <a href="0011-lambdas-comparator.html">← Урок 11: Лямбды и Comparator</a>
+  <span>Урок 13: enum, record, Optional →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
