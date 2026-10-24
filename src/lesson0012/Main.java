@@ -75,7 +75,8 @@ public class Main {
         check("findAccounts от лямбды с владельцем работает корректно", flag && allAccounts.size() == 2);
         check("sortedByOwner правильно работает", sortedAccountListByOwner.get(0).getOwner().equals("Ilya") && sortedAccountListByOwner.get(2).getOwner().equals("Valeria") && sortedAccountListByOwner.get(1).getBalance() == 123_123);
         check("sortedByBalanceDesc работает правильно", sortedAccountListByBalance.get(0).getBalance() == 123_123 && sortedAccountListByBalance.get(0).getOwner().equals("Ilya") && sortedAccountListByBalance.size() == 3);
-
+        check("totalBalance работает исправно", tBank.totalBalance() == newIlyaAccount.getBalance() + newIlyaSavingsAccount.getBalance() + newValeriaAccount.getBalance());
+        check("owners работает исправно", tBank.owners().contains("Valeria") && tBank.owners().contains("Ilya") && tBank.owners().size() == 2);
     }
 
     static void check(String message, boolean condition) {
