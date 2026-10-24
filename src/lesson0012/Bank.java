@@ -39,12 +39,8 @@ public class Bank {
 
     }
 
-    public Set<String> owners() {
-        Set<String> owner = new HashSet<>();
-        for (BankAccount user : accounts.findAll()) {
-            owner.add(user.getOwner());
-        }
-        return owner;
+    public List<String> owners() {
+        return accounts.findAll().stream().map(BankAccount::getOwner).distinct().sorted().toList();
     }
 
     public Map<String, Integer> balanceByOwner() {
