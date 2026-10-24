@@ -70,14 +70,10 @@ public class Bank {
     }
 
     public List<BankAccount> sortedByOwner(){
-        List<BankAccount> sortedAccounts = new ArrayList<>(accounts.findAll());
-        sortedAccounts.sort(Comparator.comparing(BankAccount::getOwner).thenComparingInt(BankAccount::getBalance));
-        return sortedAccounts;
+        return accounts.findAll().stream().sorted(Comparator.comparing(BankAccount::getOwner).thenComparingInt(BankAccount::getBalance)).toList();
     }
     public List<BankAccount> sortedByBalanceDesc(){
-        List<BankAccount> sortedAccounts = new ArrayList<>(accounts.findAll());
-        sortedAccounts.sort(Comparator.comparingInt(BankAccount::getBalance).reversed());
-        return sortedAccounts;
+        return accounts.findAll()
     }
 
     public List<BankAccount> findAccounts(Predicate<BankAccount> filter){
