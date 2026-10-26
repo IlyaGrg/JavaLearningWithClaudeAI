@@ -9,9 +9,11 @@ public class Main {
         BankAccount newIlyaAccount = new BankAccount("Ilya", 123_123);
         SavingsAccount newIlyaSavingsAccount = new SavingsAccount("Ilya", 100_000, 10, 100_000);
         BankAccount newValeriaAccount = new BankAccount("Valeria", 100_000);
+        BankAccount adamAccount = new BankAccount("Adam", 1_000_000);
         AccountNumber ilyaNumber = new AccountNumber("BANK-123");
         AccountNumber valeriaNumber = new AccountNumber("BANK-1234");
         AccountNumber ilyaSavingsNumber = new AccountNumber("BANK-12345");
+        AccountNumber adamNumber = new AccountNumber("BANK-ADAM");
         Bank tBank = new Bank();
         tBank.openAccount(ilyaNumber, newIlyaAccount);
         tBank.openAccount(valeriaNumber, newValeriaAccount);
@@ -77,6 +79,9 @@ public class Main {
         check("sortedByBalanceDesc работает правильно", sortedAccountListByBalance.get(0).getBalance() == 123_123 && sortedAccountListByBalance.get(0).getOwner().equals("Ilya") && sortedAccountListByBalance.size() == 3);
         check("totalBalance работает исправно", tBank.totalBalance() == newIlyaAccount.getBalance() + newIlyaSavingsAccount.getBalance() + newValeriaAccount.getBalance());
         check("owners работает исправно", tBank.owners().contains("Valeria") && tBank.owners().contains("Ilya") && tBank.owners().size() == 2);
+        tBank.openAccount(adamNumber, adamAccount);
+        List<String> richest = tBank.richOwners(101_000);
+        check("richOwners работает исправно", richest.get(0).equals("Adam") && richest.get(1).equals("Ilya") && richest.size() == 2);
     }
 
     static void check(String message, boolean condition) {
