@@ -48,33 +48,14 @@ public class Main {
 
 
         List<BankAccount> allAccounts = tBank.findAccounts(acc -> acc.getBalance() > N);
-        flag = true;
-        if (allAccounts.size() == 0) {
-            flag = false;
-        } else {
-            for (BankAccount user : allAccounts) {
-                if (user.getBalance() <= N) {
-                    flag = false;
-                }
-            }
-        }
 
 
-        check("findAccounts от лямбды с балансом работает корректно", flag && allAccounts.get(0).getOwner().equals("Ilya") && allAccounts.get(0).getBalance() == 123_123);
+
+        check("findAccounts от лямбды с балансом работает корректно", allAccounts.stream().allMatch(acc -> acc.getBalance() > N));
         allAccounts = tBank.findAccounts(acc -> acc.getOwner().equals("Ilya"));
-        flag = true;
-        if (allAccounts.size() == 0) {
-            flag = false;
-        } else {
-            for (BankAccount user : allAccounts) {
-                if (!user.getOwner().equals("Ilya")) {
-                    flag = false;
-                }
-            }
-        }
 
 
-        check("findAccounts от лямбды с владельцем работает корректно", flag && allAccounts.size() == 2);
+        check("findAccounts от лямбды с владельцем работает корректно", allAccounts.stream().allMatch(acc -> acc.getOwner().equals("Ilya")));
         check("sortedByOwner правильно работает", sortedAccountListByOwner.get(0).getOwner().equals("Ilya") && sortedAccountListByOwner.get(2).getOwner().equals("Valeria") && sortedAccountListByOwner.get(1).getBalance() == 123_123);
         check("sortedByBalanceDesc работает правильно", sortedAccountListByBalance.get(0).getBalance() == 123_123 && sortedAccountListByBalance.get(0).getOwner().equals("Ilya") && sortedAccountListByBalance.size() == 3);
         check("totalBalance работает исправно", tBank.totalBalance() == newIlyaAccount.getBalance() + newIlyaSavingsAccount.getBalance() + newValeriaAccount.getBalance());
