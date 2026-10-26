@@ -82,6 +82,8 @@ public class Main {
         tBank.openAccount(adamNumber, adamAccount);
         List<String> richest = tBank.richOwners(101_000);
         check("richOwners работает исправно", richest.get(0).equals("Adam") && richest.get(1).equals("Ilya") && richest.size() == 2);
+        check("countAccounts работает исправно", tBank.countAccounts(acc -> acc.getBalance() > 101_000 && acc.getOwner().equals("Ilya")) == 1 && tBank.countAccounts(acc -> acc.getOwner().equals("Ilya")) == 2);
+
     }
 
     static void check(String message, boolean condition) {
