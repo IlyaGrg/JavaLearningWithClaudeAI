@@ -50,12 +50,11 @@ public class Main {
         List<BankAccount> allAccounts = tBank.findAccounts(acc -> acc.getBalance() > N);
 
 
-
-        check("findAccounts от лямбды с балансом работает корректно", allAccounts.stream().allMatch(acc -> acc.getBalance() > N));
+        check("findAccounts от лямбды с балансом работает корректно", allAccounts.stream().allMatch(acc -> acc.getBalance() > N) && allAccounts.size() != 0);
         allAccounts = tBank.findAccounts(acc -> acc.getOwner().equals("Ilya"));
 
 
-        check("findAccounts от лямбды с владельцем работает корректно", allAccounts.stream().allMatch(acc -> acc.getOwner().equals("Ilya")));
+        check("findAccounts от лямбды с владельцем работает корректно", allAccounts.stream().allMatch(acc -> acc.getOwner().equals("Ilya")) && allAccounts.size() != 0 );
         check("sortedByOwner правильно работает", sortedAccountListByOwner.get(0).getOwner().equals("Ilya") && sortedAccountListByOwner.get(2).getOwner().equals("Valeria") && sortedAccountListByOwner.get(1).getBalance() == 123_123);
         check("sortedByBalanceDesc работает правильно", sortedAccountListByBalance.get(0).getBalance() == 123_123 && sortedAccountListByBalance.get(0).getOwner().equals("Ilya") && sortedAccountListByBalance.size() == 3);
         check("totalBalance работает исправно", tBank.totalBalance() == newIlyaAccount.getBalance() + newIlyaSavingsAccount.getBalance() + newValeriaAccount.getBalance());
