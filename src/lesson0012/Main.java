@@ -1,6 +1,7 @@
 package lesson0012;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 public class Main {
     public static void main(String[] args) {
@@ -61,9 +62,13 @@ public class Main {
         check("totalBalance работает исправно", tBank.totalBalance() == newIlyaAccount.getBalance() + newIlyaSavingsAccount.getBalance() + newValeriaAccount.getBalance());
         check("owners работает исправно", tBank.owners().contains("Valeria") && tBank.owners().contains("Ilya") && tBank.owners().size() == 2);
         tBank.openAccount(adamNumber, adamAccount);
-        List<String> richest = tBank.richOwners(101_000);
-        check("richOwners работает исправно", richest.get(0).equals("Adam") && richest.get(1).equals("Ilya") && richest.size() == 2);
+
+        List<String> richest = tBank.richOwners(100_000);
+        check("richOwners работает исправно", richest.get(0).equals("Adam") && richest.get(1).equals("Ilya") && richest.size() == 3);
         check("countAccounts работает исправно", tBank.countAccounts(acc -> acc.getBalance() > 101_000 && acc.getOwner().equals("Ilya")) == 1 && tBank.countAccounts(acc -> acc.getOwner().equals("Ilya")) == 2);
+
+
+
 
     }
 

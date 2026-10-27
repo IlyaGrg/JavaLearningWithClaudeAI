@@ -72,7 +72,7 @@ public class Bank {
     }
 
     public List<String> richOwners(int minBalance){
-        return accounts.findAll().stream().sorted(Comparator.comparing(BankAccount::getOwner)).filter(acc -> acc.getBalance() > minBalance).map(BankAccount::getOwner).distinct().toList();
+        return accounts.findAll().stream().sorted(Comparator.comparing(BankAccount::getOwner)).filter(acc -> acc.getBalance() >= minBalance).map(BankAccount::getOwner).distinct().toList();
     }
 
     public long countAccounts(Predicate<BankAccount> filter){
