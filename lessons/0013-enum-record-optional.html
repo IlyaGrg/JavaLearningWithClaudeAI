@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 13 · enum, record, Optional</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0013 · Java Core · ~90 минут + домашка</div>
+<h1>enum, record, Optional: типы, которые говорят правду</h1>
+<p class="subtitle">После этого урока ты сможешь заменить строки-константы перечислением, объект-значение — записью в одну строку, а «может вернуть null» — честным <code>Optional</code>, как в Spring Data.</p>
+
+<div class="note">
+<p><strong>Зачем этот урок для backend.</strong> В Spring-проекте статусы заказов и роли пользователей — это <code>enum</code>. Объекты, которые приходят в REST API и уходят из него (DTO), почти всегда <code>record</code>. А <code>CrudRepository.findById</code> в Spring Data возвращает <code>Optional&lt;T&gt;</code> — сегодня твой репозиторий станет таким же.</p>
+</div>
+
+<h2>Разминка</h2>
+<details class="reveal"><summary>1. Урок 12, хвост: что напечатает этот код? <code>Stream&lt;String&gt; s = List.of("a", "b").stream().filter(x -&gt; { System.out.println("проверяю " + x); return true; });</code> — а если потом вызвать <code>s.count()</code>?</summary>
+<p>Сначала — ничего: стрим ленивый, <code>filter</code> только описал участок конвейера. После <code>count()</code> — «проверяю a», «проверяю b». Это эксперимент 6.3, который ты не досмотрел: в домашке он первым шагом.</p>
+</details>
+<details class="reveal"><summary>2. Урок 8: какие пять строк ты писал в каждом <code>equals</code>?</summary>
+<p><code>this == o</code> → <code>null</code> и <code>getClass</code> → приведение типа → сравнение полей. Плюс <code>hashCode</code> через <code>Objects.hash</code> по тем же полям. Сегодня Java напишет это за тебя.</p>
+</details>
+<details class="reveal"><summary>3. Урок 9: твой <code>findById</code> не нашёл — что он делает? А <code>HashMap.get</code>?</summary>
+<p>Твой — бросает <code>EntityNotFoundByIdException</code>. <code>HashMap.get</code> — молча возвращает <code>null</code> (урок 7, NPE в <code>totalBalance</code>). Ни то, ни другое не видно по сигнатуре метода. <code>Optional</code> делает «может не найтись» частью типа.</p>
+</details>
+
+<h2>1. enum: конечный список вариантов</h2>
+<p>Валюты у тебя сейчас — строки <code>"RUB"</code>, <code>"USD"</code>. Строку можно написать с опечаткой (<code>"RUR"</code>, <code>"usd"</code>), и компилятор промолчит. Когда вариантов конечное число, их объявляют <strong>перечислением</strong> (<a href="https://docs.oracle.com/javase/tutorial/java/javaOO/enum.html">Oracle: Enum Types</a>):</p>
+<pre><code>public enum Currency {
+    RUB, USD, EUR
+}
+
+Currency c = Currency.USD;      // только эти три значения, опечатка не скомпилируется</code></pre>
+<p><code>enum</code> — это класс, у которого ровно столько объектов, сколько констант, и все они созданы заранее. Поэтому сравнивать их можно через <code>==</code>: <code>Currency.RUB == Currency.valueOf("RUB")</code> → <code>true</code>. Исключение из правила урока 8 — ведь второго объекта <code>RUB</code> просто не существует.</p>
+
+<h3>Поля, конструктор, методы</h3>
+<pre><code>public enum Currency {
+    RUB("Российский рубль"),
+    USD("Доллар США"),
+    EUR("Евро");
+
+    private final String displayName;
+
+    Currency(String displayName) {          // конструктор всегда private
+        this.displayName = displayName;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+}
+
+Currency.USD.getDisplayName();   // "Доллар США"</code></pre>
+<p>Твой <code>Repository&lt;String, String&gt;</code> «код → название» из урока 9 — это и есть такое перечисление, только без защиты от опечаток.</p>
+
+<h3>Встроенные методы</h3>
+<table>
+  <tr><td><code>Currency.values()</code></td><td>все константы: <code>[RUB, USD, EUR]</code></td></tr>
+  <tr><td><code>Currency.valueOf("EUR")</code></td><td>константа по имени. Нет такой — <code>IllegalArgumentException: No enum constant …Currency.JPY</code></td></tr>
+  <tr><td><code>c.name()</code>, <code>toString()</code></td><td><code>"USD"</code></td></tr>
+  <tr><td><code>c.ordinal()</code></td><td>номер по порядку (0, 1, 2) — не используй для логики: переставишь константы — всё сломается</td></tr>
+</table>
+
+<h3>switch-выражение</h3>
+<p>С Java 14 <code>switch</code> умеет возвращать значение (<a href="https://docs.oracle.com/en/java/javase/21/language/switch-expressions-and-statements.html">Oracle: Switch Expressions</a>):</p>
+<pre><code>String symbol = switch (currency) {
+    case RUB -&gt; "₽";
+    case USD -&gt; "$";
+    case EUR -&gt; "€";
+};</code></pre>
+<p>Стрелка вместо двоеточия — и не нужен <code>break</code>. А главное: если ты добавишь в <code>enum</code> константу <code>CNY</code> и забудешь про неё здесь, компилятор остановит (проверено на JDK 21):</p>
+<pre><code>error: the switch expression does not cover all possible input values</code></pre>
+<p>Это та же идея, что <code>@Override</code> и <code>@FunctionalInterface</code>: ошибка всплывает там, где её сделали, а не у пользователя в продакшене.</p>
+
+<h2>2. record: объект-значение в одну строку</h2>
+<p>Твой <code>AccountNumber</code> — 40 строк: поле, конструктор с проверкой, геттер, <code>equals</code>, <code>hashCode</code>. Для объектов-значений (урок 8) в Java 16 появились <strong>записи</strong> (<a href="https://docs.oracle.com/en/java/javase/21/language/records.html">Oracle: Record Classes</a>):</p>
+<pre><code>public record AccountNumber(String value) { }</code></pre>
+<p>Компилятор сам создаёт:</p>
+<div class="annotated">
+  <div class="row"><code>private final String value;</code><div>поле — <code>final</code>, после создания не меняется</div></div>
+  <div class="row"><code>AccountNumber(String value)</code><div>конструктор со всеми полями</div></div>
+  <div class="row"><code>value()</code><div>метод доступа. <strong>Без</strong> <code>get</code>: <code>number.value()</code>, не <code>getValue()</code></div></div>
+  <div class="row"><code>equals</code>, <code>hashCode</code><div>по всем полям — ровно то, что ты писал руками в уроке 8</div></div>
+  <div class="row"><code>toString</code><div><code>AccountNumber[value=BANK-1]</code></div></div>
+</div>
+<p>Проверено: два <code>new AccountNumber("BANK-1")</code> равны по <code>equals</code>, не равны по <code>==</code>, у них одинаковый <code>hashCode</code>, в <code>HashSet</code> — один элемент. Все твои проверки урока 8 пройдут без единой строки <code>equals</code>.</p>
+
+<h3>Проверка в компактном конструкторе</h3>
+<p>Инвариант из урока 3 — «номер всегда начинается с BANK» — остаётся. Для этого есть компактный конструктор: без скобок с параметрами и без присваивания полей, только проверка:</p>
+<pre><code>public record AccountNumber(String value) {
+    public AccountNumber {
+        if (value == null || !value.startsWith("BANK")) {
+            throw new IllegalArgumentException("Некорректный номер: " + value);
+        }
+    }
+}</code></pre>
+<p>Поле присвоится само после проверки.</p>
+
+<h3>Чего record не умеет</h3>
+<table>
+  <tr><th>Попытка</th><th>Ошибка (JDK 21)</th></tr>
+  <tr><td><code>number.value = "X"</code></td><td><code>cannot assign a value to final variable value</code></td></tr>
+  <tr><td><code>class X extends AccountNumber</code></td><td><code>cannot inherit from final AccountNumber</code></td></tr>
+  <tr><td><code>number.getValue()</code></td><td><code>cannot find symbol: method getValue()</code></td></tr>
+</table>
+<p>Поэтому <code>BankAccount</code> записью делать нельзя и не нужно: у счёта меняется баланс, у него есть наследник <code>SavingsAccount</code>, и это сущность, а не значение (урок 8).</p>
+
+<h2>3. Optional: «может не найтись» — в типе</h2>
+<p>В Spring Data метод <code>findById</code> объявлен так:</p>
+<pre><code>Optional&lt;T&gt; findById(ID id);</code></pre>
+<p><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Optional.html"><code>Optional&lt;T&gt;</code></a> — коробка, в которой либо лежит одно значение, либо пусто. Ты уже видел её: <code>max()</code> и <code>findFirst()</code> у стрима возвращали <code>Optional[Ilya: 123123]</code> или <code>Optional.empty</code>. Смысл: тот, кто вызывает метод, <em>по сигнатуре</em> видит, что результата может не быть, и обязан решить, что делать.</p>
+
+<h3>Создать</h3>
+<pre><code>Optional.of(account)            // точно не null
+Optional.empty()                // пусто
+Optional.ofNullable(map.get(id))  // null → empty, иначе — значение</code></pre>
+
+<h3>Достать</h3>
+<p>Проверено на мапе, где по номеру <code>BANK-1</code> лежит <code>"Ilya"</code>:</p>
+<table>
+  <tr><th>Метод</th><th>Найдено</th><th>Не найдено</th></tr>
+  <tr><td><code>orElse("никто")</code></td><td><code>Ilya</code></td><td><code>никто</code></td></tr>
+  <tr><td><code>orElseThrow(() -&gt; new IllegalStateException("Счёт не найден"))</code></td><td><code>Ilya</code></td><td>бросает твоё исключение</td></tr>
+  <tr><td><code>map(String::toUpperCase).orElse("?")</code></td><td><code>ILYA</code></td><td><code>?</code></td></tr>
+  <tr><td><code>ifPresent(o -&gt; …)</code></td><td>выполнит лямбду</td><td>ничего</td></tr>
+  <tr><td><code>isPresent()</code> / <code>isEmpty()</code></td><td><code>true</code> / <code>false</code></td><td><code>false</code> / <code>true</code></td></tr>
+  <tr><td><code>get()</code></td><td><code>Ilya</code></td><td><code>NoSuchElementException: No value present</code></td></tr>
+</table>
+<p><code>orElseThrow</code> принимает <code>Supplier</code> из урока 11 — лямбду без параметров, которая создаёт исключение. Это ровно то, что нужно твоему банку: репозиторий честно говорит «может не быть», а банк решает «если нет — <code>AccountNotFoundException</code>».</p>
+
+<h3>Как не надо</h3>
+<pre><code>if (opt.isPresent()) {           // это тот же if (x != null), только длиннее
+    return opt.get();
+}
+return null;                     // и снова null!</code></pre>
+<p>Правила: не вызывай <code>get()</code> без проверки (лучше вообще <code>orElseThrow()</code>); не возвращай <code>null</code> из метода, который возвращает <code>Optional</code>; <code>Optional</code> — для <strong>возвращаемых значений</strong>, не для полей и параметров.</p>
+
+<h2>Частые вопросы</h2>
+<details class="reveal"><summary>Когда record, а когда обычный класс?</summary>
+<p>record — когда объект определяется данными и не меняется: номер счёта, деньги, координаты, ответ API. Обычный класс — когда есть изменяемое состояние (баланс), наследование или идентичность (сущность). Вопрос «равны ли два таких объекта с одинаковыми полями?» — если да, это кандидат в record.</p>
+</details>
+<details class="reveal"><summary>Почему у record метод <code>value()</code>, а не <code>getValue()</code>?</summary>
+<p>Так решили авторы языка: имя метода совпадает с именем компонента. Библиотеки (например, Jackson в Spring) это понимают. Привыкнуть надо только тебе — компилятор подскажет, если напишешь <code>get</code>.</p>
+</details>
+<details class="reveal"><summary>Выбросить исключение или вернуть Optional?</summary>
+<p>Если «не нашлось» — нормальная ситуация (поиск по номеру, который ввёл пользователь) — <code>Optional</code>, пусть вызывающий решит. Если «не нашлось» означает ошибку в программе или нарушенный договор — исключение. Частый компромисс, как в Spring: репозиторий возвращает <code>Optional</code>, сервис превращает пустоту в исключение через <code>orElseThrow</code>.</p>
+</details>
+
+<h2>Проверь себя</h2>
+<div class="quiz-score"></div>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>1. Почему константы <code>enum</code> можно сравнивать через <code>==</code>?</legend>
+  <label><input type="radio"> Каждая константа существует ровно в одном объекте</label>
+  <label><input type="radio"> Для enum оператор == вызывает метод equals</label>
+  <label><input type="radio"> Константы enum хранятся как обычные целые числа</label>
+  <label><input type="radio"> Компилятор заменяет == на сравнение имён констант</label>
+  <p class="feedback">Объекты констант создаются один раз, второго <code>RUB</code> нет — значит, равные по смыслу константы всегда один и тот же объект.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>2. <code>record AccountNumber(String value) { }</code>. Как получить значение?</legend>
+  <label><input type="radio"> number.getValue(), как у обычного класса</label>
+  <label><input type="radio"> number.value, поле у записи публичное</label>
+  <label><input type="radio"> number.value(), метод с именем компонента</label>
+  <label><input type="radio"> Никак, нужно самому написать геттер</label>
+  <p class="feedback">Метод доступа называется как компонент, без <code>get</code>. Поле <code>private final</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>3. В <code>enum</code> добавили константу <code>CNY</code>, а в switch-выражении по валюте её нет. Что будет?</legend>
+  <label><input type="radio"> switch вернёт null для новой валюты</label>
+  <label><input type="radio"> Ошибка компиляции: перебраны не все варианты</label>
+  <label><input type="radio"> Исключение при запуске на этой валюте</label>
+  <label><input type="radio"> Сработает первая ветка switch по умолчанию</label>
+  <p class="feedback"><code>the switch expression does not cover all possible input values</code> — компилятор требует перебрать все константы.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>4. Что вернёт <code>Optional.empty().orElse("никто")</code>?</legend>
+  <label><input type="radio"> null, потому что значения нет</label>
+  <label><input type="radio"> Исключение NoSuchElementException при вызове</label>
+  <label><input type="radio"> Пустой Optional без всякого значения</label>
+  <label><input type="radio"> Строку «никто», значение по умолчанию</label>
+  <p class="feedback"><code>orElse</code> — «значение или вот это». Исключение бросил бы <code>get()</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>5. Почему <code>BankAccount</code> не стоит делать записью?</legend>
+  <label><input type="radio"> У записи не может быть больше одного поля</label>
+  <label><input type="radio"> Записи нельзя класть в коллекции Map и List</label>
+  <label><input type="radio"> Баланс меняется, а поля записи — final</label>
+  <label><input type="radio"> Записи не умеют реализовывать интерфейс Comparable</label>
+  <p class="feedback">Поля записи неизменяемы, а у счёта меняется баланс. Плюс у счёта есть наследник, а запись — <code>final</code>. И счёт — сущность, а не значение.</p>
+</fieldset>
+
+<h2>Домашка</h2>
+<p>В ветке <code>feature/enum-record-optional</code>. Правило прежнее: каждую новую проверку один раз видишь красной.</p>
+
+<div class="task">
+<h3>Шаг 0. Хвосты урока 12</h3>
+<p>В <code>main</code>: закоммить <code>EXPERIMENTS.md</code> урока 12, допиши туда эксперимент 6.3 (ленивость — код из разминки) и одну фразу «почему <code>allMatch</code> пропустил пустой список». Удали <code>features/streams</code> локально и на GitHub. <code>git push</code>. Только потом — новая ветка.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 1. Ветка и копия</h3>
+<p><code>src/lesson0012</code> → <code>src/lesson0013</code> (без <code>EXPERIMENTS.md</code>), <code>package</code>, все проверки ОК, коммит.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 2. AccountNumber — запись</h3>
+<p>Перепиши <code>AccountNumber</code> в <code>record</code> с компактным конструктором (проверка <code>BANK</code> остаётся). Удали ручные <code>equals</code> и <code>hashCode</code>. Компилятор покажет, где ты вызывал <code>getValue()</code>, — исправь.</p>
+<p><strong>Проверки урока 8 не трогай.</strong> Они — доказательство, что запись делает то же, что твой код. Все ОК — коммит. Запиши в комментарий: сколько строк было и сколько стало.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 3. Currency — перечисление</h3>
+<p>Создай <code>enum Currency</code> с <code>RUB</code>, <code>USD</code>, <code>EUR</code>, полем <code>displayName</code> и методом <code>symbol()</code> через switch-выражение (₽, $, €). Замени им строковый репозиторий валют в проверках. Проверки: название и символ каждой валюты, <code>values().length</code>, <code>valueOf("USD") == Currency.USD</code>, <code>valueOf("JPY")</code> бросает <code>IllegalArgumentException</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Репозиторий как в Spring Data</h3>
+<p>Поменяй в <code>Repository</code> и <code>InMemoryRepository</code>: <code>Optional&lt;T&gt; findById(ID id)</code>. Не найдено — <code>Optional.empty()</code>, никаких исключений и <code>null</code>.</p>
+<p>Банк при этом <strong>не должен менять поведение</strong>: <code>findAccount</code> по-прежнему бросает исключение, если счёта нет — через <code>orElseThrow</code>. Значит, все проверки банка должны остаться ОК без изменений. А проверки репозитория валют/счетов, которые ждали исключение из <code>findById</code>, перепиши на <code>isEmpty()</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Новый метод с Optional</h3>
+<p><code>Optional&lt;BankAccount&gt; findRichest()</code> — счёт с наибольшим балансом (подсказка: у стрима есть <code>max</code>, и он уже возвращает <code>Optional</code>). Проверки: для банка с тремя счетами — какой именно (посчитай сам); для <strong>пустого банка</strong> — <code>isEmpty()</code>. Ты знаешь, почему второй случай здесь обязателен.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 6. Эксперименты — в ветке <code>experiment/types</code></h3>
+<ol>
+  <li>Присвой полю записи новое значение.</li>
+  <li>Унаследуй класс от <code>AccountNumber</code>.</li>
+  <li>Добавь в <code>Currency</code> константу <code>CNY</code> и не трогай <code>symbol()</code>.</li>
+  <li>Вызови <code>get()</code> у пустого <code>Optional</code> — что будет и <strong>когда</strong>: при компиляции или при запуске? Сравни с пунктами 1–3.</li>
+</ol>
+<p>Записи — в <code>src/lesson0013/EXPERIMENTS.md</code> уже в рабочей ветке, ветку эксперимента — <code>-D</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 7. Слить и отправить</h3>
+<p>Ни одной «ОШИБКА», слияние, <code>git show --stat</code>, удалить ветку локально (и на GitHub, если пушил), <code>git push</code>. Потом — «проверь домашку 0013».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p>Oracle: <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/enum.html">Enum Types</a>, <a href="https://docs.oracle.com/en/java/javase/21/language/records.html">Record Classes</a> и <a href="https://docs.oracle.com/en/java/javase/21/language/switch-expressions-and-statements.html">Switch Expressions</a> из руководства по языку Java 21. Около 40 минут. Методы <code>Optional</code> — в <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Optional.html">документации Java 21</a>: прочитай описание класса сверху — там прямо сказано, для чего он задуман.</p>
+<p class="cite">Все примеры и тексты ошибок проверены на JDK 21.</p>
+
+<p>Шпаргалка — <a href="../reference/0013-java-enum-record-optional.html">справочник «enum, record, Optional»</a>. Предыдущие уроки: <a href="0001-java-methods.html">1</a>, <a href="0002-classes-and-objects.html">2</a>, <a href="0003-encapsulation.html">3</a>, <a href="0004-exceptions.html">4</a>, <a href="0005-inheritance.html">5</a>, <a href="0006-interfaces.html">6</a>, <a href="0007-collections.html">7</a>, <a href="0008-equals-hashcode.html">8</a>, <a href="0009-generics.html">9</a>, <a href="0010-git-branches.html">10</a>, <a href="0011-lambdas-comparator.html">11</a>, <a href="0012-stream-api.html">12. Stream API</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Если не понятно, чем запись отличается от класса с <code>final</code>-полями, или где граница между «вернуть Optional» и «бросить исключение» — спрашивай, это вопросы с собеседований.</p>
+</div>
+
+<nav class="course">
+  <a href="0012-stream-api.html">← Урок 12: Stream API</a>
+  <span>Урок 14: Maven →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

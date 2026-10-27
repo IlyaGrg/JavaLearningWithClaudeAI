@@ -31,3 +31,11 @@ Note: Some messages have been simplified; recompile with -Xdiags:verbose to get 
 1 error
 
 Нужно чтобы было условие
+
+
+Exception in thread "main" java.lang.IllegalStateException: stream has already been operated upon or closed
+at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:260)
+at java.base/java.util.stream.ReferencePipeline.count(ReferencePipeline.java:750)
+at lesson0012.Main.main(Main.java:74)
+
+Нельзя выполнить две терминальные операции

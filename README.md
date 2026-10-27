@@ -19,14 +19,15 @@
 | 9 | Generics | Свой generic-интерфейс `Repository<T, ID>` в духе Spring Data и `InMemoryRepository` на `Map`; банк и справочник валют на одном классе; `max` с `<T extends Comparable<T>>` | [`lesson0009`](src/lesson0009) |
 | 10 | Git-ветки | Рефакторинг и новые проверки в отдельных ветках, fast-forward и коммит слияния, первый конфликт разрешён вручную, эксперимент в ветке на выброс; журнал команд в [`GIT-NOTES.md`](src/lesson0010/GIT-NOTES.md) | [`lesson0010`](src/lesson0010) |
 | 11 | Лямбды и `Comparator` | Сортировки счетов через `Comparator.comparing(...).thenComparingInt(...)` и `reversed()`, `findAccounts(Predicate)`, группировка через `merge` и `computeIfAbsent` — сначала проверки, потом рефакторинг; эксперименты с ошибками лямбд в [`EXPERIMENTS.md`](src/lesson0011/EXPERIMENTS.md) | [`lesson0011`](src/lesson0011) |
+| 12 | Stream API | Все методы банка переписаны на стримы (`mapToInt().sum()`, `filter`, `sorted`, `distinct`, `groupingBy` + `summingInt`), каждый отдельным коммитом после проверок; новые `richOwners` и `countAccounts`; ловушки `allMatch` на пустом стриме, одноразового стрима и `toList()` в [`EXPERIMENTS.md`](src/lesson0012/EXPERIMENTS.md) | [`lesson0012`](src/lesson0012) |
 
 ## Как запустить
 
-Нужен JDK 21. Из корня репозитория, на примере урока 11:
+Нужен JDK 21. Из корня репозитория, на примере урока 12:
 
 ```bash
-javac -d out src/lesson0011/*.java
-java -cp out lesson0011.Main
+javac -d out src/lesson0012/*.java
+java -cp out lesson0012.Main
 ```
 
 В уроках 1 и 2 главный класс — `Shop` вместо `Main`: `java -cp out lesson0001.Shop`.
@@ -45,7 +46,7 @@ RESOURCES.md        источники: туториалы Oracle, докуме�
 
 ## Дальше по плану
 
-Stream API → enum, record, Optional → Maven и JUnit 5 → SQL и PostgreSQL → Spring Boot → Docker и деплой.
+enum, record, Optional → Maven и JUnit 5 → SQL и PostgreSQL → Spring Boot → Docker и деплой.
 
 ## Стек
 

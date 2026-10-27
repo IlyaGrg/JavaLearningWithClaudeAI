@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · enum, record, Optional</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java Core</div>
+<h1>enum, record, Optional</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0013-enum-record-optional.html">уроку 0013</a>.</p>
+
+<h2>enum</h2>
+<pre><code>public enum Currency {
+    RUB("Российский рубль"), USD("Доллар США"), EUR("Евро");
+
+    private final String displayName;
+    Currency(String displayName) { this.displayName = displayName; }
+    public String getDisplayName() { return displayName; }
+}</code></pre>
+<table>
+  <tr><td><code>Currency.values()</code></td><td>все константы</td></tr>
+  <tr><td><code>Currency.valueOf("USD")</code></td><td>по имени; нет — <code>IllegalArgumentException</code></td></tr>
+  <tr><td><code>c.name()</code></td><td><code>"USD"</code></td></tr>
+  <tr><td><code>a == b</code></td><td>можно: каждая константа — один объект</td></tr>
+</table>
+
+<h2>switch-выражение</h2>
+<pre><code>String symbol = switch (currency) {
+    case RUB -&gt; "₽";
+    case USD -&gt; "$";
+    case EUR -&gt; "€";
+};          // не все константы → the switch expression does not cover all possible input values</code></pre>
+
+<h2>record</h2>
+<pre><code>public record AccountNumber(String value) {
+    public AccountNumber {                       // компактный конструктор: только проверки
+        if (value == null || !value.startsWith("BANK")) {
+            throw new IllegalArgumentException("Некорректный номер: " + value);
+        }
+    }
+}</code></pre>
+<p>Даёт: <code>private final</code> поле, конструктор, <code>value()</code> (без <code>get</code>), <code>equals</code>/<code>hashCode</code> по полям, <code>toString</code> → <code>AccountNumber[value=BANK-1]</code>. Класс <code>final</code>.</p>
+<p><strong>record</strong> — значение, неизменяемое. <strong>class</strong> — сущность, изменяемое состояние, наследование.</p>
+
+<h2>Optional</h2>
+<table>
+  <tr><td><code>Optional.of(x)</code> / <code>empty()</code> / <code>ofNullable(x)</code></td><td>создать</td></tr>
+  <tr><td><code>orElse(d)</code></td><td>значение или <code>d</code></td></tr>
+  <tr><td><code>orElseThrow(() -&gt; new X(...))</code></td><td>значение или исключение</td></tr>
+  <tr><td><code>map(f)</code></td><td>преобразовать, если есть</td></tr>
+  <tr><td><code>ifPresent(c)</code></td><td>сделать, если есть</td></tr>
+  <tr><td><code>isPresent()</code> / <code>isEmpty()</code></td><td>проверить</td></tr>
+  <tr><td><code>get()</code></td><td>пусто → <code>NoSuchElementException: No value present</code>; избегать</td></tr>
+</table>
+<p>Только для возвращаемых значений. Никогда не возвращать <code>null</code> вместо <code>Optional</code>.</p>
+<pre><code>// как в Spring: репозиторий — Optional, сервис — исключение
+public BankAccount findAccount(AccountNumber n) {
+    return accounts.findById(n)
+            .orElseThrow(() -&gt; new AccountNotFoundException("Счёт не найден: " + n));
+}</code></pre>
+
+<h2>Ошибки компиляции</h2>
+<table>
+  <tr><td>изменить поле записи</td><td><code>cannot assign a value to final variable value</code></td></tr>
+  <tr><td>наследовать запись</td><td><code>cannot inherit from final AccountNumber</code></td></tr>
+  <tr><td><code>getValue()</code> у записи</td><td><code>cannot find symbol: method getValue()</code></td></tr>
+  <tr><td>switch без всех констант</td><td><code>the switch expression does not cover all possible input values</code></td></tr>
+</table>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/javase/tutorial/java/javaOO/enum.html">Oracle — Enum Types</a>, <a href="https://docs.oracle.com/en/java/javase/21/language/records.html">Record Classes</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Optional.html">Optional (Java 21)</a>. Проверено на JDK 21.</p>
+
+</main>
+</body>
+</html>
