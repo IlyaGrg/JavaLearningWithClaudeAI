@@ -1,7 +1,8 @@
 package lesson0013;
 
+
 import java.util.*;
-import java.util.stream.Stream;
+
 
 public class Main {
     public static void main(String[] args) {
@@ -65,8 +66,6 @@ public class Main {
         List<String> richest = tBank.richOwners(100_000);
         check("richOwners работает исправно", richest.get(0).equals("Adam") && richest.get(1).equals("Ilya") && richest.size() == 3);
         check("countAccounts работает исправно", tBank.countAccounts(acc -> acc.getBalance() > 101_000 && acc.getOwner().equals("Ilya")) == 1 && tBank.countAccounts(acc -> acc.getOwner().equals("Ilya")) == 2);
-
-
 
 
 
@@ -179,7 +178,8 @@ public class Main {
         int firstCount = value.count();
 
         value.save("USD", "Доллар США");
-        check("Ожидается: Российский рубль", value.findById("RUB").equals("Российский рубль"));
+        check("enum работает корректно", Currency.RUB.getDisplayName().equals("Российский рубль") && Currency.USD.getDisplayName().equals("Доллар США") && Currency.EUR.getDisplayName().equals("Евро"));
+        check("Метод symbol работает корректно", Currency.EUR.symbol(Currency.EUR).equals("€"));
         check("count растет", value.count() == firstCount + 1);
         check("existsById для существующего ID", value.existsById("RUB"));
         check("existsById для несуществующего ID", !value.existsById("SDRUB"));
@@ -190,7 +190,14 @@ public class Main {
             thrown = true;
         }
         check("findById несуществующего ID бросает исключение", thrown);
-
+        check("Корректная работа Currency value и valueOf", Currency.valueOf("USD") == Currency.USD && Currency.values().length == 3);
+        thrown = false;
+        try{
+            Currency.valueOf("RUS");
+        } catch (IllegalArgumentException e){
+            thrown = true;
+        }
+        check("valueOf от некорректно значения бросает исключение", thrown);
     }
 
 }
