@@ -1,9 +1,6 @@
 package lesson0013;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class InMemoryRepository<T, ID> implements Repository<T, ID> {
     private Map<ID, T> memory = new HashMap<>();
@@ -15,7 +12,7 @@ public class InMemoryRepository<T, ID> implements Repository<T, ID> {
         memory.put(id, item);
     }
 
-    public T findById(ID id) {
+    public Optional<T> findById(ID id) {
         if (id == null) {
             throw new IllegalArgumentException("Некорректные данные");
         }

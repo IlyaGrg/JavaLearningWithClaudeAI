@@ -1,11 +1,12 @@
 package lesson0013;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface Repository<T, ID> {
     void save(ID id, T item);
 
-    T findById(ID id);
+    Optional<T> findById(ID id);
 
     boolean existsById(ID id);
 
