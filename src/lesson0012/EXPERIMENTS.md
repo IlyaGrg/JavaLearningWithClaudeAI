@@ -39,3 +39,14 @@ at java.base/java.util.stream.ReferencePipeline.count(ReferencePipeline.java:750
 at lesson0012.Main.main(Main.java:74)
 
 Нельзя выполнить две терминальные операции
+
+allMatch пропустил пустой список потому что для него при пустом списке все проверки true
+
+Stream<String> s = List.of("a", "b").stream().filter(x -> { System.out.println("проверяю " + x); return true; });
+
+Stream<String> s = List.of("a", "b").stream().filter(x -> { System.out.println("проверяю " + x); return true; });
+s.count();
+
+проверяю a
+проверяю b
+stream ленивый поэтому без терминальной операции вывод не работаетц
