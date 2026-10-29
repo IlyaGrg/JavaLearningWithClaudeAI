@@ -234,14 +234,33 @@ return null;                     // и снова null!</code></pre>
 </div>
 
 <div class="task">
-<h3>Шаг 6. Эксперименты — в ветке <code>experiment/types</code></h3>
-<ol>
-  <li>Присвой полю записи новое значение.</li>
-  <li>Унаследуй класс от <code>AccountNumber</code>.</li>
-  <li>Добавь в <code>Currency</code> константу <code>CNY</code> и не трогай <code>symbol()</code>.</li>
-  <li>Вызови <code>get()</code> у пустого <code>Optional</code> — что будет и <strong>когда</strong>: при компиляции или при запуске? Сравни с пунктами 1–3.</li>
-</ol>
-<p>Записи — в <code>src/lesson0013/EXPERIMENTS.md</code> уже в рабочей ветке, ветку эксперимента — <code>-D</code>.</p>
+<h3>Шаг 6. Эксперименты — делать не нужно, прочитай результаты</h3>
+<p>Я запустил их на JDK 21. Перед каждым ответом сначала угадай сам, что будет.</p>
+<p><strong>6.1. Присвоить полю записи новое значение</strong></p>
+<pre><code>record AccountNumber(String value) {
+    void change() { value = "BANK-2"; }
+}</code></pre>
+<pre><code>error: cannot assign a value to final variable value</code></pre>
+<p>Поле записи всегда <code>private final</code>. Номер счёта нельзя «подменить», можно только создать новый.</p>
+<p><strong>6.2. Унаследовать класс от записи</strong></p>
+<pre><code>class Special extends AccountNumber { ... }</code></pre>
+<pre><code>error: cannot inherit from final AccountNumber</code></pre>
+<p>Сама запись тоже <code>final</code>. Наследник мог бы добавить изменяемое поле и сломать <code>equals</code> — Java это запрещает заранее.</p>
+<p><strong>6.3. Добавить <code>CNY</code> и не трогать <code>symbol()</code></strong></p>
+<pre><code>enum Currency { RUB, USD, EUR, CNY;
+    String symbol() {
+        return switch (this) { case RUB -&gt; "₽"; case USD -&gt; "$"; case EUR -&gt; "€"; };
+    }
+}</code></pre>
+<pre><code>error: the switch expression does not cover all possible input values</code></pre>
+<p>Это главная польза switch-выражения: добавил константу — компилятор сам показал каждое место, где её забыли обработать. С цепочкой <code>if</code> ты узнал бы об этом только от пользователя.</p>
+<p><strong>6.4. <code>get()</code> у пустого <code>Optional</code></strong></p>
+<pre><code>Optional&lt;String&gt; o = Optional.empty();
+System.out.println("до get");
+System.out.println(o.get());</code></pre>
+<pre><code>до get
+Exception in thread "main" java.util.NoSuchElementException: No value present</code></pre>
+<p>Разница с 6.1–6.3: <strong>компилируется без ошибок</strong>, падает только при запуске («до get» успело напечататься). Первые три ошибки компилятор ловит за тебя, эту — нет. Поэтому <code>get()</code> избегают: <code>orElse</code> и <code>orElseThrow</code> заставляют явно решить, что делать с пустым.</p>
 </div>
 
 <div class="task">

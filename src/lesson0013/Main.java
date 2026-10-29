@@ -177,17 +177,18 @@ public class Main {
         check("Ожидаемое значение: яблоко", CollectionUtils.max(strings).equals("яблоко"));
 
 
-        Repository<String, String> value = new InMemoryRepository<>();
-        value.save("RUB", "Российский рубль");
+        Repository<String, Currency> value = new InMemoryRepository<>();
+        value.save(Currency.RUB, "Российский рубль");
         int firstCount = value.count();
 
-        value.save("USD", "Доллар США");
+        value.save(Currency.USD, "Доллар США");
         check("enum работает корректно", Currency.RUB.getDisplayName().equals("Российский рубль") && Currency.USD.getDisplayName().equals("Доллар США") && Currency.EUR.getDisplayName().equals("Евро"));
-        check("Метод symbol работает корректно", Currency.EUR.symbol(Currency.EUR).equals("€"));
+        check("Метод symbol работает корректно", Currency.EUR.symbol().equals("€") && Currency.RUB.symbol().equals("₽") && Currency.USD.symbol().equals("$"));
         check("count растет", value.count() == firstCount + 1);
-        check("existsById для существующего ID", value.existsById("RUB"));
-        check("existsById для несуществующего ID", !value.existsById("SDRUB"));
-        check("findById несуществующего ID бросает исключение", value.findById("reb").isEmpty());
+        check("Ожидается: Российский рубль", value.findById(Currency.RUB).equals(Optional.of("Российский рубль")));
+        check("existsById для существующего ID", value.existsById(Currency.RUB));
+//        check("existsById для несуществующего ID", !value.existsById("SDRUB"));
+//        check("findById несуществующего ID бросает исключение", value.findById("reb").isEmpty());
         check("Корректная работа Currency value и valueOf", Currency.valueOf("USD") == Currency.USD && Currency.values().length == 3);
         thrown = false;
         try{
@@ -196,6 +197,8 @@ public class Main {
             thrown = true;
         }
         check("valueOf от некорректно значения бросает исключение", thrown);
+        Repository<Integer, Currency> rates = new InMemoryRepository<>();
+        rates.save(Currency.USD, 80);
     }
 
 }

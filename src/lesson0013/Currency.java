@@ -13,8 +13,8 @@ public enum Currency {
         return displayName;
     }
 
-    public String symbol (Currency currency){
-        return switch (currency){
+    public String symbol (){
+        return switch (this){
             case EUR -> "€";
             case RUB -> "₽";
             case USD -> "$";
