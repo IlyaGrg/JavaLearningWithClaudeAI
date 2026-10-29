@@ -111,7 +111,7 @@ public class Main {
         boolean thrown = false;
         try {
             sberBank.findAccount(qwerty);
-        } catch (EntityNotFoundByIdException e) {
+        } catch (AccountNotFoundException e) {
             thrown = true;
         }
         check("findAccount() от некорректного значения", thrown);
@@ -154,7 +154,7 @@ public class Main {
         thrown = false;
         try {
             sberBank.findAccount(newNumber);
-        } catch (EntityNotFoundByIdException e) {
+        } catch (AccountNotFoundException e) {
             thrown = true;
         }
         check("findById неверного ID вызывает исключение", thrown);
@@ -183,13 +183,7 @@ public class Main {
         check("count растет", value.count() == firstCount + 1);
         check("existsById для существующего ID", value.existsById("RUB"));
         check("existsById для несуществующего ID", !value.existsById("SDRUB"));
-        thrown = false;
-        try {
-            value.findById("REB");
-        } catch (EntityNotFoundByIdException e) {
-            thrown = true;
-        }
-        check("findById несуществующего ID бросает исключение", thrown);
+        check("findById несуществующего ID бросает исключение", value.findById("reb").isEmpty());
         check("Корректная работа Currency value и valueOf", Currency.valueOf("USD") == Currency.USD && Currency.values().length == 3);
         thrown = false;
         try{

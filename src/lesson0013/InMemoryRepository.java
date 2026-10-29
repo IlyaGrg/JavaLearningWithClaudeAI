@@ -13,14 +13,7 @@ public class InMemoryRepository<T, ID> implements Repository<T, ID> {
     }
 
     public Optional<T> findById(ID id) {
-        if (id == null) {
-            throw new IllegalArgumentException("Некорректные данные");
-        }
-        if (memory.containsKey(id)) {
-            return memory.get(id);
-        } else {
-            throw new EntityNotFoundByIdException("По такому ID ничего не найдено: " + id);
-        }
+        return Optional.ofNullable(memory.get(id));
     }
 
     public boolean existsById(ID id) {

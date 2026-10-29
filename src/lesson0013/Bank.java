@@ -20,7 +20,7 @@ public class Bank {
     }
 
     public BankAccount findAccount(AccountNumber number) {
-        return accounts.findById(number);
+        return accounts.findById(number).orElseThrow(() -> new AccountNotFoundException("Аккаунт не найден: " + number));
     }
 
     public void transfer(AccountNumber fromNumber, AccountNumber toNumber, int amount) {
