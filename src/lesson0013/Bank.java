@@ -78,4 +78,8 @@ public class Bank {
     public long countAccounts(Predicate<BankAccount> filter){
         return accounts.findAll().stream().filter(filter).map(BankAccount::getBalance).count();
     }
+
+    public Optional<BankAccount> findRichest(){
+        return accounts.findAll().stream().max(BankAccount::compareTo);
+    }
 }

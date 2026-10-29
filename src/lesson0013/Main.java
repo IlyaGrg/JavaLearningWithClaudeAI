@@ -66,6 +66,10 @@ public class Main {
         List<String> richest = tBank.richOwners(100_000);
         check("richOwners работает исправно", richest.get(0).equals("Adam") && richest.get(1).equals("Ilya") && richest.size() == 3);
         check("countAccounts работает исправно", tBank.countAccounts(acc -> acc.getBalance() > 101_000 && acc.getOwner().equals("Ilya")) == 1 && tBank.countAccounts(acc -> acc.getOwner().equals("Ilya")) == 2);
+        BankAccount bAcc = new BankAccount("Z", 1_000_001);
+        tBank.openAccount(new AccountNumber("BANK-0"), bAcc);
+        Optional<BankAccount> richest1 = Optional.of(bAcc);
+        check("findRichest работает исправно", new Bank().findRichest().isEmpty() && tBank.findRichest().equals(richest1));
 
 
 
