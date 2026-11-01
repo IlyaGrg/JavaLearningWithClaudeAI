@@ -92,7 +92,7 @@ public class Main {
             flag = true;
         }
         check("new AccountNumber() без BANK в начале бросает исключение", flag);
-        //null пройдет а " " бросит исключение так как не начинается с BANK
+        //null бросит исключение, которое catch не словит и программа остановится на этом моменте а " " бросит исключение так как не начинается с BANK
     }
 
     static void check(String message, boolean condition) {
