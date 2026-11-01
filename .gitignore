@@ -3,3 +3,4 @@
 out/
 *.class
 .claude/settings.local.json
+target/
