@@ -130,3 +130,16 @@ figure.diagram .obj { fill: var(--note-bg); stroke: var(--accent); }
 figure.diagram .arrow { stroke: var(--accent); fill: none; stroke-width: 1.6; }
 figure.diagram text { fill: currentColor; font-family: var(--mono); font-size: 13px; }
 figure.diagram figcaption { font-size: .82rem; color: var(--muted); text-align: center; margin-top: 6px; }
+
+/* Синтаксис по шагам (с урока 14): шаблон с местами для подстановки и «пишем с нуля». */
+.template { border: 1px solid var(--accent); border-radius: 4px; margin: 1.2rem 0; }
+.template > .label { margin: 0; padding: 6px 12px; border-bottom: 1px solid var(--rule); }
+.template pre { margin: 0; border-radius: 0 0 4px 4px; }
+.ph { color: var(--accent); font-style: italic; }
+ol.recipe { list-style: none; counter-reset: step; padding-left: 0; }
+ol.recipe > li { counter-increment: step; position: relative; padding-left: 2.4rem; margin: 1.2rem 0; }
+ol.recipe > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 1.7rem; height: 1.7rem; border: 1px solid var(--accent); border-radius: 50%; text-align: center; line-height: 1.6rem; font-family: var(--mono); font-size: .78rem; color: var(--accent); }
+ol.recipe pre { margin: .5rem 0; }
+pre.out { border-left: 3px solid var(--muted); }
+pre.out.bad { border-left-color: var(--bad); }
+pre.out.good { border-left-color: var(--ok); }

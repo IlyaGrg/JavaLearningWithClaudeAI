@@ -48,6 +48,14 @@
   Записи, компактный конструктор, switch со стрелками и проверкой полноты. Use for: урок 13, DTO в Spring.
 - [Java 21 API: Optional](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Optional.html)
   Назначение класса (только возвращаемые значения) и все методы. Use for: урок 13, `CrudRepository.findById`.
+- [Apache Maven: Maven in 5 Minutes](https://maven.apache.org/guides/getting-started/maven-in-five-minutes.html) и [Introduction to the Build Lifecycle](https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html)
+  Официальное введение и фазы сборки. Use for: урок 14, первоисточник по Maven.
+- [Apache Maven: POM Reference](https://maven.apache.org/pom.html), [Standard Directory Layout](https://maven.apache.org/guides/introduction/introduction-to-the-standard-directory-layout.html), [Dependency Mechanism](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html)
+  Все теги `pom.xml`, структура папок, области видимости зависимостей. Use for: уроки 14–15 (`<scope>test</scope>`), чтение pom Spring Boot.
+- [Maven Central](https://central.sonatype.com/)
+  Поиск библиотек и готовые блоки `<dependency>`. Use for: каждый раз, когда нужна библиотека.
+- [MojoHaus: Exec Maven Plugin](https://www.mojohaus.org/exec-maven-plugin/)
+  Запуск `main` через `mvn exec:java`. Use for: урок 14, консольный банк.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 - [Git Reference: git switch](https://git-scm.com/docs/git-switch) и [git merge](https://git-scm.com/docs/git-merge)

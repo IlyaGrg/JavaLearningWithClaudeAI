@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 14 · Maven</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0014 · Инструменты · ~90 минут + домашка</div>
+<h1>Maven: проект, который собирается одной командой</h1>
+<p class="subtitle">После этого урока ты напишешь <code>pom.xml</code> с нуля, переложишь банк в стандартную структуру папок, подключишь чужую библиотеку и запустишь всё командой <code>mvn compile exec:java</code> — без списка файлов и без IntelliJ.</p>
+
+<div class="note">
+<p><strong>Зачем этот урок для backend.</strong> Каждый Spring Boot проект — это Maven-проект (или Gradle — устроен похоже). Когда ты откроешь <a href="https://start.spring.io/">start.spring.io</a>, он выдаст тебе архив, в котором главный файл — <code>pom.xml</code>. Тесты на JUnit (урок 15), драйвер PostgreSQL (декабрь), сам Spring — всё это подключается тремя строчками в <code>pom.xml</code>. На собеседовании «как устроен Maven-проект» и «что делает <code>mvn package</code>» — обычные вопросы.</p>
+</div>
+
+<h2>Разминка: синтаксис по памяти</h2>
+<p>Ты сказал, что теорию понимаешь, а синтаксис пишется с трудом. Это лечится только одним: писать по памяти. Перед каждым ответом <strong>напиши код на бумаге или в редакторе</strong>, потом открой.</p>
+
+<details class="reveal"><summary>1. Запиши запись <code>Money</code> с компонентами <code>int amount</code> и <code>Currency currency</code>, которая не даёт создать отрицательную сумму.</summary>
+<pre><code>public record Money(int amount, Currency currency) {
+    public Money {                                   // компактный: без (int amount, ...)
+        if (amount &lt; 0) {
+            throw new IllegalArgumentException("Сумма меньше нуля: " + amount);
+        }
+    }
+}</code></pre>
+<p>Три места, где обычно ошибаются: компоненты — в круглых скобках <strong>после имени</strong>, как параметры метода; у компактного конструктора <strong>нет</strong> скобок с параметрами; внутри нет <code>this.amount = amount</code> — его допишет Java.</p>
+</details>
+
+<details class="reveal"><summary>2. Лямбда-<code>Predicate&lt;BankAccount&gt;</code>: «владелец — Ilya и баланс больше 1000». Запиши в переменную.</summary>
+<pre><code>Predicate&lt;BankAccount&gt; rich = acc -&gt; acc.getOwner().equals("Ilya") &amp;&amp; acc.getBalance() &gt; 1000;</code></pre>
+<p>Как собрать лямбду по шагам: (1) какой метод интерфейса реализуем? <code>boolean test(BankAccount t)</code>. (2) Слева от <code>-&gt;</code> — имя параметра (любое, тип Java знает из <code>Predicate&lt;BankAccount&gt;</code>). (3) Справа — то, что метод вернул бы через <code>return</code>, без самого <code>return</code> и без <code>;</code> внутри.</p>
+</details>
+
+<details class="reveal"><summary>3. Достань счёт из <code>Optional&lt;BankAccount&gt; found</code> или брось <code>AccountNotFoundException</code>.</summary>
+<pre><code>BankAccount acc = found.orElseThrow(() -&gt; new AccountNotFoundException("Нет счёта"));</code></pre>
+<p><code>() -&gt;</code> — лямбда без параметров (<code>Supplier</code>): «вот как создать исключение, если понадобится».</p>
+</details>
+
+<details class="reveal"><summary>4. Урок 10: ты в <code>main</code>. Создай ветку <code>feature/maven</code> и сразу переключись в неё — одной командой.</summary>
+<pre><code>git switch -c feature/maven</code></pre>
+</details>
+
+<h2>1. Какую проблему решает Maven</h2>
+<p>Вспомни, как ты сейчас запускаешь банк:</p>
+<pre><code>javac -d out src/lesson0013/*.java
+java -cp out lesson0013.Main</code></pre>
+<p>Это работает, пока проект маленький. Но у этого способа три дыры:</p>
+<ol>
+  <li><strong>Чужой код подключить нельзя.</strong> Захочешь библиотеку (JUnit для тестов, драйвер PostgreSQL, Spring) — придётся самому скачать <code>.jar</code>-файл с сайта, положить в папку, вписать в <code>-cp</code>. А у библиотеки свои библиотеки, у тех свои… У Spring Boot их десятки.</li>
+  <li><strong>Сборку знаешь только ты.</strong> Другой разработчик клонирует репозиторий и не знает, какую версию Java брать, какие файлы компилировать, где главный класс. Настройки IntelliJ (<code>.idea/</code>) ты в Git не кладёшь — и правильно.</li>
+  <li><strong>Каждый раскладывает файлы по-своему.</strong> Где код, где тесты, куда класть результат — договариваться в каждом проекте заново.</li>
+</ol>
+<p><strong>Maven</strong> — программа, которая собирает Java-проекты по описанию из одного файла <code>pom.xml</code> (<a href="https://maven.apache.org/what-is-maven.html">Apache Maven: What is Maven</a>). В этом файле ты пишешь <em>что</em> собрать: имя проекта, версию Java, нужные библиотеки. <em>Как</em> собирать — Maven знает сам: где искать код, в каком порядке компилировать, куда положить результат.</p>
+
+<div class="note">
+<p><strong>Как в Python.</strong> <code>pom.xml</code> — это <code>requirements.txt</code> и <code>pyproject.toml</code> в одном файле: «какие библиотеки каких версий нужны». <code>mvn</code> — как <code>pip install</code>, только он ещё и компилирует, запускает тесты и упаковывает. Библиотеки Maven скачивает с <a href="https://central.sonatype.com/">Maven Central</a> — это как PyPI для Java. Отличие: виртуальное окружение не нужно — каждый проект сам говорит, какие версии ему нужны, и Maven подставляет их при сборке.</p>
+</div>
+
+<h2>2. Установка — и ловушка на твоём компьютере</h2>
+<pre><code>sudo apt install maven
+mvn -v</code></pre>
+<p>Перед уроком я проверил твою систему и нашёл важную вещь:</p>
+<pre class="out">$ java -version
+openjdk version "25.0.4.1" 2026-08-18
+$ javac -version
+javac 21.0.12.1</pre>
+<p>У тебя стоят две Java: команда <code>java</code> берётся из JDK 25, а <code>javac</code> — из JDK 21. Пока ты запускал <code>javac</code> и <code>java</code> руками, это не мешало. Но Maven сам решает, какую Java взять: если переменная <code>JAVA_HOME</code> не задана — ту, где лежит команда <code>java</code>, то есть 25. А в ней нет полного компилятора. Я воспроизвёл это у тебя на машине — сборка падает так:</p>
+<pre class="out bad">[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:compile
+(default-compile) on project bank: Fatal error compiling: error: release version 21 not supported</pre>
+<p>Лечится одной строкой: сказать Maven, где лежит нужная JDK. <code>JAVA_HOME</code> — общепринятая переменная окружения для этого, её читают Maven, IntelliJ, позже Spring Boot и Docker-образы.</p>
+<pre><code>echo 'export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+mvn -v</code></pre>
+<div class="annotated">
+  <div class="row"><code>echo '...' &gt;&gt; ~/.bashrc</code><div>дописать строку в конец файла настроек bash. <code>&gt;&gt;</code> — дописать, <code>&gt;</code> — <strong>затереть весь файл</strong>, не перепутай</div></div>
+  <div class="row"><code>export JAVA_HOME=...</code><div>создать переменную окружения, которую видят все программы, запущенные из этого терминала</div></div>
+  <div class="row"><code>source ~/.bashrc</code><div>перечитать настройки в текущем окне (новые окна прочитают сами)</div></div>
+</div>
+<p>Правильный результат — в третьей строке Java 21:</p>
+<pre class="out good">Apache Maven 3.9.12 ...
+Maven home: /usr/share/maven
+Java version: 21.0.12.1, vendor: Ubuntu, runtime: /usr/lib/jvm/java-21-openjdk-amd64</pre>
+<p class="cite">Версия Maven у тебя будет из репозитория Ubuntu (3.9.12) — для курса любая 3.9.x подходит. Я проверял примеры на 3.9.16 из IntelliJ, выводы совпадают.</p>
+
+<h2>3. XML за десять минут</h2>
+<p><code>pom.xml</code> написан на <strong>XML</strong> — формате, где данные лежат внутри тегов, как в HTML. Если ты видел HTML — ты почти всё знаешь. Правил пять:</p>
+
+<div class="template">
+<p class="label">шаблон элемента XML</p>
+<pre><code>&lt;<span class="ph">имя</span>&gt;<span class="ph">значение</span>&lt;/<span class="ph">имя</span>&gt;</code></pre>
+</div>
+
+<ol>
+  <li><strong>Каждый открытый тег закрывается</strong> тегом с тем же именем и косой чертой: <code>&lt;version&gt;1.0&lt;/version&gt;</code>.</li>
+  <li><strong>Теги вкладываются</strong>, как матрёшки, и закрываются в обратном порядке. Внутри тега может быть либо текст, либо другие теги:
+<pre><code>&lt;dependency&gt;                         ← открыли внешний
+    &lt;groupId&gt;org.apache.commons&lt;/groupId&gt;   ← внутренний: открыли и закрыли
+    &lt;version&gt;3.17.0&lt;/version&gt;
+&lt;/dependency&gt;                        ← закрыли внешний</code></pre></li>
+  <li><strong>Регистр важен:</strong> <code>&lt;artifactId&gt;</code> и <code>&lt;artifactid&gt;</code> — разные теги. Как в Java: <code>count</code> и <code>Count</code>.</li>
+  <li><strong>Отступы ни на что не влияют</strong> (в отличие от Python), но без них ты сам запутаешься. Принято 4 пробела на уровень.</li>
+  <li><strong>Комментарий:</strong> <code>&lt;!-- текст --&gt;</code>.</li>
+</ol>
+
+<p>Что бывает, если нарушить. Я написал <code>&lt;artifactId&gt;bank&lt;/artifactid&gt;</code> (маленькая <code>i</code> в закрывающем):</p>
+<pre class="out bad">[FATAL] Non-parseable POM .../pom.xml: end tag name &lt;/artifactid&gt; must be the same as start tag &lt;artifactId&gt; from line 8</pre>
+<p>А тут я случайно вставил второй блок <code>&lt;build&gt;</code>, хотя он уже был:</p>
+<pre class="out bad">[FATAL] Non-parseable POM .../pom.xml: Duplicated tag: 'build' ... @ line 37, column 12</pre>
+<p>Слово <strong>Non-parseable</strong> значит «Maven даже не смог прочитать файл» — ошибка в самом XML, а не в Java. Ищи строку и колонку, которые он назвал.</p>
+
+<h2>4. pom.xml — пишем с нуля по шагам</h2>
+<p><strong>POM</strong> — Project Object Model, «описание проекта» (<a href="https://maven.apache.org/pom.html">Apache Maven: POM Reference</a>). Сейчас мы напишем его в четыре шага; после каждого шага файл уже рабочий. Именно в таком порядке ты будешь писать его в домашке.</p>
+
+<ol class="recipe">
+<li>
+<p><strong>Скелет и «паспорт» проекта.</strong> Это минимальный <code>pom.xml</code>, с которым Maven уже работает.</p>
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"&gt;
+    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+
+    &lt;groupId&gt;ru.ilyagrg&lt;/groupId&gt;
+    &lt;artifactId&gt;bank&lt;/artifactId&gt;
+    &lt;version&gt;1.0-SNAPSHOT&lt;/version&gt;
+&lt;/project&gt;</code></pre>
+<div class="annotated">
+  <div class="row"><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;</code><div>заголовок любого XML-файла: «я XML, кодировка UTF-8». Пишется один раз, первой строкой, всегда одинаково</div></div>
+  <div class="row"><code>&lt;project xmlns=... &gt;</code><div>корневой тег — всё остальное внутри него. Атрибуты <code>xmlns</code> и <code>schemaLocation</code> говорят IntelliJ, по какой схеме проверять файл, — тогда она подсказывает теги. Эти три строки <strong>не запоминай, копируй</strong>: так делают все, в том числе start.spring.io</div></div>
+  <div class="row"><code>&lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;</code><div>версия формата POM. Всегда <code>4.0.0</code>, просто пиши</div></div>
+  <div class="row"><code>&lt;groupId&gt;ru.ilyagrg&lt;/groupId&gt;</code><div><strong>кто</strong> делает проект: перевёрнутый домен автора или компании (<code>org.apache.commons</code>, <code>org.springframework</code>). Своего домена нет — бери <code>ru.</code> + ник с GitHub</div></div>
+  <div class="row"><code>&lt;artifactId&gt;bank&lt;/artifactId&gt;</code><div><strong>что</strong> за проект: короткое имя маленькими буквами, через дефис (<code>console-bank</code>). Так будет назван итоговый <code>.jar</code></div></div>
+  <div class="row"><code>&lt;version&gt;1.0-SNAPSHOT&lt;/version&gt;</code><div><strong>какая</strong> версия. <code>SNAPSHOT</code> — «в разработке, ещё меняется». Готовый выпуск — <code>1.0</code> без суффикса</div></div>
+</div>
+<p>Тройка <code>groupId:artifactId:version</code> называется <strong>координатами</strong> (<abbr>GAV</abbr>). По ним любой проект в мире однозначно находится — и твой, и Spring. Запомни это слово: в шаге 3 ты будешь писать координаты <em>чужого</em> проекта.</p>
+</li>
+
+<li>
+<p><strong>Настройки сборки — <code>&lt;properties&gt;</code>.</strong> Добавляем после <code>&lt;version&gt;</code>, внутри <code>&lt;project&gt;</code>:</p>
+<pre><code>    &lt;properties&gt;
+        &lt;maven.compiler.release&gt;21&lt;/maven.compiler.release&gt;
+        &lt;project.build.sourceEncoding&gt;UTF-8&lt;/project.build.sourceEncoding&gt;
+    &lt;/properties&gt;</code></pre>
+<div class="annotated">
+  <div class="row"><code>&lt;properties&gt;</code><div>блок «переменных»: имя тега — имя настройки, текст — значение</div></div>
+  <div class="row"><code>maven.compiler.release = 21</code><div>компилировать под Java 21. Это то же, что <code>javac --release 21</code></div></div>
+  <div class="row"><code>project.build.sourceEncoding = UTF-8</code><div>файлы <code>.java</code> в UTF-8. Иначе на чужой машине твои «ОШИБКА» и «Российский рубль» могут превратиться в кракозябры</div></div>
+</div>
+<p>Что будет без <code>&lt;properties&gt;</code> — я убрал блок и собрал твой банк:</p>
+<pre class="out bad">[WARNING] File encoding has not been set, using platform encoding UTF-8, i.e. build is platform dependent!
+[WARNING] source value 8 is obsolete and will be removed in a future release
+[ERROR] .../AccountNumber.java:[5,8] records are not supported in -source 8
+[ERROR] .../Currency.java:[17,16] switch expressions are not supported in -source 8</pre>
+<p>По умолчанию Maven компилирует как <strong>Java 8</strong> (2014 год): ни <code>record</code>, ни switch-выражений. Строка <code>maven.compiler.release</code> обязательна в каждом проекте.</p>
+</li>
+
+<li>
+<p><strong>Зависимость — чужая библиотека.</strong> Ещё один блок внутри <code>&lt;project&gt;</code>, после <code>&lt;properties&gt;</code>:</p>
+<div class="template">
+<p class="label">шаблон зависимости</p>
+<pre><code>    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;<span class="ph">кто сделал</span>&lt;/groupId&gt;
+            &lt;artifactId&gt;<span class="ph">что за библиотека</span>&lt;/artifactId&gt;
+            &lt;version&gt;<span class="ph">какая версия</span>&lt;/version&gt;
+        &lt;/dependency&gt;
+        <span class="ph">… следующий &lt;dependency&gt; — рядом, внутри того же &lt;dependencies&gt;</span>
+    &lt;/dependencies&gt;</code></pre>
+</div>
+<p>Заполняем для библиотеки <a href="https://commons.apache.org/proper/commons-lang/">Apache Commons Lang</a> — в ней сотни мелких полезных методов для строк и чисел:</p>
+<pre><code>    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.apache.commons&lt;/groupId&gt;
+            &lt;artifactId&gt;commons-lang3&lt;/artifactId&gt;
+            &lt;version&gt;3.17.0&lt;/version&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;</code></pre>
+<p>Заметь: <code>&lt;dependencies&gt;</code> (мн. число) — коробка, <code>&lt;dependency&gt;</code> (ед.) — одна библиотека в ней. Коробка одна на весь файл. Вторую библиотеку кладёшь <strong>в ту же</strong> коробку, а не создаёшь новую — иначе получишь <code>Duplicated tag: 'dependencies'</code>.</p>
+<p><strong>Откуда брать координаты.</strong> Не придумывать и не писать по памяти. Открываешь <a href="https://central.sonatype.com/">central.sonatype.com</a>, ищешь <code>commons-lang3</code>, открываешь нужную версию — справа готовый блок <code>&lt;dependency&gt;</code> для Maven. Копируешь целиком. Так делают все.</p>
+</li>
+
+<li>
+<p><strong>Плагин — чтобы запускать программу.</strong> Сам Maven умеет компилировать и упаковывать, а запускать <code>main</code> — нет. Это делает <strong>плагин</strong> — дополнение к Maven, которое тоже подключается по координатам (<a href="https://www.mojohaus.org/exec-maven-plugin/">MojoHaus: Exec Maven Plugin</a>). Блок <code>&lt;build&gt;</code> — последним внутри <code>&lt;project&gt;</code>:</p>
+<pre><code>    &lt;build&gt;
+        &lt;plugins&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.codehaus.mojo&lt;/groupId&gt;
+                &lt;artifactId&gt;exec-maven-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.5.0&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;mainClass&gt;ru.ilyagrg.bank.Main&lt;/mainClass&gt;
+                &lt;/configuration&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+    &lt;/build&gt;</code></pre>
+<div class="annotated">
+  <div class="row"><code>&lt;build&gt;&lt;plugins&gt;</code><div>та же схема «коробка — элементы», что у зависимостей: <code>&lt;plugins&gt;</code> — коробка, <code>&lt;plugin&gt;</code> — один плагин</div></div>
+  <div class="row"><code>groupId / artifactId / version</code><div>координаты плагина — точно как у библиотеки</div></div>
+  <div class="row"><code>&lt;configuration&gt;</code><div>настройки именно этого плагина. У каждого плагина свои, они описаны в его документации</div></div>
+  <div class="row"><code>&lt;mainClass&gt;ru.ilyagrg.bank.Main&lt;/mainClass&gt;</code><div><strong>полное имя</strong> класса с <code>main</code>: пакет + точка + имя класса. Как в <code>java -cp out lesson0013.Main</code></div></div>
+</div>
+</li>
+</ol>
+
+<p>Итог — весь файл целиком, в правильном порядке блоков:</p>
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"&gt;
+    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+
+    &lt;groupId&gt;ru.ilyagrg&lt;/groupId&gt;           <span class="ph">← шаг 1: кто</span>
+    &lt;artifactId&gt;bank&lt;/artifactId&gt;          <span class="ph">←          что</span>
+    &lt;version&gt;1.0-SNAPSHOT&lt;/version&gt;        <span class="ph">←          какая версия</span>
+
+    &lt;properties&gt;                           <span class="ph">← шаг 2: настройки</span>
+        &lt;maven.compiler.release&gt;21&lt;/maven.compiler.release&gt;
+        &lt;project.build.sourceEncoding&gt;UTF-8&lt;/project.build.sourceEncoding&gt;
+    &lt;/properties&gt;
+
+    &lt;dependencies&gt;                         <span class="ph">← шаг 3: библиотеки</span>
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.apache.commons&lt;/groupId&gt;
+            &lt;artifactId&gt;commons-lang3&lt;/artifactId&gt;
+            &lt;version&gt;3.17.0&lt;/version&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+
+    &lt;build&gt;                                <span class="ph">← шаг 4: плагины</span>
+        &lt;plugins&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.codehaus.mojo&lt;/groupId&gt;
+                &lt;artifactId&gt;exec-maven-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.5.0&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;mainClass&gt;ru.ilyagrg.bank.Main&lt;/mainClass&gt;
+                &lt;/configuration&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+    &lt;/build&gt;
+&lt;/project&gt;</code></pre>
+<p class="cite">Пометки «← шаг» — для урока, в настоящий файл их не пиши (это не XML-комментарии, Maven на них упадёт). Файл собран и запущен на JDK 21 и Maven 3.9.</p>
+
+<details class="reveal"><summary>Проверь себя: какая из трёх тройок координат здесь — твоя, а какие — чужие? И почему у плагина тоже есть координаты?</summary>
+<p>Твоя — <code>ru.ilyagrg:bank:1.0-SNAPSHOT</code>, она описывает сам проект. Чужие — <code>org.apache.commons:commons-lang3:3.17.0</code> и <code>org.codehaus.mojo:exec-maven-plugin:3.5.0</code>. Плагин — тоже чей-то Maven-проект, лежит на том же Maven Central, поэтому находится так же.</p>
+</details>
+
+<h2>5. Структура папок: Maven ищет код в одном месте</h2>
+<p>Maven не спрашивает, где лежат файлы, — он <strong>ожидает</strong> их в стандартных местах (<a href="https://maven.apache.org/guides/introduction/introduction-to-the-standard-directory-layout.html">Apache Maven: Standard Directory Layout</a>). Это и есть «соглашение вместо настройки»: в любом Maven-проекте в мире код лежит там же.</p>
+<pre><code>lesson0014/                         ← корень проекта: здесь pom.xml и отсюда запускаешь mvn
+├── pom.xml
+├── src/
+│   ├── main/
+│   │   └── java/                   ← корень пакетов основного кода
+│   │       └── ru/ilyagrg/bank/    ← пакет ru.ilyagrg.bank
+│   │           ├── Main.java
+│   │           ├── Bank.java
+│   │           └── ...
+│   └── test/
+│       └── java/                   ← тесты (урок 15), пока пусто
+└── target/                         ← сюда Maven кладёт результат; создаётся сам</code></pre>
+
+<h3>Пакет = путь к папке</h3>
+<p>Это правило ты уже знаешь (<code>package lesson0013;</code> → папка <code>lesson0013/</code>), но теперь пакет длиннее. Точки в имени пакета — это вложенные папки, считая <strong>от <code>src/main/java</code></strong>:</p>
+<div class="annotated">
+  <div class="row"><code>package ru.ilyagrg.bank;</code><div>первая строка каждого файла</div></div>
+  <div class="row"><code>src/main/java/ru/ilyagrg/bank/Bank.java</code><div>где лежит файл. <code>src/main/java</code> в пакет <strong>не входит</strong></div></div>
+  <div class="row"><code>ru.ilyagrg.bank.Main</code><div>полное имя класса — для <code>&lt;mainClass&gt;</code></div></div>
+</div>
+<p>Почему пакет вида <code>ru.ilyagrg.bank</code>, а не просто <code>bank</code>? По той же причине, что и <code>groupId</code>: чтобы твой класс <code>Bank</code> не столкнулся с чужим <code>Bank</code> из какой-нибудь библиотеки. Обычно пакет = <code>groupId</code> + <code>artifactId</code>. Spring Initializr делает так же.</p>
+<p>Создать все папки одной командой (флаг <code>-p</code> создаёт и промежуточные):</p>
+<pre><code>mkdir -p lesson0014/src/main/java/ru/ilyagrg/bank lesson0014/src/test/java</code></pre>
+
+<h3>Ловушка: файлы не там — и Maven молчит</h3>
+<p>Я положил <code>Main.java</code> прямо в <code>src/</code>, а не в <code>src/main/java/...</code>. Ошибки нет:</p>
+<pre class="out bad">[INFO] Building bank 1.0-SNAPSHOT
+[INFO] No sources to compile
+[INFO] BUILD SUCCESS</pre>
+<p>«Собрал успешно» — ноль файлов. Если видишь <code>No sources to compile</code>, а файлы есть — они лежат не в той папке. Это та же ловушка, что <code>allMatch</code> на пустом: «успех», потому что проверять было нечего.</p>
+
+<h2>6. Команды и жизненный цикл</h2>
+<p>Команды запускаются <strong>из папки, где лежит <code>pom.xml</code></strong>. Сделал <code>cd lesson0014</code> — потом <code>mvn ...</code>.</p>
+<p>У Maven есть <strong>жизненный цикл</strong> — фиксированная цепочка этапов (<em>фаз</em>) сборки (<a href="https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html">Apache Maven: Introduction to the Build Lifecycle</a>). Главное правило: <strong>вызываешь фазу — выполняются все фазы до неё</strong>.</p>
+<pre><code>validate → compile → test → package → verify → install</code></pre>
+<div class="annotated">
+  <div class="row"><code>mvn compile</code><div>скомпилировать <code>src/main/java</code> в <code>target/classes</code>. Это твой <code>javac -d out ...</code></div></div>
+  <div class="row"><code>mvn test</code><div>compile + скомпилировать тесты + <strong>запустить</strong> их. Сейчас тестов нет: <code>No tests to run.</code> С урока 15 — главная команда</div></div>
+  <div class="row"><code>mvn package</code><div>compile + test + упаковать в <code>target/bank-1.0-SNAPSHOT.jar</code>. <strong>Если хоть один тест упал — jar не соберётся</strong></div></div>
+  <div class="row"><code>mvn clean</code><div>удалить <code>target/</code> целиком. Отдельный цикл; часто пишут вместе: <code>mvn clean package</code> — «собери с чистого листа»</div></div>
+  <div class="row"><code>mvn compile exec:java</code><div>фаза <code>compile</code>, потом <em>цель</em> плагина <code>exec</code> с именем <code>java</code>: запустить <code>mainClass</code>. Через двоеточие — «плагин:что сделать»</div></div>
+</div>
+
+<p>Вот что на самом деле печатает <code>mvn clean package</code> (лишнее убрал):</p>
+<pre class="out good">[INFO] --------------------------&lt; ru.ilyagrg:bank &gt;---------------------------
+[INFO] Building bank 1.0-SNAPSHOT
+[INFO] --- clean:3.2.0:clean (default-clean) @ bank ---
+[INFO] --- resources:3.4.0:resources (default-resources) @ bank ---
+[INFO] --- compiler:3.15.0:compile (default-compile) @ bank ---
+[INFO] --- resources:3.4.0:testResources (default-testResources) @ bank ---
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ bank ---
+[INFO] --- surefire:3.5.4:test (default-test) @ bank ---
+[INFO] --- jar:3.5.0:jar (default-jar) @ bank ---
+[INFO] Building jar: .../target/bank-1.0-SNAPSHOT.jar
+[INFO] BUILD SUCCESS</pre>
+<p>Прочитай построчно: в первой строке — твои координаты. Дальше каждая строка <code>--- плагин:версия:цель ---</code> — это один этап. Видно, что ты попросил только <code>package</code>, а Maven сам прошёл <code>compile</code> и <code>test</code>. Компилирует плагин <code>compiler</code>, тесты гоняет <code>surefire</code>, упаковывает <code>jar</code> — Maven сам по себе почти ничего не умеет, всё делают плагины. Эти стандартные плагины подключены по умолчанию, писать их в <code>pom.xml</code> не нужно.</p>
+
+<p><strong>Первый запуск — долгий.</strong> Maven напечатает десятки строк <code>Downloading from central: https://repo.maven.apache.org/...</code> — он качает плагины и библиотеки. Нужен интернет. Второй запуск — за секунды.</p>
+
+<h3>Ошибка компиляции в Maven</h3>
+<p>Это тот же <code>javac</code>, просто в другой обёртке. Я убрал закрывающую скобку в <code>println</code>:</p>
+<pre class="out bad">[ERROR] COMPILATION ERROR :
+[ERROR] .../src/main/java/ru/ilyagrg/bank/Main.java:[7,67] ')' or ',' expected
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:compile ...</pre>
+<p><code>[7,67]</code> — строка 7, символ 67. Текст после — обычное сообщение <code>javac</code>. Длинные строки <code>Failed to execute goal</code> и <code>[Help 1]</code> ниже — просто «сборка остановилась», причину ищи <strong>выше</strong>, в первой строке <code>[ERROR]</code> с именем файла.</p>
+
+<h2>7. Как работают зависимости</h2>
+<p>Ты написал в <code>pom.xml</code> координаты <code>commons-lang3</code>. При сборке Maven:</p>
+<ol>
+  <li>смотрит в локальное хранилище на твоём компьютере — папку <code>~/.m2/repository</code>;</li>
+  <li>нет там — скачивает с Maven Central и кладёт туда: <code>~/.m2/repository/org/apache/commons/commons-lang3/3.17.0/commons-lang3-3.17.0.jar</code> (видишь — путь собран из координат, точки стали папками);</li>
+  <li>добавляет этот <code>.jar</code> в <code>-cp</code> компилятора — сам, тебе писать ничего не надо.</li>
+</ol>
+<p>Скачивается один раз на компьютер: следующий проект с той же версией возьмёт её из <code>~/.m2</code> (<a href="https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html">Apache Maven: Dependency Mechanism</a>).</p>
+
+<h3>Использование: import и вызов</h3>
+<p>После того как зависимость в <code>pom.xml</code>, её классы доступны как свои — нужен только <code>import</code>. Пример: в <code>AccountNumber</code> у тебя проверка <code>value == null || value.isBlank()</code>. В Commons Lang есть метод, который делает обе проверки сразу:</p>
+<pre><code>import org.apache.commons.lang3.StringUtils;          // пакет + класс из библиотеки
+
+StringUtils.isBlank(null)     // true  — null не падает с NPE
+StringUtils.isBlank("")       // true
+StringUtils.isBlank("   ")    // true  — одни пробелы
+StringUtils.isBlank("BANK-1") // false</code></pre>
+<div class="annotated">
+  <div class="row"><code>org.apache.commons.lang3</code><div>пакет. Как его узнать: в документации класса (<a href="https://commons.apache.org/proper/commons-lang/apidocs/org/apache/commons/lang3/StringUtils.html">StringUtils javadoc</a>) он написан над именем класса. Или IntelliJ: пишешь <code>StringUtils</code> → <kbd>Alt+Enter</kbd> → Import class</div></div>
+  <div class="row"><code>StringUtils.isBlank(value)</code><div><code>static</code>-метод: вызывается через имя класса, объект не нужен (урок 2) — как <code>Math.max</code></div></div>
+</div>
+
+<h3>Две ошибки, которые ты увидишь</h3>
+<p><strong>Забыл зависимость в <code>pom.xml</code></strong>, а <code>import</code> написал:</p>
+<pre class="out bad">[ERROR] .../Main.java:[3,32] package org.apache.commons.lang3 does not exist
+[ERROR] .../Main.java:[7,41] cannot find symbol</pre>
+<p><strong>Опечатка в координатах</strong> (я написал версию <code>3.99.0</code>, которой не существует):</p>
+<pre class="out bad">[ERROR] Failed to execute goal on project bank: Could not resolve dependencies for project ru.ilyagrg:bank:jar:1.0-SNAPSHOT
+[ERROR] dependency: org.apache.commons:commons-lang3:jar:3.99.0 (compile)</pre>
+<p>Отличай: первая — ошибка <strong>Java</strong> (<code>COMPILATION ERROR</code>, есть имя файла и строка), вторая — ошибка <strong>Maven</strong> (<code>Could not resolve dependencies</code>, до компиляции даже не дошло).</p>
+
+<h2>8. Почему не <code>java -jar</code>: эксперимент</h2>
+<p>Эксперименты в домашке мы больше не делаем — вот результат, я запустил сам. Сначала угадай ответ к каждому пункту.</p>
+<p><strong>8.1. Запустить скомпилированное по-старому:</strong></p>
+<pre><code>mvn compile
+java -cp target/classes ru.ilyagrg.bank.Main</code></pre>
+<pre class="out bad">Exception in thread "main" java.lang.NoClassDefFoundError: org/apache/commons/lang3/StringUtils
+	at ru.ilyagrg.bank.Main.main(Main.java:7)
+Caused by: java.lang.ClassNotFoundException: org.apache.commons.lang3.StringUtils</pre>
+<p>Компиляция прошла — Maven сам подставил библиотеку в <code>-cp</code>. А <code>java</code> ты запускаешь руками, и в <code>-cp</code> только <code>target/classes</code>: твои классы есть, <code>StringUtils</code> — нет. Это ошибка <strong>при выполнении</strong> (как <code>get()</code> на пустом <code>Optional</code>), компилятор её не видит. <code>mvn exec:java</code> подставляет зависимости сам — поэтому запускаем через него.</p>
+<p><strong>8.2. Запустить собранный jar:</strong></p>
+<pre><code>mvn package
+java -jar target/bank-1.0-SNAPSHOT.jar</code></pre>
+<pre class="out bad">no main manifest attribute, in target/bank-1.0-SNAPSHOT.jar</pre>
+<p>В jar не записано, какой класс главный. А если записать — упадёт как в 8.1: обычный jar содержит только <strong>твои</strong> классы, библиотеки в него не входят. Spring Boot решает обе проблемы своим плагином: собирает «толстый» jar со всеми библиотеками внутри, и <code>java -jar app.jar</code> просто работает. Именно такой jar потом кладут в Docker-образ (апрель).</p>
+
+<h2>9. Maven и IntelliJ</h2>
+<p>IntelliJ понимает <code>pom.xml</code> и сама подставляет библиотеки, версию Java и папки исходников. Твой репозиторий открыт как обычный проект, поэтому ей надо подсказать:</p>
+<ol>
+  <li>в дереве проекта правый клик по <code>lesson0014/pom.xml</code> → <strong>Add as Maven Project</strong>;</li>
+  <li>справа появится панель <strong>Maven</strong> (буква <em>m</em>) — там фазы <code>Lifecycle</code> можно запускать двойным кликом;</li>
+  <li>поменял <code>pom.xml</code> — нажми значок обновления (<em>Reload All Maven Projects</em>) или всплывающую кнопку <em>Load Maven Changes</em>, иначе IntelliJ будет подчёркивать красным новый <code>import</code>, хотя <code>mvn</code> в терминале соберёт.</li>
+</ol>
+<p><strong>Главное — терминал.</strong> Если <code>mvn compile</code> в терминале проходит, а IntelliJ подчёркивает — виновата IntelliJ (не обновилась). Наоборот не бывает: правда всегда в <code>pom.xml</code> и в <code>mvn</code>. Так работают и серверы сборки, у которых никакой IntelliJ нет.</p>
+
+<h2>10. target/ — не в Git</h2>
+<p>В <code>target/</code> лежат <code>.class</code> и <code>.jar</code> — их всегда можно пересобрать из исходников. В Git кладут исходники, а не результат сборки: иначе каждая сборка давала бы «изменения» в <code>git status</code>. Допиши строку в <code>.gitignore</code> в корне репозитория:</p>
+<pre><code>target/</code></pre>
+<p>Без <code>/</code> в начале — значит «папка <code>target</code> на любом уровне», и в <code>lesson0014/</code>, и в будущих проектах. Проверка: после <code>mvn package</code> команда <code>git status</code> не должна показывать <code>target/</code>.</p>
+
+<h2>Частые вопросы</h2>
+<details class="reveal"><summary>Почему проект в <code>lesson0014/</code> в корне, а не в <code>src/lesson0014/</code>, как всегда?</summary>
+<p>У Maven-проекта своя папка <code>src/</code> внутри. Положи его в <code>src/lesson0014/</code> — получится <code>src/lesson0014/src/main/java/...</code>, и IntelliJ, у которой весь твой <code>src/</code> отмечен как корень исходников, решит, что пакет называется <code>lesson0014.src.main.java.ru...</code>, и подчеркнёт всё красным. Поэтому Maven-проект — отдельная папка рядом с <code>src/</code>. Правило «весь код пишу сам» не меняется. Консольный банк в ноябре будет уже отдельным репозиторием.</p>
+</details>
+<details class="reveal"><summary>Надо ли запоминать <code>pom.xml</code> наизусть?</summary>
+<p>Нет. Скелет (<code>xmlns</code>-строки) все копируют, координаты библиотек — с Maven Central. Знать нужно <strong>структуру</strong>: что такое GAV, где <code>properties</code>, где <code>dependencies/dependency</code>, где <code>build/plugins/plugin</code>, — чтобы читать чужой <code>pom.xml</code> и правильно вставить новый блок. Именно это и проверяют на собеседовании.</p>
+</details>
+<details class="reveal"><summary>Чем Maven отличается от Gradle?</summary>
+<p>Задача одна, файл другой: у Gradle <code>build.gradle</code> — код на Groovy или Kotlin вместо XML. Координаты, Maven Central, структура <code>src/main/java</code> — те же. Spring Initializr предлагает оба; в банках и вакансиях Казани чаще встречается Maven. Выучив Maven, Gradle читаешь за вечер.</p>
+</details>
+<details class="reveal"><summary>Что такое <code>SNAPSHOT</code> и когда его убирать?</summary>
+<p>«Версия в работе». Пока проект развивается, <code>1.0-SNAPSHOT</code>. Когда выпускаешь — <code>1.0</code>, и такая версия уже не должна меняться никогда (как запушенный коммит). Для учебных проектов SNAPSHOT можно не трогать.</p>
+</details>
+<details class="reveal"><summary><code>mvn</code> пишет <code>BUILD SUCCESS</code>, но печать моего <code>main</code> не видно.</summary>
+<p>Ты запустил <code>mvn compile</code>, а не <code>mvn compile exec:java</code>: компиляция не запускает программу. И проверь флаг <code>-q</code> — «тихий режим», он прячет строки <code>[INFO]</code>, но вывод твоей программы оставляет.</p>
+</details>
+
+<h2>Проверь себя</h2>
+<div class="quiz-score"></div>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>1. Ты запустил <code>mvn package</code>. Какие фазы выполнятся?</legend>
+  <label><input type="radio"> Только package, остальные фазы надо вызывать отдельно</label>
+  <label><input type="radio"> Все фазы цикла до package: compile, test, package</label>
+  <label><input type="radio"> Сначала clean, потом compile, потом только package</label>
+  <label><input type="radio"> Только compile и package, а тесты всегда пропускаются</label>
+  <p class="feedback">Вызванная фаза выполняет все предыдущие. Поэтому упавший тест не даст собрать jar. <code>clean</code> — отдельный цикл, сам не запускается.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>2. Класс начинается с <code>package ru.ilyagrg.bank;</code>. Где должен лежать файл?</legend>
+  <label><input type="radio"> src/ru.ilyagrg.bank/Bank.java рядом с файлом pom.xml</label>
+  <label><input type="radio"> src/main/java/Bank.java, а пакет Maven подставит сам</label>
+  <label><input type="radio"> src/main/ru/ilyagrg/bank/Bank.java без папки java</label>
+  <label><input type="radio"> src/main/java/ru/ilyagrg/bank/Bank.java, точки стали папками</label>
+  <p class="feedback">Корень пакетов — <code>src/main/java</code>, каждая точка в имени пакета — вложенная папка.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>3. Сборка пишет <code>Could not resolve dependencies ... commons-lang3:jar:3.99.0</code>. В чём дело?</legend>
+  <label><input type="radio"> Maven не нашёл такую версию библиотеки в хранилищах</label>
+  <label><input type="radio"> В Java-коде не написан нужный import этого класса</label>
+  <label><input type="radio"> В файле pom.xml не закрыт один из XML-тегов</label>
+  <label><input type="radio"> Файлы проекта лежат не в папке src/main/java</label>
+  <p class="feedback">Ошибка Maven, до компиляции не дошло: координаты не находятся. Забытый import дал бы <code>COMPILATION ERROR</code>, незакрытый тег — <code>Non-parseable POM</code>, не та папка — <code>No sources to compile</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>4. <code>mvn compile</code> прошёл, а <code>java -cp target/classes ...Main</code> падает с <code>NoClassDefFoundError: .../StringUtils</code>. Почему?</legend>
+  <label><input type="radio"> Maven скомпилировал классы под неправильную версию Java</label>
+  <label><input type="radio"> Класс StringUtils удалён из библиотеки после сборки</label>
+  <label><input type="radio"> В ручном -cp нет jar-файла библиотеки, только твои классы</label>
+  <label><input type="radio"> Перед запуском java обязательно нужно выполнить mvn clean</label>
+  <p class="feedback">Maven подставляет библиотеки в <code>-cp</code> сам, но только для своих команд. Руками запущенная <code>java</code> о них не знает. Отсюда <code>mvn exec:java</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>5. Нужна вторая библиотека. Куда вставить её <code>&lt;dependency&gt;</code>?</legend>
+  <label><input type="radio"> В новый блок dependencies сразу под первым таким же</label>
+  <label><input type="radio"> Внутрь того же dependencies, рядом с первой зависимостью</label>
+  <label><input type="radio"> Внутрь первой dependency, после её тега version</label>
+  <label><input type="radio"> В блок properties, где лежат все настройки сборки</label>
+  <p class="feedback">Коробка <code>&lt;dependencies&gt;</code> одна на файл, в ней сколько угодно <code>&lt;dependency&gt;</code>. Второй блок — <code>Duplicated tag</code>.</p>
+</fieldset>
+
+<h2>Домашка</h2>
+<p>В ветке <code>feature/maven</code>. Каждый шаг — коммит. Если застрял на синтаксисе — сначала открой «пишем с нуля по шагам» выше и пиши по нему, а не копируй готовый файл целиком: так он запомнится.</p>
+
+<div class="task">
+<h3>Шаг 0. Хвосты урока 13 — в <code>main</code></h3>
+<ul>
+  <li>Раскомментируй две отрицательные проверки репозитория в <code>src/lesson0013/Main.java</code> и поставь ключ, которого в репозитории нет (подсказка: одну валюту ты туда не сохранял). Каждую один раз увидь красной: временно сохрани и эту валюту — обе должны стать <code>ОШИБКА</code>, потом убери.</li>
+  <li>Удали <code>rates</code> или перенеси на него проверки.</li>
+  <li><code>git branch -d features/record</code>.</li>
+  <li>Закоммить мои файлы (README, GLOSSARY, NOTES, learning-records, уроки, <code>assets/lesson.css</code>). <code>git push</code>.</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Шаг 1. Установка</h3>
+<p>По разделу 2: <code>sudo apt install maven</code>, <code>JAVA_HOME</code> в <code>~/.bashrc</code>. Готово, когда <code>mvn -v</code> показывает <strong>Java version: 21</strong>. Коммитить нечего.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 2. Скелет проекта</h3>
+<ol>
+  <li><code>git switch -c feature/maven</code>.</li>
+  <li>Папки: <code>lesson0014/src/main/java/ru/ilyagrg/bank</code> и <code>lesson0014/src/test/java</code> (в корне репозитория, рядом с <code>src/</code>).</li>
+  <li><code>lesson0014/pom.xml</code> — <strong>только шаги 1 и 2</strong> из раздела 4 (паспорт + properties). <code>groupId</code> — свой.</li>
+  <li>Скопируй все <code>.java</code> из <code>src/lesson0013</code> в <code>.../ru/ilyagrg/bank/</code>. В каждом файле поменяй <code>package</code>.</li>
+  <li><code>cd lesson0014 &amp;&amp; mvn compile</code> → <code>BUILD SUCCESS</code>. Проверь, что в выводе <strong>нет</strong> <code>No sources to compile</code>, а в <code>target/classes/ru/ilyagrg/bank/</code> появились <code>.class</code>.</li>
+</ol>
+<p>Строку <code>target/</code> в <code>.gitignore</code> — до коммита (раздел 10). Коммит: только исходники и <code>pom.xml</code>, без <code>target</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 3. Запуск через Maven</h3>
+<p>Добавь в <code>pom.xml</code> шаг 4 — плагин <code>exec-maven-plugin</code>. Запусти <code>mvn compile exec:java</code>: все проверки банка <code>ОК</code>, столько же, сколько в уроке 13. Коммит.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Первая зависимость</h3>
+<ol>
+  <li>Найди <code>commons-lang3</code> на <a href="https://central.sonatype.com/">central.sonatype.com</a> и скопируй блок <code>&lt;dependency&gt;</code> версии <code>3.17.0</code> (шаг 3 из раздела 4).</li>
+  <li>В <code>AccountNumber</code> замени проверку <code>value == null || value.isBlank()</code> на <code>StringUtils.isBlank(value)</code>. Удали ставший ненужным <code>import java.util.Objects</code> (хвост урока 13).</li>
+  <li>Добавь две проверки: <code>new AccountNumber(null)</code> и <code>new AccountNumber("   ")</code> бросают <code>IllegalArgumentException</code>. Каждую один раз увидь красной: временно передай вместо <code>null</code> и <code>"   "</code> правильный номер <code>"BANK-1"</code> — исключения не будет, проверка станет <code>ОШИБКА</code>. Верни как было.</li>
+  <li>Подумай и напиши в комментарии над проверкой: если из условия убрать <code>StringUtils.isBlank(value) ||</code>, что случится с <code>null</code>, а что — с <code>"   "</code>? (Подсказка: посмотри на вторую половину условия.)</li>
+  <li><code>mvn compile exec:java</code> — все <code>ОК</code>. Коммит.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 5. Сборка</h3>
+<p><code>mvn clean package</code>. Найди в выводе строку <code>Building jar:</code>, а на диске — файл <code>commons-lang3-3.17.0.jar</code> в <code>~/.m2</code>. <code>git status</code> — <code>target/</code> не видно. Когда пришлёшь домашку, напиши мне две вещи: полный путь к <code>commons-lang3-3.17.0.jar</code> и какие плагины (имена между <code>---</code>) отработали при <code>package</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 6. Слить и отправить</h3>
+<p>Слияние в <code>main</code>, <code>git show --stat</code>, удалить ветку, <code>git push</code>. Потом — «проверь домашку 0014».</p>
+</div>
+
+<h2>Первоисточник</h2>
+<p><a href="https://maven.apache.org/guides/getting-started/maven-in-five-minutes.html">Apache Maven: Maven in 5 Minutes</a> — официальное введение, ~15 минут. Потом <a href="https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html">Introduction to the Build Lifecycle</a> — первые два раздела, про фазы. Не пугайся команды <code>archetype:generate</code> в начале: это генератор проекта, мы пишем <code>pom.xml</code> руками, чтобы понимать каждую строку.</p>
+<p class="cite">Все выводы Maven в уроке получены на твоём компьютере: JDK 21.0.12, Maven 3.9.16.</p>
+
+<p>Шпаргалка — <a href="../reference/0014-maven-basics.html">справочник «Maven»</a>. Прошлый урок — <a href="0013-enum-record-optional.html">13. enum, record, Optional</a> и его <a href="../reference/0013-java-enum-record-optional.html">шпаргалка</a> — пригодится для разминки.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Особенно если в <code>pom.xml</code> не понятно, какой тег внутри какого: пришли кусок файла и текст ошибки — разберём построчно.</p>
+</div>
+
+<nav class="course">
+  <a href="0013-enum-record-optional.html">← Урок 13: enum, record, Optional</a>
+  <span>Урок 15: JUnit 5 →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

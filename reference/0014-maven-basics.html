@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Maven</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Инструменты</div>
+<h1>Maven</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0014-maven.html">уроку 0014</a>.</p>
+
+<h2>pom.xml: порядок блоков</h2>
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"&gt;
+    &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+
+    &lt;groupId&gt;ru.ilyagrg&lt;/groupId&gt;
+    &lt;artifactId&gt;bank&lt;/artifactId&gt;
+    &lt;version&gt;1.0-SNAPSHOT&lt;/version&gt;
+
+    &lt;properties&gt;
+        &lt;maven.compiler.release&gt;21&lt;/maven.compiler.release&gt;
+        &lt;project.build.sourceEncoding&gt;UTF-8&lt;/project.build.sourceEncoding&gt;
+    &lt;/properties&gt;
+
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.apache.commons&lt;/groupId&gt;
+            &lt;artifactId&gt;commons-lang3&lt;/artifactId&gt;
+            &lt;version&gt;3.17.0&lt;/version&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+
+    &lt;build&gt;
+        &lt;plugins&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.codehaus.mojo&lt;/groupId&gt;
+                &lt;artifactId&gt;exec-maven-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.5.0&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;mainClass&gt;ru.ilyagrg.bank.Main&lt;/mainClass&gt;
+                &lt;/configuration&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+    &lt;/build&gt;
+&lt;/project&gt;</code></pre>
+<p><strong>GAV</strong> = <code>groupId:artifactId:version</code> — координаты проекта. Чужие координаты копировать с <a href="https://central.sonatype.com/">central.sonatype.com</a>. Коробки (<code>dependencies</code>, <code>plugins</code>) — одна на файл.</p>
+
+<h2>Структура</h2>
+<pre><code>pom.xml
+src/main/java/ru/ilyagrg/bank/*.java   ← package ru.ilyagrg.bank;
+src/test/java/...                      ← тесты
+target/                                ← результат, в .gitignore</code></pre>
+
+<h2>Команды (из папки с pom.xml)</h2>
+<table>
+  <tr><td><code>mvn compile</code></td><td><code>src/main/java</code> → <code>target/classes</code></td></tr>
+  <tr><td><code>mvn test</code></td><td>compile + запустить тесты</td></tr>
+  <tr><td><code>mvn package</code></td><td>compile + test + <code>target/*.jar</code></td></tr>
+  <tr><td><code>mvn clean</code></td><td>удалить <code>target/</code></td></tr>
+  <tr><td><code>mvn compile exec:java</code></td><td>собрать и запустить <code>mainClass</code></td></tr>
+  <tr><td><code>mvn -v</code></td><td>версии Maven и Java (должна быть 21)</td></tr>
+  <tr><td><code>-q</code></td><td>тихо: без строк <code>[INFO]</code></td></tr>
+</table>
+<p>Фаза выполняет все предыдущие: <code>validate → compile → test → package → verify → install</code>.</p>
+
+<h2>Ошибки</h2>
+<table>
+  <tr><td><code>release version 21 not supported</code></td><td>Maven взял не ту JDK → <code>export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64</code></td></tr>
+  <tr><td><code>Non-parseable POM ... end tag name</code></td><td>ошибка XML: тег не закрыт или регистр</td></tr>
+  <tr><td><code>Duplicated tag: 'dependencies'</code></td><td>второй блок-коробка вместо элемента в первой</td></tr>
+  <tr><td><code>No sources to compile</code> + SUCCESS</td><td>файлы не в <code>src/main/java</code></td></tr>
+  <tr><td><code>records are not supported in -source 8</code></td><td>нет <code>maven.compiler.release</code></td></tr>
+  <tr><td><code>Could not resolve dependencies</code></td><td>неверные координаты или версия</td></tr>
+  <tr><td><code>package ... does not exist</code></td><td>нет зависимости в <code>pom.xml</code> (или IntelliJ не обновлена)</td></tr>
+  <tr><td><code>NoClassDefFoundError</code> при <code>java -cp target/classes</code></td><td>библиотек нет в ручном <code>-cp</code> → <code>mvn exec:java</code></td></tr>
+  <tr><td><code>no main manifest attribute</code></td><td>обычный jar не знает главный класс</td></tr>
+</table>
+
+<h2>Зависимости</h2>
+<p>Скачиваются один раз в <code>~/.m2/repository/&lt;groupId папками&gt;/&lt;artifactId&gt;/&lt;version&gt;/</code>. IntelliJ после правки <code>pom.xml</code> — <em>Load Maven Changes</em>.</p>
+
+<p class="cite">Источники: <a href="https://maven.apache.org/guides/getting-started/maven-in-five-minutes.html">Maven in 5 Minutes</a>, <a href="https://maven.apache.org/pom.html">POM Reference</a>, <a href="https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html">Build Lifecycle</a>, <a href="https://maven.apache.org/guides/introduction/introduction-to-the-standard-directory-layout.html">Standard Directory Layout</a>. Проверено на JDK 21, Maven 3.9.</p>
+
+</main>
+</body>
+</html>

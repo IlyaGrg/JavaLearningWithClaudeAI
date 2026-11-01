@@ -20,14 +20,15 @@
 | 10 | Git-ветки | Рефакторинг и новые проверки в отдельных ветках, fast-forward и коммит слияния, первый конфликт разрешён вручную, эксперимент в ветке на выброс; журнал команд в [`GIT-NOTES.md`](src/lesson0010/GIT-NOTES.md) | [`lesson0010`](src/lesson0010) |
 | 11 | Лямбды и `Comparator` | Сортировки счетов через `Comparator.comparing(...).thenComparingInt(...)` и `reversed()`, `findAccounts(Predicate)`, группировка через `merge` и `computeIfAbsent` — сначала проверки, потом рефакторинг; эксперименты с ошибками лямбд в [`EXPERIMENTS.md`](src/lesson0011/EXPERIMENTS.md) | [`lesson0011`](src/lesson0011) |
 | 12 | Stream API | Все методы банка переписаны на стримы (`mapToInt().sum()`, `filter`, `sorted`, `distinct`, `groupingBy` + `summingInt`), каждый отдельным коммитом после проверок; новые `richOwners` и `countAccounts`; ловушки `allMatch` на пустом стриме, одноразового стрима и `toList()` в [`EXPERIMENTS.md`](src/lesson0012/EXPERIMENTS.md) | [`lesson0012`](src/lesson0012) |
+| 13 | `enum`, `record`, `Optional` | `AccountNumber` переписан в `record` с компактным конструктором (41 строка → 11, проверки урока 8 прошли без изменений); `enum Currency` с названием и символом через switch-выражение; `findById` возвращает `Optional`, как в Spring Data, а банк превращает пустой результат в исключение через `orElseThrow`; новый `findRichest()` | [`lesson0013`](src/lesson0013) |
 
 ## Как запустить
 
-Нужен JDK 21. Из корня репозитория, на примере урока 12:
+Нужен JDK 21. Из корня репозитория, на примере урока 13:
 
 ```bash
-javac -d out src/lesson0012/*.java
-java -cp out lesson0012.Main
+javac -d out src/lesson0013/*.java
+java -cp out lesson0013.Main
 ```
 
 В уроках 1 и 2 главный класс — `Shop` вместо `Main`: `java -cp out lesson0001.Shop`.
@@ -46,7 +47,7 @@ RESOURCES.md        источники: туториалы Oracle, докуме�
 
 ## Дальше по плану
 
-enum, record, Optional → Maven и JUnit 5 → SQL и PostgreSQL → Spring Boot → Docker и деплой.
+Maven → JUnit 5 → мини-проект «Консольный банк» (до 22 ноября) → SQL и PostgreSQL → Spring Boot → Docker и деплой.
 
 ## Стек
 
