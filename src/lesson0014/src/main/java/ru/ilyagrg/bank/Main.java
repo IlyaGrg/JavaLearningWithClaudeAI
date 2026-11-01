@@ -1,4 +1,4 @@
-package lesson0014.src.main.java.ru.ilyagrg.bank;
+package ru.ilyagrg.bank;
 
 
 import java.util.*;
@@ -71,8 +71,21 @@ public class Main {
         Optional<BankAccount> richest1 = Optional.of(bAcc);
         check("findRichest работает исправно", new Bank().findRichest().isEmpty() && tBank.findRichest().equals(richest1));
 
-
-
+        flag = false;
+        try{
+            new AccountNumber(null);
+        } catch (IllegalArgumentException e){
+            flag = true;
+        }
+        check("new AccountNumber(null) бросает исключение", flag);
+        flag = false;
+        try{
+            new AccountNumber(" ");
+        } catch (IllegalArgumentException e){
+            flag = true;
+        }
+        check("new AccountNumber(' ') бросает исключение", flag);
+        //null пройдет а " " бросит исключение так как не начинается с BANK
     }
 
     static void check(String message, boolean condition) {

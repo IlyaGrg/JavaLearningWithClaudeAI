@@ -1,4 +1,4 @@
-package lesson0014.src.main.java.ru.ilyagrg.bank;
+package ru.ilyagrg.bank;
 
 public enum Currency {
     RUB("Российский рубль"), USD("Доллар США"), EUR("Евро");

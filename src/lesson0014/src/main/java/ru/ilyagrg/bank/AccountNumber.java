@@ -1,10 +1,10 @@
-package lesson0014.src.main.java.ru.ilyagrg.bank;
+package ru.ilyagrg.bank;
 
-import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
 
 public record AccountNumber(String value) {
     public AccountNumber{
-        if (value == null || value.isBlank() || !value.startsWith("BANK")) {
+        if (StringUtils.isBlank(value)|| !value.startsWith("BANK")) {
             throw new IllegalArgumentException("Некорректное значение: ");
         }
     }

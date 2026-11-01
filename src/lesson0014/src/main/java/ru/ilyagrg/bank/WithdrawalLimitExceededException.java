@@ -1,4 +1,4 @@
-package lesson0014.src.main.java.ru.ilyagrg.bank;
+package ru.ilyagrg.bank;
 
 public class WithdrawalLimitExceededException extends RuntimeException {
     private int amount;
