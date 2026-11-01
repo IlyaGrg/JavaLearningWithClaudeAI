@@ -85,7 +85,7 @@ mvn -v</code></pre>
 <pre class="out good">Apache Maven 3.9.12 ...
 Maven home: /usr/share/maven
 Java version: 21.0.12.1, vendor: Ubuntu, runtime: /usr/lib/jvm/java-21-openjdk-amd64</pre>
-<p class="cite">Версия Maven у тебя будет из репозитория Ubuntu (3.9.12) — для курса любая 3.9.x подходит. Я проверял примеры на 3.9.16 из IntelliJ, выводы совпадают.</p>
+<p class="cite">Версия Maven у тебя будет из репозитория Ubuntu (3.9.12) — для курса любая 3.9.x подходит. Я проверял примеры на 3.9.16 из IntelliJ. Смысл вывода тот же, но версии плагинов у тебя будут другими (например, <code>compiler:3.13.0</code> и <code>surefire:2.17</code>): их выбирает сам Maven.</p>
 
 <h2>3. XML за десять минут</h2>
 <p><code>pom.xml</code> написан на <strong>XML</strong> — формате, где данные лежат внутри тегов, как в HTML. Если ты видел HTML — ты почти всё знаешь. Правил пять:</p>
@@ -501,7 +501,7 @@ java -jar target/bank-1.0-SNAPSHOT.jar</code></pre>
 
 <h2>Первоисточник</h2>
 <p><a href="https://maven.apache.org/guides/getting-started/maven-in-five-minutes.html">Apache Maven: Maven in 5 Minutes</a> — официальное введение, ~15 минут. Потом <a href="https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html">Introduction to the Build Lifecycle</a> — первые два раздела, про фазы. Не пугайся команды <code>archetype:generate</code> в начале: это генератор проекта, мы пишем <code>pom.xml</code> руками, чтобы понимать каждую строку.</p>
-<p class="cite">Все выводы Maven в уроке получены на твоём компьютере: JDK 21.0.12, Maven 3.9.16.</p>
+<p class="cite">Все выводы Maven в уроке получены на твоём компьютере: JDK 21.0.12, Maven 3.9.16 из IntelliJ. Версии плагинов в твоём выводе (apt, Maven 3.9.12) отличаются.</p>
 
 <p>Шпаргалка — <a href="../reference/0014-maven-basics.html">справочник «Maven»</a>. Прошлый урок — <a href="0013-enum-record-optional.html">13. enum, record, Optional</a> и его <a href="../reference/0013-java-enum-record-optional.html">шпаргалка</a> — пригодится для разминки.</p>
 

@@ -23,6 +23,7 @@
 - Справочники в `reference/` называть с номером урока: `NNNN-java-<тема>.html` (просьба Ильи 2026-10-13, чтобы легче искать). Для не-Java тем — `NNNN-<технология>-<тема>.html` (например `0010-git-branches.html`).
 
 ## Окружение
+- Maven 3.9.12 из apt, `JAVA_HOME` на JDK 21 (2026-11-01). Плагины по умолчанию старые: `surefire:2.17`, `compiler:3.13.0`, `jar:3.1.2`. **Для урока 15: surefire 2.17 не запускает JUnit 5 — зафиксировать свежую версию в `pom.xml` и проверить именно на apt-Maven (`/usr/bin/mvn`), а не на Maven из IntelliJ.**
 - Ubuntu, OpenJDK 21.0.12, Git 2.53, IntelliJ IDEA. В Git настроено `user.name = Ilya`.
 - Запускает код и из терминала. Привык к `java File.java` (single-file mode); 2026-10-09 объяснил `javac -d out src/lessonNNNN/*.java` + `java -cp out lessonNNNN.Main`. Позже заменим на Maven.
 

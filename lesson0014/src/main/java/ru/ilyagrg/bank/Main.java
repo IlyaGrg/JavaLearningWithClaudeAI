@@ -85,6 +85,13 @@ public class Main {
             flag = true;
         }
         check("new AccountNumber(' ') бросает исключение", flag);
+        flag = false;
+        try{
+            new AccountNumber("Hello world");
+        } catch (IllegalArgumentException e){
+            flag = true;
+        }
+        check("new AccountNumber() без BANK в начале бросает исключение", flag);
         //null пройдет а " " бросит исключение так как не начинается с BANK
     }
 
@@ -200,8 +207,7 @@ public class Main {
         check("count растет", value.count() == firstCount + 1);
         check("Ожидается: Российский рубль", value.findById(Currency.RUB).equals(Optional.of("Российский рубль")));
         check("existsById для существующего ID", value.existsById(Currency.RUB));
-//        check("existsById для несуществующего ID", !value.existsById("SDRUB"));
-//        check("findById несуществующего ID бросает исключение", value.findById("reb").isEmpty());
+        
         check("Корректная работа Currency value и valueOf", Currency.valueOf("USD") == Currency.USD && Currency.values().length == 3);
         thrown = false;
         try{
