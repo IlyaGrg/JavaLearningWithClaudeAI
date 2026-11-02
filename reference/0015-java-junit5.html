@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · JUnit 5</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java · Тесты</div>
+<h1>JUnit 5</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0015-junit5.html">уроку 0015</a>.</p>
+
+<h2>pom.xml</h2>
+<pre><code>&lt;dependency&gt;
+    &lt;groupId&gt;org.junit.jupiter&lt;/groupId&gt;
+    &lt;artifactId&gt;junit-jupiter&lt;/artifactId&gt;
+    &lt;version&gt;5.11.4&lt;/version&gt;
+    &lt;scope&gt;test&lt;/scope&gt;
+&lt;/dependency&gt;
+
+&lt;plugin&gt;                                   &lt;!-- обязательно: старый surefire даёт Tests run: 0 --&gt;
+    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+    &lt;artifactId&gt;maven-surefire-plugin&lt;/artifactId&gt;
+    &lt;version&gt;3.5.2&lt;/version&gt;
+&lt;/plugin&gt;</code></pre>
+
+<h2>Тестовый класс</h2>
+<pre><code>// src/test/java/ru/ilyagrg/shop/ShopTest.java
+package ru.ilyagrg.shop;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class ShopTest {
+    private Shop shop;
+
+    @BeforeEach
+    void setUp() {
+        shop = new Shop();              // поле, а не Shop shop = ...
+    }
+
+    @Test
+    void totalOfEmptyShopIsZero() {
+        assertEquals(0, shop.total());  // ожидаемое, полученное
+    }
+}</code></pre>
+
+<h2>Проверки</h2>
+<table>
+  <tr><td><code>assertEquals(ожидаемое, полученное)</code></td><td>через <code>equals</code>; числа, строки, <code>Optional</code>, <code>List</code>, <code>Map</code></td></tr>
+  <tr><td><code>assertEquals(Optional.of(90), x)</code></td><td><code>Optional</code> со значением</td></tr>
+  <tr><td><code>assertTrue(x.isEmpty())</code></td><td>пустой <code>Optional</code> или список</td></tr>
+  <tr><td><code>assertFalse(условие)</code></td><td>условие ложно</td></tr>
+  <tr><td><code>assertSame(a, b)</code></td><td>один объект, <code>==</code></td></tr>
+  <tr><td><code>assertThrows(X.class, () -&gt; код)</code></td><td>бросает <code>X</code>; возвращает исключение</td></tr>
+</table>
+<pre><code>IllegalArgumentException e = assertThrows(
+        IllegalArgumentException.class,
+        () -&gt; shop.addProduct("сыр", -1));
+assertEquals("Цена меньше нуля: -1", e.getMessage());</code></pre>
+
+<h2>Параметризованные</h2>
+<pre><code>@ParameterizedTest                        // вместо @Test
+@NullSource                               // один запуск с null
+@ValueSource(strings = {"", "   "})       // ints = {...} для int
+void rejects(String value) { ... }
+
+@ParameterizedTest
+@CsvSource({
+        "RUB, ₽",                          // одна строка — один запуск
+        "USD, $"
+})
+void knows(Currency c, String symbol) { ... }</code></pre>
+<p>Импорты: <code>org.junit.jupiter.params.ParameterizedTest</code>, <code>org.junit.jupiter.params.provider.*</code>.</p>
+
+<h2>Четыре вопроса к каждому методу</h2>
+<table>
+  <tr><td>Обычный случай</td><td>точное значение, посчитанное заранее</td></tr>
+  <tr><td>Пусто или нет</td><td>пустая коллекция, не нашёл</td></tr>
+  <tr><td>Граница</td><td>ровно на краю условия</td></tr>
+  <tr><td>Ошибка</td><td>нужное исключение, состояние не изменилось</td></tr>
+</table>
+
+<h2>Команды</h2>
+<table>
+  <tr><td><code>mvn test</code></td><td>запустить все тесты; смотри на число <code>Tests run</code></td></tr>
+  <tr><td><code>mvn test -Dtest=ShopTest</code></td><td>один класс</td></tr>
+  <tr><td><code>mvn test -Dtest='ShopTest#total*'</code></td><td>методы по шаблону</td></tr>
+  <tr><td><code>mvn clean package</code></td><td>упал тест — jar не собран</td></tr>
+</table>
+
+<h2>Вывод и ошибки</h2>
+<table>
+  <tr><td><code>Tests run: 0</code> + SUCCESS</td><td>старый surefire → версия 3.5.2</td></tr>
+  <tr><td>Нет строки <code>Tests run</code></td><td>имя класса не заканчивается на <code>Test</code></td></tr>
+  <tr><td>Тестов на один меньше</td><td>забыт <code>@Test</code></td></tr>
+  <tr><td><code>expected: &lt;141&gt; but was: &lt;140&gt;</code></td><td>Failure: значения не совпали</td></tr>
+  <tr><td><code>expected: &lt;90&gt; but was: &lt;Optional[90]&gt;</code></td><td>сравниваешь число с <code>Optional</code></td></tr>
+  <tr><td><code>Errors: N</code></td><td>неожиданное исключение, например NPE в тесте</td></tr>
+  <tr><td><code>...to be thrown, but nothing was thrown</code></td><td>исключения не было</td></tr>
+  <tr><td><code>Unexpected exception type thrown</code></td><td>исключение другого типа</td></tr>
+  <tr><td><code>cannot find symbol: method assertEquals</code></td><td>нет <code>import static</code></td></tr>
+  <tr><td><code>package org.junit... does not exist</code></td><td>JUnit в <code>src/main/java</code> или нет зависимости</td></tr>
+</table>
+
+<p class="cite">Источники: <a href="https://junit.org/junit5/docs/current/user-guide/">JUnit 5 User Guide</a>, <a href="https://junit.org/junit5/docs/current/api/org.junit.jupiter.api/org/junit/jupiter/api/Assertions.html">Assertions API</a>, <a href="https://maven.apache.org/surefire/maven-surefire-plugin/examples/junit-platform.html">Surefire: JUnit Platform</a>. Проверено на JDK 21, Maven 3.9.12.</p>
+
+</main>
+</body>
+</html>

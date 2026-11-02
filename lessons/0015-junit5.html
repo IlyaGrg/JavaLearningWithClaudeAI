@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 15 · JUnit 5</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0015 · Инструменты · ~2 часа + домашка</div>
+<h1>JUnit 5: тесты вместо <code>check()</code></h1>
+<p class="subtitle">После этого урока ты напишешь настоящие тесты: с <code>assertEquals</code>, <code>assertThrows</code>, <code>@BeforeEach</code> и параметрами. Их запускает одна команда <code>mvn test</code>, а упавший тест не даёт собрать проект.</p>
+
+<div class="note">
+<p><strong>Зачем этот урок для backend.</strong> На работе код без тестов обычно не пройдёт проверку перед слиянием. <a href="https://docs.spring.io/spring-boot/reference/testing/index.html">Spring Boot</a> подключает JUnit по умолчанию, так что тесты твоего будущего REST API будут написаны почти тем же синтаксисом, что и сегодня. На собеседовании спросят, как ты тестируешь код и что такое граничный случай. Сегодня появится честный ответ.</p>
+</div>
+
+<h2>Разминка: по памяти</h2>
+<p>Сначала напиши ответ сам, потом открой.</p>
+
+<details class="reveal"><summary>1. Урок 14: запиши блок <code>&lt;dependency&gt;</code> для <code>org.apache.commons:commons-lang3:3.21.0</code>. В какой блок-коробку он вкладывается?</summary>
+<pre><code>&lt;dependencies&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.apache.commons&lt;/groupId&gt;
+        &lt;artifactId&gt;commons-lang3&lt;/artifactId&gt;
+        &lt;version&gt;3.21.0&lt;/version&gt;
+    &lt;/dependency&gt;
+&lt;/dependencies&gt;</code></pre>
+</details>
+
+<details class="reveal"><summary>2. Урок 14: какие фазы выполнит <code>mvn package</code>? Что будет, если упадёт тест?</summary>
+<p><code>compile → test → package</code> (плюс <code>validate</code> в начале). Упал тест — до <code>package</code> дело не дойдёт, и jar не соберётся. Ниже это показано на настоящем запуске.</p>
+</details>
+
+<details class="reveal"><summary>3. Урок 11: напиши лямбду без параметров, которая вызывает <code>account.withdraw(500)</code> и ничего не возвращает.</summary>
+<pre><code>() -&gt; account.withdraw(500)</code></pre>
+<p>Запомни эту форму: на ней держится <code>assertThrows</code>.</p>
+</details>
+
+<details class="reveal"><summary>4. Урок 14: номер без <code>BANK</code> ты уже проверяешь. А что случилось, когда я убрал <code>isBlank</code> и передал <code>null</code>?</summary>
+<p><code>NullPointerException</code>. Твой <code>catch</code> его не поймал, и программа остановилась: последние проверки вообще не выполнились. Это первая причина перейти на JUnit.</p>
+</details>
+
+<h2>1. Чем плох твой <code>check()</code></h2>
+<p>Твой метод честно служил семь уроков. Но у него есть четыре дыры, и все ты уже видел:</p>
+<div class="annotated">
+  <div class="row"><code>Exception in thread "main"</code><div><strong>Одно исключение убивает всё.</strong> Проверки после него не запускаются, и ты не узнаешь, сломаны ли они</div></div>
+  <div class="row"><code>ОШИБКА: ...</code><br><code>BUILD SUCCESS</code><div><strong>Maven не знает о провале.</strong> Для него программа просто что-то напечатала. Он соберёт jar даже со строкой «ОШИБКА»</div></div>
+  <div class="row"><code>boolean thrown = false;</code><br><code>try { ... } catch ...</code><div><strong>Много шума.</strong> Шесть строк на проверку одного исключения</div></div>
+  <div class="row"><code>check("...", a == b)</code><div><strong>Нет деталей.</strong> Видно, что проверка не прошла, но не видно, что получилось и что ожидалось</div></div>
+</div>
+<p><strong>JUnit</strong> — стандартная библиотека тестов для Java (<a href="https://junit.org/junit5/docs/current/user-guide/">JUnit 5 User Guide</a>). Тест здесь — обычный метод с пометкой <code>@Test</code>. JUnit сам находит такие методы, запускает каждый отдельно и считает результат.</p>
+
+<div class="note">
+<p><strong>Как в Python.</strong> Это <code>pytest</code>. <code>def test_total(): assert total() == 140</code> превращается в метод с <code>@Test</code> и <code>assertEquals(140, total())</code>. <code>pytest.raises(ValueError)</code> становится <code>assertThrows(...)</code>, фикстура — <code>@BeforeEach</code>, а <code>@pytest.mark.parametrize</code> — <code>@ParameterizedTest</code>.</p>
+</div>
+
+<h2>2. Подключаем JUnit — и обходим ловушку</h2>
+<p>Весь урок показан на соседнем примере: простой магазин <code>Shop</code>, в нём товары и цены. Банк останется тебе на домашку.</p>
+<pre><code>package ru.ilyagrg.shop;
+
+public class Shop {
+    private Map&lt;String, Integer&gt; prices = new HashMap&lt;&gt;();
+
+    public void addProduct(String name, int price) {
+        if (price &lt; 0) {
+            throw new IllegalArgumentException("Цена меньше нуля: " + price);
+        }
+        prices.put(name, price);
+    }
+
+    public Optional&lt;Integer&gt; findPrice(String name) {
+        return Optional.ofNullable(prices.get(name));
+    }
+
+    public int total() {
+        return prices.values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    public int count() {
+        return prices.size();
+    }
+}</code></pre>
+
+<ol class="recipe">
+<li>
+<p><strong>Зависимость.</strong> В твою коробку <code>&lt;dependencies&gt;</code>, рядом с <code>commons-lang3</code>:</p>
+<pre><code>&lt;dependency&gt;
+    &lt;groupId&gt;org.junit.jupiter&lt;/groupId&gt;
+    &lt;artifactId&gt;junit-jupiter&lt;/artifactId&gt;
+    &lt;version&gt;5.11.4&lt;/version&gt;
+    &lt;scope&gt;test&lt;/scope&gt;
+&lt;/dependency&gt;</code></pre>
+<div class="annotated">
+  <div class="row"><code>junit-jupiter</code><div>сам JUnit 5, включая параметризованные тесты из раздела 7</div></div>
+  <div class="row"><code>&lt;scope&gt;test&lt;/scope&gt;</code><div><strong>новый тег:</strong> библиотека видна только коду в <code>src/test/java</code> и не попадёт в готовое приложение (<a href="https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope">Maven: Dependency Scope</a>)</div></div>
+</div>
+</li>
+<li>
+<p><strong>Свежий плагин запуска тестов.</strong> В коробку <code>&lt;plugins&gt;</code>, рядом с <code>exec-maven-plugin</code>:</p>
+<pre><code>&lt;plugin&gt;
+    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+    &lt;artifactId&gt;maven-surefire-plugin&lt;/artifactId&gt;
+    &lt;version&gt;3.5.2&lt;/version&gt;
+&lt;/plugin&gt;</code></pre>
+<p>Без него ты попадёшь в ловушку. Тесты запускает плагин <code>surefire</code>, и твой Maven из <code>apt</code> по умолчанию берёт старую версию 2.17, а JUnit 5 поддерживается <a href="https://maven.apache.org/surefire/maven-surefire-plugin/examples/junit-platform.html">начиная с 2.22.0</a>. Вот что я получил на твоём Maven без этого блока, когда в проекте было 10 тестов:</p>
+<pre class="out bad">[INFO] --- surefire:2.17:test (default-test) @ shop ---
+ T E S T S
+-------------------------------------------------------
+
+Results :
+
+Tests run: 0, Failures: 0, Errors: 0, Skipped: 0
+
+[INFO] BUILD SUCCESS</pre>
+<p><strong>Ноль тестов — и зелёная сборка.</strong> Это снова твоя знакомая ловушка: успех, потому что проверять было нечего. Отныне после <code>mvn test</code> смотри не только на <code>BUILD SUCCESS</code>, но и на число в <code>Tests run</code>.</p>
+</li>
+</ol>
+
+<h2>3. Первый тест — пишем с нуля</h2>
+
+<div class="template">
+<p class="label">шаблон теста</p>
+<pre><code>class <span class="ph">ИмяКлассаTest</span> {
+
+    @Test
+    void <span class="ph">чтоДолжноПроисходить</span>() {
+        <span class="ph">подготовка: создать объекты</span>
+        <span class="ph">действие: вызвать проверяемый метод</span>
+        assertEquals(<span class="ph">ожидаемое</span>, <span class="ph">полученное</span>);
+    }
+}</code></pre>
+</div>
+
+<ol class="recipe">
+<li>
+<p><strong>Создай файл там, где его ищет Maven.</strong> Тот же пакет, что у проверяемого класса, но корень — <code>src/test/java</code>. Имя заканчивается на <code>Test</code>.</p>
+<pre><code>src/main/java/ru/ilyagrg/shop/Shop.java       ← код
+src/test/java/ru/ilyagrg/shop/ShopTest.java   ← его тест</code></pre>
+</li>
+<li>
+<p><strong>Пакет, импорты, пустой класс.</strong></p>
+<pre><code>package ru.ilyagrg.shop;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class ShopTest {
+}</code></pre>
+<div class="annotated">
+  <div class="row"><code>package ru.ilyagrg.shop;</code><div>тот же пакет, что у <code>Shop</code>, поэтому импортировать его не нужно</div></div>
+  <div class="row"><code>import ...api.Test;</code><div>аннотация <code>@Test</code>. Импорт обычный</div></div>
+  <div class="row"><code>import static ...assertEquals;</code><div><strong>новое:</strong> <code>import static</code> импортирует статический метод. Иначе пришлось бы каждый раз писать <code>Assertions.assertEquals(...)</code></div></div>
+  <div class="row"><code>class ShopTest</code><div><code>public</code> не нужен: JUnit 5 найдёт класс и без него</div></div>
+</div>
+</li>
+<li>
+<p><strong>Метод-тест.</strong> Внутри класса. Имя описывает поведение, а не метод: не <code>test1</code>, а <code>totalSumsAllPrices</code>.</p>
+<pre><code>class ShopTest {
+
+    @Test
+    void totalSumsAllPrices() {
+    }
+}</code></pre>
+<p>Правила: <code>@Test</code> на строке над методом, <code>void</code>, без параметров, не <code>private</code> и не <code>static</code>. Пустой тест уже считается пройденным, поэтому не останавливайся здесь.</p>
+</li>
+<li>
+<p><strong>Наполняем: подготовка, действие, проверка.</strong> Ожидаемое число считай сам, заранее: 90 + 50 = 140.</p>
+<pre><code>@Test
+void totalSumsAllPrices() {
+    Shop shop = new Shop();                 // подготовка
+    shop.addProduct("молоко", 90);
+    shop.addProduct("хлеб", 50);
+
+    int total = shop.total();               // действие
+
+    assertEquals(140, total);               // проверка: ожидаемое, полученное
+}</code></pre>
+</li>
+<li>
+<p><strong>Запускаем.</strong> Из папки с <code>pom.xml</code>:</p>
+<pre><code>mvn test</code></pre>
+<pre class="out good">[INFO] Running ru.ilyagrg.shop.ShopTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</pre>
+</li>
+</ol>
+
+<h3>Как читать упавший тест</h3>
+<p>Я заменил 140 на 141. Вот главные строки:</p>
+<pre class="out bad">[ERROR] Failures:
+[ERROR]   ShopTest.totalSumsAllPrices:27 expected: &lt;141&gt; but was: &lt;140&gt;
+[ERROR] Tests run: 10, Failures: 1, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+[ERROR] Failed to execute goal ...surefire...: There are test failures.</pre>
+<div class="annotated">
+  <div class="row"><code>ShopTest.totalSumsAllPrices:27</code><div>какой класс, какой тест, какая строка в файле теста</div></div>
+  <div class="row"><code>expected: &lt;141&gt; but was: &lt;140&gt;</code><div>ожидалось и получилось. Уже не надо гадать, как с <code>ОШИБКА</code></div></div>
+  <div class="row"><code>Failures: 1</code><div>остальные 9 тестов всё равно выполнились. Падение одного не останавливает другие</div></div>
+  <div class="row"><code>BUILD FAILURE</code><div>теперь сборка узнала о провале</div></div>
+</div>
+
+<h2>4. Проверки: какую когда</h2>
+<p>Все они — статические методы класса <a href="https://junit.org/junit5/docs/current/api/org.junit.jupiter.api/org/junit/jupiter/api/Assertions.html">Assertions</a>. Для каждой нужен свой <code>import static</code>.</p>
+
+<table>
+  <tr><th>Проверка</th><th>Когда</th></tr>
+  <tr><td><code>assertEquals(140, shop.total())</code></td><td>значение равно ожидаемому. Сравнивает через <code>equals</code>. Твой основной инструмент</td></tr>
+  <tr><td><code>assertTrue(list.isEmpty())</code></td><td>условие истинно</td></tr>
+  <tr><td><code>assertFalse(repo.existsById(id))</code></td><td>условие ложно</td></tr>
+  <tr><td><code>assertSame(account, found)</code></td><td>это <strong>один и тот же объект</strong>, сравнение через <code>==</code> (урок 8)</td></tr>
+  <tr><td><code>assertThrows(...)</code></td><td>код бросает исключение (раздел 5)</td></tr>
+</table>
+
+<h3>Как сравнивать разные типы</h3>
+<pre><code>assertEquals(2, shop.count());                                 // числа
+assertEquals("Цена меньше нуля: -1", e.getMessage());          // строки
+
+assertEquals(Optional.of(90), shop.findPrice("молоко"));       // Optional со значением
+assertTrue(shop.findPrice("сыр").isEmpty());                   // пустой Optional
+
+assertEquals(List.of("Adam", "Ilya"), bank.richOwners(100));   // список: те же элементы в том же порядке
+assertEquals(Map.of("Ilya", 300), bank.balanceByOwner());      // Map: те же пары</code></pre>
+
+<div class="note">
+<p><strong>Точное значение лучше общего условия.</strong> Эта строка заменяет твои <code>allMatch(...) &amp;&amp; size() != 0</code>:</p>
+<pre><code>assertEquals(List.of("Adam", "Ilya"), bank.richOwners(100));</code></pre>
+<p>Она проверяет сразу и состав, и порядок, и отсутствие дублей. На пустом результате она падает сама. Условие <code>allMatch</code> в тесты больше не бери.</p>
+</div>
+
+<h3>Частые ошибки</h3>
+<p><strong>Сравнил число с <code>Optional</code>.</strong> Написал <code>assertEquals(90, shop.findPrice("молоко"))</code>. Компилятор не возражает, но тест падает:</p>
+<pre class="out bad">expected: &lt;90&gt; but was: &lt;Optional[90]&gt;</pre>
+<p><strong>Забыл <code>import static</code>.</strong> Это ошибка компиляции, и <code>mvn</code> покажет её до запуска тестов:</p>
+<pre class="out bad">[ERROR] src/test/java/ru/ilyagrg/shop/ShopTest.java:[26,9] cannot find symbol
+  symbol:   method assertEquals(int,int)
+  location: class ru.ilyagrg.shop.ShopTest</pre>
+<p><strong>Перепутал порядок.</strong> Сначала ожидаемое, потом полученное. <code>assertEquals(shop.total(), 140)</code> тоже работает, но при падении сообщение будет обманывать: <code>expected</code> покажет настоящий результат.</p>
+
+<h2>5. assertThrows: проверяем исключение</h2>
+<div class="template">
+<p class="label">шаблон</p>
+<pre><code>assertThrows(<span class="ph">КлассИсключения</span>.class, () -&gt; <span class="ph">код, который должен упасть</span>);</code></pre>
+</div>
+
+<p>Так выглядит тот же смысл, что у твоих шести строк с <code>try/catch</code>:</p>
+<div class="compare">
+<div>
+<p class="label">было</p>
+<pre><code>boolean thrown = false;
+try {
+    shop.addProduct("сыр", -1);
+} catch (IllegalArgumentException e) {
+    thrown = true;
+}
+check("Цена меньше нуля", thrown);</code></pre>
+</div>
+<div>
+<p class="label">стало</p>
+<pre><code>assertThrows(
+    IllegalArgumentException.class,
+    () -&gt; shop.addProduct("сыр", -1));</code></pre>
+</div>
+</div>
+
+<h3>Собираем по шагам</h3>
+<ol class="recipe">
+<li>
+<p><strong>Какое исключение ждём?</strong> Пишем имя класса и <code>.class</code>. Так мы передаём в метод сам тип.</p>
+<pre><code>assertThrows(IllegalArgumentException.class, );</code></pre>
+</li>
+<li>
+<p><strong>Что должно упасть?</strong> Код нельзя вызвать сразу: исключение вылетит раньше, чем JUnit успеет его поймать. Поэтому заворачиваем вызов в лямбду без параметров, как в разминке. JUnit сам её запустит и перехватит исключение.</p>
+<pre><code>assertThrows(IllegalArgumentException.class, () -&gt; shop.addProduct("сыр", -1));</code></pre>
+</li>
+<li>
+<p><strong>Нужны детали?</strong> <code>assertThrows</code> возвращает пойманное исключение. Сохрани его в переменную и проверь сообщение или поля:</p>
+<pre><code>IllegalArgumentException e = assertThrows(
+        IllegalArgumentException.class,
+        () -&gt; shop.addProduct("сыр", -1));
+
+assertEquals("Цена меньше нуля: -1", e.getMessage());</code></pre>
+</li>
+<li>
+<p><strong>Состояние не должно испортиться.</strong> После ошибки объект должен остаться прежним. Проверь и это:</p>
+<pre><code>assertEquals(2, shop.count());     // сломанный товар не добавился</code></pre>
+</li>
+</ol>
+
+<h3>Как он падает</h3>
+<p>Я убрал проверку цены из <code>Shop</code> — исключения нет:</p>
+<pre class="out bad">Expected java.lang.IllegalArgumentException to be thrown, but nothing was thrown.</pre>
+<p>Я заменил исключение на другой тип:</p>
+<pre class="out bad">Unexpected exception type thrown, expected: &lt;java.lang.IllegalArgumentException&gt; but was: &lt;java.lang.IllegalStateException&gt;</pre>
+<p>В отличие от твоего <code>catch</code>, чужое исключение не останавливает программу, а просто роняет один этот тест и подробно о нём сообщает.</p>
+
+<h2>6. @BeforeEach: свежий объект для каждого теста</h2>
+<p>В каждом тесте повторяется создание магазина с товарами. Общую подготовку выносят в метод с <code>@BeforeEach</code>. JUnit вызывает его <strong>перед каждым</strong> тестом (<a href="https://junit.org/junit5/docs/current/user-guide/#writing-tests-classes-and-methods">User Guide: Test Classes and Methods</a>).</p>
+
+<ol class="recipe">
+<li>
+<p><strong>Переменная становится полем класса.</strong> Без значения: значение появится в следующем шаге.</p>
+<pre><code>class ShopTest {
+    private Shop shop;</code></pre>
+</li>
+<li>
+<p><strong>Метод подготовки</strong> (нужен <code>import org.junit.jupiter.api.BeforeEach;</code>). Обрати внимание: <code>shop = ...</code>, а не <code>Shop shop = ...</code>. Иначе ты создашь локальную переменную, а поле останется <code>null</code>.</p>
+<pre><code>    @BeforeEach
+    void setUp() {
+        shop = new Shop();
+        shop.addProduct("молоко", 90);
+        shop.addProduct("хлеб", 50);
+    }</code></pre>
+</li>
+<li>
+<p><strong>Тесты используют поле</strong> и становятся короче:</p>
+<pre><code>    @Test
+    void totalSumsAllPrices() {
+        assertEquals(140, shop.total());
+    }
+
+    @Test
+    void findPriceReturnsEmptyForMissingProduct() {
+        assertTrue(shop.findPrice("сыр").isEmpty());
+    }</code></pre>
+</li>
+</ol>
+
+<p><strong>Почему не один объект на все тесты.</strong> Тесты должны быть независимы, а порядок их запуска не гарантирован. Если один тест удалит товар, другой не должен об этом узнать. <code>@BeforeEach</code> каждый раз даёт новый магазин. У твоего <code>tests()</code> всё было наоборот: <code>deleteUser</code> менял банк для всех следующих проверок.</p>
+<p><strong>Нужен особый объект?</strong> Создай его прямо в тесте: <code>assertEquals(0, new Shop().total());</code></p>
+
+<h2>7. Параметризованные тесты: один код, много данных</h2>
+<p>Когда тесты отличаются только данными, код не копируют. Нужно сделать три вещи: заменить <code>@Test</code> на <code>@ParameterizedTest</code>, указать источник данных и добавить параметр в метод (<a href="https://junit.org/junit5/docs/current/user-guide/#writing-tests-parameterized-tests">User Guide: Parameterized Tests</a>).</p>
+
+<h3>Один параметр — @ValueSource</h3>
+<div class="template">
+<p class="label">шаблон</p>
+<pre><code>@ParameterizedTest
+@ValueSource(<span class="ph">ints / strings</span> = {<span class="ph">значение1, значение2, ...</span>})
+void <span class="ph">имяТеста</span>(<span class="ph">тип имя</span>) {
+    <span class="ph">проверка с этим параметром</span>
+}</code></pre>
+</div>
+<pre><code>@ParameterizedTest
+@ValueSource(ints = {-1, -100, Integer.MIN_VALUE})
+void addProductRejectsAnyNegativePrice(int price) {
+    assertThrows(IllegalArgumentException.class, () -&gt; shop.addProduct("сыр", price));
+}</code></pre>
+<p>Метод запустится три раза, и каждый запуск считается отдельным тестом. <code>ints =</code> соответствует параметру <code>int</code>, <code>strings =</code> — параметру <code>String</code>.</p>
+<p>В <code>@ValueSource</code> нельзя указать <code>null</code>. Для него есть отдельная аннотация, которую можно поставить рядом:</p>
+<pre><code>@ParameterizedTest
+@NullSource
+@ValueSource(strings = {"", "   ", "Hello"})
+void <span class="ph">имяТеста</span>(String value) { ... }      // 4 запуска: null, "", "   ", "Hello"</code></pre>
+
+<h3>Несколько параметров — @CsvSource</h3>
+<div class="template">
+<p class="label">шаблон</p>
+<pre><code>@ParameterizedTest
+@CsvSource({
+        "<span class="ph">вход1, ожидаемое1</span>",
+        "<span class="ph">вход2, ожидаемое2</span>"
+})
+void <span class="ph">имяТеста</span>(<span class="ph">Тип вход, Тип ожидаемое</span>) { ... }</code></pre>
+</div>
+<pre><code>@ParameterizedTest
+@CsvSource({
+        "молоко, 90",
+        "хлеб, 50"
+})
+void findPriceKnowsEachProduct(String name, int price) {
+    assertEquals(Optional.of(price), shop.findPrice(name));
+}</code></pre>
+<p>Каждая строка — один запуск, значения разделены запятой. JUnit сам преобразует текст в тип параметра: в <code>int</code> и даже в <code>enum</code>, если написать имя константы.</p>
+<p>Импорты: <code>org.junit.jupiter.params.ParameterizedTest</code> и <code>org.junit.jupiter.params.provider.ValueSource</code> (там же <code>NullSource</code> и <code>CsvSource</code>).</p>
+
+<h2>8. Что именно тестировать: четыре вопроса</h2>
+<p>Самая частая твоя проблема — не синтаксис. Уроки 11–13 показали, что теряются проверки случая, когда «ничего нет». Задавай к каждому публичному методу четыре вопроса:</p>
+<div class="annotated">
+  <div class="row"><code>1. Обычный случай</code><div>Работает ли метод на типичных данных? Ожидаемое посчитано заранее: <code>total()</code> = 140</div></div>
+  <div class="row"><code>2. Пусто или нет</code><div>Что вернёт, когда ничего нет? Пустой магазин: <code>total()</code> = 0. Не нашёл: <code>isEmpty()</code></div></div>
+  <div class="row"><code>3. Граница</code><div>Значение ровно на краю условия. Снять ровно весь баланс, цена ровно 0, порог ровно равен балансу</div></div>
+  <div class="row"><code>4. Ошибка</code><div>Плохие данные дают правильное исключение. А состояние после этого не меняется</div></div>
+</div>
+
+<h3>Результат эксперимента: почему нужен и случай «нашёл»</h3>
+<p>Домашних экспериментов нет: я запустил их сам. В <code>Shop</code> я сломал метод так, чтобы он всегда возвращал пустоту: <code>return Optional.empty();</code></p>
+<p><strong>Опыт 1.</strong> Я оставил в тестах только проверку <code>isEmpty()</code> для отсутствующего товара:</p>
+<pre class="out bad">[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</pre>
+<p>Метод полностью сломан — а сборка зелёная.</p>
+<p><strong>Опыт 2.</strong> Я вернул тесты случая «нашёл»:</p>
+<pre class="out bad">[ERROR]   ShopTest.findPriceReturnsPriceOfExistingProduct:37 expected: &lt;Optional[90]&gt; but was: &lt;Optional.empty&gt;
+[ERROR] Tests run: 10, Failures: 3, Errors: 0, Skipped: 0</pre>
+<p><strong>Вывод:</strong> нужны обе стороны. Тест «нашёл» ловит метод, который всегда возвращает пустоту, а тест «не нашёл» ловит метод, который возвращает что попало. Ни один из них не заменяет другой.</p>
+
+<h2>9. Ловушки: тихо ничего не запустилось</h2>
+<p><strong>Класс не заканчивается на <code>Test</code>.</strong> Я назвал класс <code>ShopChecks</code>. В выводе нет ни одной строки <code>Tests run</code>, и всё же:</p>
+<pre class="out bad">[INFO] --- surefire:3.5.2:test (default-test) @ shop ---
+[INFO] BUILD SUCCESS</pre>
+<p>По умолчанию Maven запускает только классы с именами вроде <code>*Test</code> и <code>*Tests</code> (<a href="https://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html">Surefire: Inclusions</a>).</p>
+<p><strong>Забыл <code>@Test</code>.</strong> Метод просто не запускается. Было 10 тестов, стало 9, и снова <code>BUILD SUCCESS</code>. Заметить это можно только по числу.</p>
+<p><strong>Импортировал JUnit в <code>src/main/java</code>.</strong> С <code>scope=test</code> основной код его не видит:</p>
+<pre class="out bad">[ERROR] src/main/java/ru/ilyagrg/shop/Bad.java:[2,29] package org.junit.jupiter.api does not exist</pre>
+<p>Это правильное поведение: тесты лежат только в <code>src/test/java</code>.</p>
+
+<h3>Failures и Errors — в чём разница</h3>
+<p>Я убрал <code>@BeforeEach</code>, поле <code>shop</code> осталось <code>null</code>:</p>
+<pre class="out bad">[ERROR] Tests run: 10, Failures: 4, Errors: 5, Skipped: 0</pre>
+<ul>
+  <li><strong>Failure</strong>: сработала проверка, результат не совпал с ожиданием. Обычно это ошибка в логике.</li>
+  <li><strong>Error</strong>: тест упал с неожиданным исключением, например с <code>NullPointerException</code>. Часто причина в самом тесте.</li>
+</ul>
+
+<h3>Упавший тест не даёт собрать jar</h3>
+<p>Я оставил один упавший тест и запустил <code>mvn clean package</code>:</p>
+<pre class="out bad">[INFO] BUILD FAILURE
+$ ls target/*.jar
+ls: cannot access 'target/*.jar': No such file or directory</pre>
+<p>Именно поэтому тесты в Maven ценнее твоего <code>check()</code>: сломанный код физически не соберётся.</p>
+
+<h3>Запустить только часть</h3>
+<pre><code>mvn test -Dtest=ShopTest                  # один класс
+mvn test -Dtest='ShopTest#total*'         # методы по шаблону имени</code></pre>
+<p>В IntelliJ то же самое делает зелёная стрелка рядом с классом или тестом. Если её нет, проверь, что проект добавлен как Maven-проект и подгружены изменения в <code>pom.xml</code>.</p>
+
+<h2>Весь тестовый класс целиком</h2>
+<pre><code>package ru.ilyagrg.shop;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ShopTest {
+    private Shop shop;
+
+    @BeforeEach
+    void setUp() {
+        shop = new Shop();
+        shop.addProduct("молоко", 90);
+        shop.addProduct("хлеб", 50);
+    }
+
+    @Test
+    void totalSumsAllPrices() {
+        assertEquals(140, shop.total());
+    }
+
+    @Test
+    void totalOfEmptyShopIsZero() {
+        assertEquals(0, new Shop().total());
+    }
+
+    @Test
+    void findPriceReturnsPriceOfExistingProduct() {
+        assertEquals(Optional.of(90), shop.findPrice("молоко"));
+    }
+
+    @Test
+    void findPriceReturnsEmptyForMissingProduct() {
+        assertTrue(shop.findPrice("сыр").isEmpty());
+    }
+
+    @Test
+    void addProductRejectsNegativePrice() {
+        IllegalArgumentException e = assertThrows(
+                IllegalArgumentException.class,
+                () -&gt; shop.addProduct("сыр", -1));
+
+        assertEquals("Цена меньше нуля: -1", e.getMessage());
+        assertEquals(2, shop.count());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {-1, -100, Integer.MIN_VALUE})
+    void addProductRejectsAnyNegativePrice(int price) {
+        assertThrows(IllegalArgumentException.class, () -&gt; shop.addProduct("сыр", price));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "молоко, 90",
+            "хлеб, 50"
+    })
+    void findPriceKnowsEachProduct(String name, int price) {
+        assertEquals(Optional.of(price), shop.findPrice(name));
+    }
+}</code></pre>
+<pre class="out good">[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</pre>
+<p class="cite">Запущено на твоём Maven 3.9.12 из <code>apt</code>, JDK 21, JUnit 5.11.4, Surefire 3.5.2. Все выводы в уроке настоящие.</p>
+
+<h2>Частые вопросы</h2>
+<details class="reveal"><summary>Почему JUnit 5.11.4, если на Maven Central есть версии новее?</summary>
+<p>Новые версии есть, включая JUnit 6. Для учёбы нужен JUnit 5: на нём написано большинство существующих проектов и документации, а синтаксис из этого урока в новых версиях остаётся таким же. На этой версии я проверил все примеры. Сейчас возьми её, чтобы вывод совпадал.</p>
+</details>
+<details class="reveal"><summary>Надо ли тестировать геттеры?</summary>
+<p>Простые — нет. Они проверяются сами в других тестах: <code>assertEquals(100, account.getBalance())</code>. Тестируй то, где есть логика и где можно ошибиться.</p>
+</details>
+<details class="reveal"><summary>Можно ли несколько <code>assert</code> в одном тесте?</summary>
+<p>Да, если они проверяют одно поведение, как в <code>addProductRejectsNegativePrice</code>: тип, сообщение и неизменность магазина. Если получилось два разных поведения, раздели на два теста, тогда имя теста сразу скажет, что сломалось. Первая упавшая проверка завершает тест, следующие в нём не выполняются.</p>
+</details>
+<details class="reveal"><summary>Как тестировать <code>private</code>-метод?</summary>
+<p>Никак напрямую, и это нормально. Он работает внутри публичных методов, поэтому проверяется через них: <code>checkNumber</code> проверяется вызовом <code>openAccount(null, ...)</code>.</p>
+</details>
+<details class="reveal"><summary>Зачем писать тест, если метод уже работает?</summary>
+<p>Чтобы он продолжал работать. Ты уже сам видел, как при переписывании на стримы и на <code>Optional</code> незаметно ломалось то, что раньше работало. Тест заметит это в следующий раз, когда ты поменяешь код.</p>
+</details>
+
+<h2>Проверь себя</h2>
+<div class="quiz-score"></div>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>1. <code>mvn test</code> вывел <code>Tests run: 0</code> и <code>BUILD SUCCESS</code>, а тесты в проекте есть. Что проверить в первую очередь?</legend>
+  <label><input type="radio"> Правильно ли записано ожидаемое значение в assertEquals</label>
+  <label><input type="radio"> Выполнена ли перед этим команда mvn clean package</label>
+  <label><input type="radio"> Версию плагина surefire и окончание имени класса на Test</label>
+  <label><input type="radio"> Правильно ли объявлены поля проверяемого класса Java</label>
+  <p class="feedback">Старый <code>surefire:2.17</code> не видит тесты JUnit 5, а имя без <code>Test</code> не подходит под шаблон запуска. Оба случая дают зелёную сборку без тестов.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>2. Почему в <code>assertThrows</code> вызов метода заворачивают в лямбду?</legend>
+  <label><input type="radio"> Иначе исключение вылетит раньше, чем JUnit его поймает</label>
+  <label><input type="radio"> Лямбда заставляет метод работать заметно быстрее обычного</label>
+  <label><input type="radio"> Без лямбды проверяемый метод вообще не будет вызван</label>
+  <label><input type="radio"> Лямбда автоматически исправляет ошибку в проверяемом коде</label>
+  <p class="feedback">Аргументы вычисляются до вызова метода. Лямбда откладывает выполнение: <code>assertThrows</code> сам запускает её внутри своего <code>try</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>3. Как часто выполняется метод с <code>@BeforeEach</code>?</legend>
+  <label><input type="radio"> Один раз перед первым тестом этого класса</label>
+  <label><input type="radio"> Один раз после завершения всех тестов класса</label>
+  <label><input type="radio"> Только когда предыдущий тест класса упал</label>
+  <label><input type="radio"> Перед каждым отдельным тестом этого класса</label>
+  <p class="feedback">Поэтому каждый тест получает новый объект и не зависит от остальных.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>4. Как лучше проверить <code>richOwners</code>, чтобы тест ловил и пустой результат, и дубли, и порядок?</legend>
+  <label><input type="radio"> assertTrue(list.stream().allMatch(условие)), проверяя каждого</label>
+  <label><input type="radio"> assertEquals(List.of("Adam", "Ilya"), результат метода)</label>
+  <label><input type="radio"> assertFalse(list.isEmpty()), проверяя наличие результата</label>
+  <label><input type="radio"> assertTrue(list.contains("Adam")), проверяя одного владельца</label>
+  <p class="feedback">Точный список проверяет состав, порядок и количество. На пустом результате <code>allMatch</code> вернёт <code>true</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>5. Что значит <code>&lt;scope&gt;test&lt;/scope&gt;</code>?</legend>
+  <label><input type="radio"> Библиотека скачается только при первом запуске тестов</label>
+  <label><input type="radio"> Maven запустит только тесты из этой библиотеки</label>
+  <label><input type="radio"> Библиотека видна только тестам, но не основному коду</label>
+  <label><input type="radio"> Библиотека входит в готовый jar вместе с тестами</label>
+  <p class="feedback">Импорт JUnit в <code>src/main/java</code> даст <code>package ... does not exist</code>.</p>
+</fieldset>
+
+<h2>Домашка</h2>
+<p>В ветке <code>feature/junit</code>. Один шаг — один коммит. Правила для всех тестов:</p>
+<ul>
+  <li><strong>Ожидаемое считай заранее и пиши точно.</strong> Без <code>allMatch</code> и без <code>size() != 0</code>.</li>
+  <li>Для каждого публичного метода задай четыре вопроса из раздела 8. Если вопрос неприменим — пропускай.</li>
+  <li>После каждого шага смотри на число в <code>Tests run</code>: оно должно вырасти.</li>
+</ul>
+
+<div class="task">
+<h3>Шаг 1. Проект и pom.xml</h3>
+<ol>
+  <li>Закоммить в <code>main</code> мои файлы (README, GLOSSARY, learning-records, уроки, справочник, RESOURCES), потом <code>git push</code>.</li>
+  <li><code>git switch -c feature/junit</code>.</li>
+  <li>Скопируй проект без результатов сборки: <code>cp -r lesson0014 lesson0015 &amp;&amp; rm -rf lesson0015/target</code>. Пакет оставь прежним, <code>ru.ilyagrg.bank</code>.</li>
+  <li>В <code>lesson0015/pom.xml</code> добавь зависимость и плагин из раздела 2.</li>
+  <li>Добавь <code>lesson0015/pom.xml</code> в IntelliJ через <strong>Add as Maven Project</strong>.</li>
+  <li><code>cd lesson0015 &amp;&amp; mvn test</code>: <code>BUILD SUCCESS</code>, тестов пока нет. В выводе должен быть <code>surefire:3.5.2</code>, а не <code>2.17</code>.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 2. AccountNumberTest — первый класс</h3>
+<ul>
+  <li>Правильный номер: <code>value()</code> возвращает его.</li>
+  <li>Два одинаковых номера равны по <code>equals</code> и имеют одинаковый <code>hashCode</code>. Разные номера не равны.</li>
+  <li>Параметризованный тест: <code>null</code>, <code>""</code>, <code>"   "</code>, номер без <code>BANK</code> бросают <code>IllegalArgumentException</code>. Используй <code>@NullSource</code> и <code>@ValueSource</code>.</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Шаг 3. CurrencyTest</h3>
+<ul>
+  <li><code>@CsvSource</code>: каждая валюта и её символ. Для названий — отдельный такой же тест.</li>
+  <li>Валют ровно три; <code>valueOf("USD")</code> — это <code>Currency.USD</code>; <code>valueOf("JPY")</code> бросает исключение.</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Шаг 4. BankAccountTest и SavingsAccountTest</h3>
+<p>Используй <code>@BeforeEach</code>. Обязательные случаи:</p>
+<ul>
+  <li>Конструктор: плохой владелец и отрицательный баланс.</li>
+  <li><code>deposit</code>, <code>withdraw</code>: обычный случай и отрицательная сумма.</li>
+  <li><strong>Граница:</strong> снять ровно весь баланс — на счёте 0.</li>
+  <li>Снять больше баланса: <code>InsufficientFundsException</code>, в нём верный <code>getAvailable()</code>, <strong>баланс не изменился</strong>.</li>
+  <li><code>transferTo</code>: оба баланса после перевода. При нехватке денег оба баланса прежние. Перевод самому себе и на <code>null</code>.</li>
+  <li><code>SavingsAccount</code>: снять ровно лимит можно, на единицу больше — исключение. <code>addInterest</code>: точная сумма.</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Шаг 5. InMemoryRepositoryTest — случаи «есть» и «нет»</h3>
+<p>Это те проверки, которые мы отложили в уроках 13–14. Теперь каждая получает отдельный тест:</p>
+<ul>
+  <li><code>findById</code>: нашёл, и значение верное. Не нашёл — <code>isEmpty()</code>.</li>
+  <li><code>existsById</code>: есть и нет.</li>
+  <li><code>count</code> и <code>findAll</code>: пустой репозиторий и заполненный.</li>
+  <li><code>deleteById</code>: удалил — больше не находится. Удаление отсутствующего — исключение.</li>
+  <li><code>save</code> с <code>null</code> — исключение.</li>
+  <li><code>findById(null)</code> должен бросать <code>IllegalArgumentException</code>. <strong>Этот тест у тебя упадёт:</strong> при сокращении метода ты потерял проверку. Увидь его красным, затем исправь метод, не меняя тест. Это твоя первая ошибка, найденная тестом.</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Шаг 6. BankTest — главный</h3>
+<p>Перенеси и дополни все проверки банка из <code>Main</code>. Для <code>@BeforeEach</code> возьми банк с тремя счетами, где у одного владельца два счёта, а балансы удобно считать в уме.</p>
+<ul>
+  <li><code>openAccount</code>: <code>null</code> в каждом параметре, занятый номер. <code>findAccount</code>: другой объект с тем же номером находит <strong>тот же счёт</strong> (<code>assertSame</code>); нет счёта — исключение.</li>
+  <li><code>transfer</code>: балансы после перевода; нет получателя — <code>AccountNotFoundException</code>, баланс отправителя прежний.</li>
+  <li><code>totalBalance</code>, <code>owners</code>, <code>balanceByOwner</code>, <code>accountsByOwner</code>: заполненный и <strong>пустой</strong> банк.</li>
+  <li><code>sortedByOwner</code>, <code>sortedByBalanceDesc</code>: точный порядок.</li>
+  <li><code>findAccounts</code>, <code>countAccounts</code>: есть подходящие и <strong>нет ни одного</strong>.</li>
+  <li><code>richOwners</code>: точный список. Один порог ровно равен балансу (граница), у владельца с двумя счетами подходят оба (дубли). Порог, под который никто не подходит.</li>
+  <li><code>findRichest</code>: какой именно счёт; пустой банк. <code>deleteUser</code>: удаляет; отсутствующий номер.</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Шаг 7. Чистка и сборка</h3>
+<ol>
+  <li>Добавь короткий <code>CollectionUtilsTest</code>: <code>max</code> для чисел и строк, пустой список.</li>
+  <li>Из <code>Main</code> удали <code>check()</code> и все проверки. Оставь короткий пример работы банка: открыть два счёта, сделать перевод, напечатать балансы.</li>
+  <li><code>mvn clean package</code>: <code>BUILD SUCCESS</code>, jar собран.</li>
+  <li>Слей в <code>main</code>, удали ветку, <code>git push</code>.</li>
+  <li>Напиши «проверь домашку 0015» и укажи итоговое число из <code>Tests run</code>.</li>
+</ol>
+</div>
+
+<h2>Первоисточник</h2>
+<p><a href="https://junit.org/junit5/docs/current/user-guide/#writing-tests">JUnit 5 User Guide: Writing Tests</a> — первые разделы про аннотации, проверки и параметризованные тесты, ~30 минут. Если забудешь название проверки, смотри <a href="https://junit.org/junit5/docs/current/api/org.junit.jupiter.api/org/junit/jupiter/api/Assertions.html">Assertions API</a>.</p>
+
+<p>Шпаргалка — <a href="../reference/0015-java-junit5.html">справочник «JUnit 5»</a>. Прошлый урок — <a href="0014-maven.html">14. Maven</a> и его <a href="../reference/0014-maven-basics.html">шпаргалка</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Если застрянешь на тесте, пришли его код и вывод <code>mvn test</code>, разберём вместе. Если неясно, какой случай ещё проверить в методе, тоже спрашивай: это самый полезный вопрос в этом уроке.</p>
+</div>
+
+<nav class="course">
+  <a href="0014-maven.html">← Урок 14: Maven</a>
+  <span>Дальше: проект «Консольный банк» →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -21,10 +21,18 @@
 | 11 | Лямбды и `Comparator` | Сортировки счетов через `Comparator.comparing(...).thenComparingInt(...)` и `reversed()`, `findAccounts(Predicate)`, группировка через `merge` и `computeIfAbsent` — сначала проверки, потом рефакторинг; эксперименты с ошибками лямбд в [`EXPERIMENTS.md`](src/lesson0011/EXPERIMENTS.md) | [`lesson0011`](src/lesson0011) |
 | 12 | Stream API | Все методы банка переписаны на стримы (`mapToInt().sum()`, `filter`, `sorted`, `distinct`, `groupingBy` + `summingInt`), каждый отдельным коммитом после проверок; новые `richOwners` и `countAccounts`; ловушки `allMatch` на пустом стриме, одноразового стрима и `toList()` в [`EXPERIMENTS.md`](src/lesson0012/EXPERIMENTS.md) | [`lesson0012`](src/lesson0012) |
 | 13 | `enum`, `record`, `Optional` | `AccountNumber` переписан в `record` с компактным конструктором (41 строка → 11, проверки урока 8 прошли без изменений); `enum Currency` с названием и символом через switch-выражение; `findById` возвращает `Optional`, как в Spring Data, а банк превращает пустой результат в исключение через `orElseThrow`; новый `findRichest()` | [`lesson0013`](src/lesson0013) |
+| 14 | Maven | Банк переложен в стандартную структуру Maven с пакетом `ru.ilyagrg.bank`; `pom.xml` написан вручную: координаты, Java 21, зависимость `commons-lang3`, плагин `exec-maven-plugin`; сборка и запуск одной командой, проверка номера счёта через `StringUtils.isBlank` | [`lesson0014`](lesson0014) |
 
 ## Как запустить
 
-Нужен JDK 21. Из корня репозитория, на примере урока 13:
+Нужны JDK 21 и Maven. Начиная с урока 14 проект собирается через Maven:
+
+```bash
+cd lesson0014
+mvn compile exec:java
+```
+
+Уроки 1–13 запускаются без Maven, из корня репозитория:
 
 ```bash
 javac -d out src/lesson0013/*.java
@@ -36,7 +44,8 @@ java -cp out lesson0013.Main
 ## Структура
 
 ```
-src/lessonNNNN/     мой код: домашние задания по урокам
+src/lessonNNNN/     мой код: домашние задания уроков 1–13
+lesson0014/         Maven-проект банка (у него своя папка src/)
 lessons/            уроки (HTML, открываются в браузере)
 reference/          шпаргалки, номер = номер урока
 learning-records/   записи о том, что усвоено и где были пробелы
@@ -47,8 +56,8 @@ RESOURCES.md        источники: туториалы Oracle, докуме�
 
 ## Дальше по плану
 
-Maven → JUnit 5 → мини-проект «Консольный банк» (до 22 ноября) → SQL и PostgreSQL → Spring Boot → Docker и деплой.
+JUnit 5 → мини-проект «Консольный банк» (до 22 ноября) → SQL и PostgreSQL → Spring Boot → Docker и деплой.
 
 ## Стек
 
-Java 21 · Git · IntelliJ IDEA · Ubuntu
+Java 21 · Maven · Git · IntelliJ IDEA · Ubuntu

@@ -56,6 +56,12 @@
   Поиск библиотек и готовые блоки `<dependency>`. Use for: каждый раз, когда нужна библиотека.
 - [MojoHaus: Exec Maven Plugin](https://www.mojohaus.org/exec-maven-plugin/)
   Запуск `main` через `mvn exec:java`. Use for: урок 14, консольный банк.
+- [JUnit 5 User Guide](https://junit.org/junit5/docs/current/user-guide/) и [Assertions API](https://junit.org/junit5/docs/current/api/org.junit.jupiter.api/org/junit/jupiter/api/Assertions.html)
+  Официальное руководство: аннотации, проверки, параметризованные тесты. Use for: урок 15, все будущие тесты.
+- [Maven Surefire: JUnit Platform](https://maven.apache.org/surefire/maven-surefire-plugin/examples/junit-platform.html) и [Inclusions and Exclusions](https://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html)
+  Как Maven запускает JUnit 5, какие классы считает тестами. Use for: урок 15, разбор `Tests run: 0`.
+- [Spring Boot Reference: Testing](https://docs.spring.io/spring-boot/reference/testing/index.html)
+  Тесты в Spring Boot, JUnit входит в стартовый набор (версию проверить, когда дойдём). Use for: февраль, тесты REST API.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 - [Git Reference: git switch](https://git-scm.com/docs/git-switch) и [git merge](https://git-scm.com/docs/git-merge)
