@@ -1,4 +1,5 @@
 package ru.ilyagrg.bank;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -12,33 +13,40 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
 public class AccountNumberTest {
     private AccountNumber accountNumber;
 
     @BeforeEach
-    void setUp(){
+    void setUp() {
         accountNumber = new AccountNumber("BANK-4117");
     }
+
     @Test
-    void checkValue(){
+    void checkValue() {
         assertEquals(accountNumber.value(), "BANK-4117");
     }
+
     @Test
-    void checkSameNumbers(){
+    void checkSameNumbers() {
         assertEquals(accountNumber, new AccountNumber("BANK-4117"));
     }
+
     @Test
-    void checkHashCode(){
+    void checkHashCode() {
         assertEquals(accountNumber.hashCode(), new AccountNumber("BANK-4117").hashCode());
     }
+
     @Test
-    void checkEqualsOfDifferenceNumber(){
-        assertTrue(!accountNumber.equals(new AccountNumber("BANK-1234")));
+    void checkEqualsOfDifferenceNumber() {
+        assertFalse(accountNumber.equals(new AccountNumber("BANK-1234")));
     }
+
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = {"", " ", "BANT-1234"})
-    void checkIllegalValue(String str){
+    void checkIllegalValue(String str) {
         assertThrows(IllegalArgumentException.class, () -> new AccountNumber(str));
     }
 

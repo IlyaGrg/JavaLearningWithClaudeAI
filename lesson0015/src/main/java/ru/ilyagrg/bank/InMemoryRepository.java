@@ -13,6 +13,9 @@ public class InMemoryRepository<T, ID> implements Repository<T, ID> {
     }
 
     public Optional<T> findById(ID id) {
+        if (id == null){
+            throw new IllegalArgumentException("Некорректное Id: " + id);
+        }
         return Optional.ofNullable(memory.get(id));
     }
 
