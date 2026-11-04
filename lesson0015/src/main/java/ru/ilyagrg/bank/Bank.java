@@ -1,4 +1,5 @@
 package ru.ilyagrg.bank;
+
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -16,6 +17,10 @@ public class Bank {
         }
 
         accounts.save(number, account);
+    }
+
+    public boolean existById(AccountNumber id) {
+        return accounts.existsById(id);
     }
 
     public BankAccount findAccount(AccountNumber number) {
@@ -59,26 +64,27 @@ public class Bank {
         accounts.deleteById(number);
     }
 
-    public List<BankAccount> sortedByOwner(){
+    public List<BankAccount> sortedByOwner() {
         return accounts.findAll().stream().sorted(Comparator.comparing(BankAccount::getOwner).thenComparingInt(BankAccount::getBalance)).toList();
     }
-    public List<BankAccount> sortedByBalanceDesc(){
-        return accounts.findAll().stream().sorted(Comparator.comparing(BankAccount::getBalance).reversed()).toList();
+
+    public List<BankAccount> sortedByBalanceDesc() {
+        return accounts.findAll().stream().sorted(Comparator.comparingInt(BankAccount::getBalance).reversed()).toList();
     }
 
-    public List<BankAccount> findAccounts(Predicate<BankAccount> filter){
+    public List<BankAccount> findAccounts(Predicate<BankAccount> filter) {
         return accounts.findAll().stream().filter(filter).toList();
     }
 
-    public List<String> richOwners(int minBalance){
+    public List<String> richOwners(int minBalance) {
         return accounts.findAll().stream().sorted(Comparator.comparing(BankAccount::getOwner)).filter(acc -> acc.getBalance() >= minBalance).map(BankAccount::getOwner).distinct().toList();
     }
 
-    public long countAccounts(Predicate<BankAccount> filter){
-        return accounts.findAll().stream().filter(filter).map(BankAccount::getBalance).count();
+    public long countAccounts(Predicate<BankAccount> filter) {
+        return accounts.findAll().stream().filter(filter).count();
     }
 
-    public Optional<BankAccount> findRichest(){
+    public Optional<BankAccount> findRichest() {
         return accounts.findAll().stream().max(BankAccount::compareTo);
     }
 }
