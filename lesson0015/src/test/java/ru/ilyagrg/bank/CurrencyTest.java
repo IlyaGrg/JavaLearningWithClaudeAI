@@ -17,7 +17,8 @@ public class CurrencyTest {
     @ParameterizedTest
     @CsvSource({
             "USD, $",
-            "RUB, ₽"
+            "RUB, ₽",
+            "EUR, €"
     })
     void checkSymbolCurrency(Currency c, String sym) {
         assertEquals(c.symbol(), sym);
@@ -26,7 +27,8 @@ public class CurrencyTest {
     @ParameterizedTest
     @CsvSource({
             "USD, Доллар США",
-            "RUB, Российский рубль"
+            "RUB, Российский рубль",
+            "EUR, Евро"
     })
     void checkDisplayName(Currency c, String str) {
         assertEquals(c.getDisplayName(), str);
@@ -35,7 +37,8 @@ public class CurrencyTest {
     @ParameterizedTest
     @CsvSource({
             "USD, USD",
-            "RUB, RUB"
+            "RUB, RUB",
+            "EUR, EUR"
     })
     void checkEntity(Currency c, String str) {
         assertEquals(Currency.valueOf(str), c);

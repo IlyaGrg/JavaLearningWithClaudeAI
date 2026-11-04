@@ -49,7 +49,7 @@ public class Bank {
     }
 
     public Map<String, Integer> balanceByOwner() {
-        return accounts.findAll().stream().collect(Collectors.groupingBy(BankAccount::getOwner, Collectors.summingInt(BankAccount::getBalance)));
+        return accounts.findAll().stream().sorted(Comparator.comparingInt(BankAccount::getBalance)).collect(Collectors.groupingBy(BankAccount::getOwner, Collectors.summingInt(BankAccount::getBalance)));
     }
 
     public Map<String, List<BankAccount>> accountsByOwner() {

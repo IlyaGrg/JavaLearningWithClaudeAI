@@ -60,7 +60,7 @@ public class InMemoryRepositoryTest {
     @Test
     void checkFindAll() {
         InMemoryRepository<String, String> I = new InMemoryRepository<>();
-        assertEquals(inMemoryRepository.findAll(), List.of("first", "second", "third"));
+        assertEquals(List.of("first", "second", "third"), inMemoryRepository.findAll().stream().sorted().toList());
         assertEquals(I.findAll(), List.of());
     }
 

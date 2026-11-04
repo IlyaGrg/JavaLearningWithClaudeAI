@@ -46,6 +46,13 @@ public class BankAccountTest {
     }
 
     @Test
+    void checkWithdrawWithALotOfMoney(){
+        InsufficientFundsException e = assertThrows(InsufficientFundsException.class,
+        () -> bankAccount.withdraw(1_000_000));
+        assertEquals(e.getAvailable(), bankAccount.getBalance());
+    }
+
+    @Test
     void checkIllegalDeposit() {
         assertThrows(IllegalArgumentException.class, () -> bankAccount.deposit(-1));
     }
@@ -84,6 +91,13 @@ public class BankAccountTest {
         InsufficientFundsException e = assertThrows(InsufficientFundsException.class,
                 () -> secondAccount.transferTo(bankAccount, 125_000));
         assertEquals(e.getAvailable(), secondAccount.getBalance());
+        assertEquals(123_456, bankAccount.getBalance());
     }
 
+    @Test
+    void checkTransferToYourSelfAndNull(){
+        assertThrows(IllegalArgumentException.class, () -> bankAccount.transferTo(bankAccount, 10_000));
+        assertThrows(IllegalArgumentException.class, () -> bankAccount.transferTo(null, 10_000));
+        assertEquals(123_456, bankAccount.getBalance());
+    }
 }

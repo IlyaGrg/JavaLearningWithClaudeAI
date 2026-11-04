@@ -4,10 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -87,6 +84,8 @@ public class BankTest {
         bank.openAccount(n, b);
         bank.openAccount(accountNumber1, bankAccount1);
         assertEquals(List.of("Adam", "Ilya"), bank.owners());
+        Bank newBank = new Bank();
+        assertTrue(newBank.owners().isEmpty());
     }
 
     @Test
@@ -111,14 +110,15 @@ public class BankTest {
         BankAccount b = new BankAccount("Adam", 123_000);
         AccountNumber accountNumber1 = new AccountNumber("BANK-4111");
         SavingsAccount bankAccount1 = new SavingsAccount("Ilya", 100_000, 20, 40_000);
-        Map<String, List<BankAccount>> map = new HashMap<>();
-        map.put("Adam", List.of(b));
-        map.put("Ilya", List.of(bankAccount, bankAccount1));
         bank.openAccount(n, b);
         bank.openAccount(accountNumber1, bankAccount1);
-        assertEquals(map, bank.accountsByOwner());
+        Map<String, List<BankAccount>> map = bank.accountsByOwner();
+        assertEquals(Set.of("Adam", "Ilya"), map.keySet());
+        assertEquals(List.of(b), map.get("Adam"));
+        assertEquals(2, map.get("Ilya").size());
+        assertEquals(Set.of(bankAccount1, bankAccount), new HashSet<>(map.get("Ilya")));
         Bank newBank = new Bank();
-        assertTrue(newBank.balanceByOwner().isEmpty());
+        assertTrue(newBank.accountsByOwner().isEmpty());
     }
 
     @Test
@@ -162,7 +162,7 @@ public class BankTest {
         bank.openAccount(accountNumber2, bankAccount2);
         assertEquals(List.of(b), bank.findAccounts(acc -> acc.getBalance() > 500_000));
         assertTrue(bank.findAccounts(acc -> acc.getBalance() > 1_100_000).isEmpty());
-        assertEquals(List.of(bankAccount, bankAccount1), bank.findAccounts(acc -> acc.getOwner().equals("Ilya")));
+        assertEquals(List.of(bankAccount1, bankAccount), bank.findAccounts(acc -> acc.getOwner().equals("Ilya")).stream().sorted(Comparator.comparing(BankAccount::getBalance)).toList());
         assertTrue(bank.findAccounts(acc -> acc.getOwner().equals("Admin")).isEmpty());
     }
 

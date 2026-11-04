@@ -2,6 +2,9 @@ package ru.ilyagrg.bank;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,6 +15,13 @@ public class SavingsAccountTest {
     @BeforeEach
     void setUp(){
         savingsAccount = new SavingsAccount("ilya", 100_000, 50, 50_000);
+    }
+
+    @Test
+    void checkConstructor(){
+        assertThrows(IllegalArgumentException.class, () -> new SavingsAccount("Ilya", 1, 101, 2));
+        assertThrows(IllegalArgumentException.class, () -> new SavingsAccount("Ilya", 1, -2, 2));
+        assertThrows(IllegalArgumentException.class, () -> new SavingsAccount("Ilya", 1, 50, -100));
     }
 
     @Test
@@ -26,5 +36,11 @@ public class SavingsAccountTest {
                 () -> savingsAccount.withdraw(50_001));
         assertTrue(e.getAmount() > e.getMaxWithdrawal());
         assertEquals(savingsAccount.getBalance(), 100_000);
+    }
+
+    @Test
+    void checkAddInterest(){
+        savingsAccount.addInterest();
+        assertEquals(100_000 + (100_000 * 50) / 100, savingsAccount.getBalance());
     }
 }
