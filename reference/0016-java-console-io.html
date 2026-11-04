@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Справочник · Консольный ввод</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="ref">
+
+<div class="kicker">Справочник · Java · Ввод и ресурсы</div>
+<h1>Консольный ввод: Scanner, команды, try-with-resources</h1>
+<p class="subtitle">Шпаргалка к <a href="../lessons/0016-console-commands.html">уроку 0016</a>.</p>
+
+<h2>Устройство программы</h2>
+<table>
+  <tr><td><code>Shop</code> / <code>Bank</code></td><td>логика, о консоли не знает</td></tr>
+  <tr><td><code>Commands.execute(String line)</code></td><td>разбирает строку, вызывает логику, <strong>возвращает</strong> ответ — тестируется JUnit</td></tr>
+  <tr><td><code>Main</code></td><td>только цикл: прочитать → <code>execute</code> → напечатать → поймать ошибку</td></tr>
+</table>
+
+<h2>Цикл команд</h2>
+<pre><code>try (Scanner scanner = new Scanner(System.in)) {    // один сканер на программу
+    while (true) {
+        System.out.print("&gt; ");
+        if (!scanner.hasNextLine()) {               // Ctrl+D или конец ввода
+            break;
+        }
+        String line = scanner.nextLine();
+        if (line.isBlank()) {
+            continue;                                // следующий круг
+        }
+        if (line.trim().equals("exit")) {
+            break;
+        }
+        try {                                        // try ВНУТРИ цикла
+            System.out.println(commands.execute(line));
+        } catch (BankException | IllegalArgumentException e) {
+            System.out.println("Ошибка: " + e.getMessage());
+        }
+    }
+}</code></pre>
+
+<h2>Разбор команды</h2>
+<pre><code>public String execute(String line) {
+    String[] parts = line.trim().split("\\s+");      // [команда, арг1, арг2, ...]
+    return switch (parts[0]) {
+        case "add" -&gt; add(parts);
+        case "total" -&gt; "Итого: " + shop.total();
+        default -&gt; throw new IllegalArgumentException("Неизвестная команда: " + parts[0]);
+    };
+}
+
+private String add(String[] parts) {
+    requireArgs(parts, 2);                           // 1. число аргументов
+    String name = parts[1];                          // 2. достать и преобразовать
+    int price = Integer.parseInt(parts[2]);
+    shop.addProduct(name, price);                    // 3. логика
+    return "Добавлен товар: " + name + ", " + price; // 4. ответ
+}
+
+private static void requireArgs(String[] parts, int count) {
+    if (parts.length != count + 1) {
+        throw new IllegalArgumentException("Команде " + parts[0] + " нужно аргументов: " + count);
+    }
+}</code></pre>
+
+<h2>try-with-resources</h2>
+<pre><code>try (Тип a = new Ресурс(); Тип b = new Ресурс()) {
+    ...
+} catch (...) { ... }       // выполнится ПОСЛЕ закрытия</code></pre>
+<table>
+  <tr><td>Что можно</td><td>только <code>AutoCloseable</code> (есть <code>close()</code>): Scanner, файлы, соединения с БД</td></tr>
+  <tr><td>Когда закрывается</td><td>при любом выходе из блока: конец, <code>break</code>, <code>return</code>, исключение</td></tr>
+  <tr><td>Порядок</td><td>обратный: B, потом A</td></tr>
+  <tr><td>Как в Python</td><td><code>with open(...) as f:</code></td></tr>
+</table>
+
+<h2>Ловушки</h2>
+<table>
+  <tr><td><code>nextInt()</code>, потом <code>nextLine()</code> → <code>""</code></td><td>перевод строки остался; читай только <code>nextLine()</code> + <code>Integer.parseInt</code></td></tr>
+  <tr><td><code>NoSuchElementException: No line found</code></td><td><code>nextLine()</code> без <code>hasNextLine()</code> после конца ввода, или <code>System.in</code> уже закрыт другим сканером</td></tr>
+  <tr><td><code>split(" ")</code> → <code>[add, , молоко]</code></td><td>пиши <code>trim().split("\\s+")</code></td></tr>
+  <tr><td><code>"".split("\\s+").length == 1</code></td><td>пустые строки пропускай в <code>Main</code></td></tr>
+  <tr><td><code>ArrayIndexOutOfBoundsException</code></td><td>нет <code>requireArgs</code>; не ловится как <code>IllegalArgumentException</code></td></tr>
+  <tr><td><code>For input string: "сто"</code></td><td><code>NumberFormatException</code> — подкласс <code>IllegalArgumentException</code></td></tr>
+  <tr><td><code>try</code> вокруг всего цикла</td><td>первая ошибка завершает программу</td></tr>
+  <tr><td><code>catch (RuntimeException e)</code></td><td>прячет баги вроде NPE; лови только ошибки пользователя</td></tr>
+  <tr><td><code>try-with-resources not applicable</code></td><td>у типа нет <code>close()</code></td></tr>
+</table>
+
+<h2>Запуск</h2>
+<table>
+  <tr><td><code>mvn -q compile exec:java</code></td><td>интерактивно, без строк <code>[INFO]</code></td></tr>
+  <tr><td><code>printf 'cmd1\ncmd2\nexit\n' | mvn -q compile exec:java</code></td><td>сценарий одной командой; команды на экране не видны</td></tr>
+  <tr><td>Ctrl+D</td><td>конец ввода → <code>hasNextLine()</code> = <code>false</code></td></tr>
+</table>
+
+<p class="cite">Источники: <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Scanner.html">Java 21 API: Scanner</a>, <a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html">The try-with-resources Statement</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html#split(java.lang.String)">String.split</a>. Проверено на JDK 21, Maven 3.9.12.</p>
+
+</main>
+</body>
+</html>

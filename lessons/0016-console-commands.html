@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 16 · Консольный банк: Scanner и команды</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<div class="kicker">Урок 0016 · Проект «Консольный банк», этап 1 · ~2 часа + домашка</div>
+<h1>Scanner и цикл команд</h1>
+<p class="subtitle">После урока твой банк станет программой, с которой можно разговаривать: набираешь <code>transfer BANK-1 BANK-2 300</code>, программа отвечает и ждёт следующую команду. Ошибки ввода не роняют программу, а каждая команда покрыта тестом.</p>
+
+<div class="note">
+<p><strong>Зачем этот урок для backend.</strong> Консольный цикл устроен так же, как REST-сервис на Spring: пришёл запрос, его разобрали, вызвали логику, вернули ответ, ошибку превратили в понятное сообщение. Сегодня запрос — строка из консоли, в феврале это будет HTTP-запрос. Главная мысль урока: <strong>разбор команд отделён от консоли</strong>, поэтому его можно тестировать. На этом же держится контроллер в Spring.</p>
+</div>
+
+<h2>Что строим за две недели</h2>
+<p>«Консольный банк» — первый проект для GitHub, который не стыдно показать. Он живёт в <strong>отдельном репозитории</strong>, а не в учебном. Этапы такие:</p>
+<div class="annotated">
+  <div class="row"><code>Урок 16</code><div><strong>сегодня:</strong> новый репозиторий, чтение команд через <code>Scanner</code>, разбор строки, try-with-resources, тесты команд</div></div>
+  <div class="row"><code>Урок 17</code><div>сохранение счетов в файл между запусками: <code>Files</code>, <code>IOException</code></div></div>
+  <div class="row"><code>Урок 18</code><div>отделка: новые команды, README для GitHub, сборка в jar</div></div>
+  <div class="row"><code>Урок 19</code><div>повторение Java Core вопросами с собеседований</div></div>
+</div>
+
+<h2>Разминка: по памяти</h2>
+<p>Сначала напиши ответ сам, потом открой.</p>
+
+<details class="reveal"><summary>1. Урок 13: напиши switch-выражение, которое по <code>Currency c</code> возвращает символ: <code>RUB</code> → <code>"₽"</code>, <code>USD</code> → <code>"$"</code>, <code>EUR</code> → <code>"€"</code>.</summary>
+<pre><code>String symbol = switch (c) {
+    case RUB -&gt; "₽";
+    case USD -&gt; "$";
+    case EUR -&gt; "€";
+};</code></pre>
+<p>Сегодня будет такой же <code>switch</code>, только по строке-команде. У строк вариантов бесконечно много, поэтому понадобится <code>default</code>.</p>
+</details>
+
+<details class="reveal"><summary>2. Урок 13: есть <code>Optional&lt;Integer&gt; price</code>. Одним выражением получи строку <code>"молоко: 90"</code>, а если цены нет — <code>"Нет такого товара"</code>.</summary>
+<pre><code>price.map(p -&gt; "молоко: " + p).orElse("Нет такого товара")</code></pre>
+</details>
+
+<details class="reveal"><summary>3. Урок 15: проверь, что <code>shop.addProduct("сыр", -1)</code> бросает <code>IllegalArgumentException</code> с сообщением <code>"Цена меньше нуля: -1"</code>.</summary>
+<pre><code>IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+        () -&gt; shop.addProduct("сыр", -1));
+assertEquals("Цена меньше нуля: -1", e.getMessage());</code></pre>
+</details>
+
+<details class="reveal"><summary>4. Урок 4: от какого класса наследуются все исключения твоего банка? Что это значит для компилятора?</summary>
+<p>От <code>RuntimeException</code>, то есть они unchecked. Компилятор не заставляет их ловить или объявлять в <code>throws</code>. Поэтому если их не поймать, программа просто упадёт. Сегодня мы ловим их в одном месте — в цикле команд.</p>
+</details>
+
+<h2>1. Устройство: тонкий Main и класс команд</h2>
+<p>Весь урок показан на соседнем примере — магазине <code>Shop</code> из урока 15. Банк останется на домашку. Программа будет работать так (это настоящий запуск):</p>
+<pre class="out good">Магазин. Наберите help, чтобы увидеть команды.
+&gt; add молоко 90
+Добавлен товар: молоко, 90
+&gt; add сыр -5
+Ошибка: Цена меньше нуля: -5
+&gt; total
+Итого: 90
+&gt; exit
+До свидания!</pre>
+
+<p>Код делим на три части, и у каждой одна работа:</p>
+<div class="annotated">
+  <div class="row"><code>Shop</code><div>логика: товары и цены. О консоли ничего не знает. Он уже готов и покрыт тестами</div></div>
+  <div class="row"><code>ShopCommands</code><div><strong>новый класс:</strong> метод <code>String execute(String line)</code> получает строку команды и <strong>возвращает</strong> ответ. Он сам ничего не печатает и ничего не читает</div></div>
+  <div class="row"><code>Main</code><div>только консоль: читает строку, отдаёт её в <code>execute</code>, печатает ответ, ловит ошибку. Логики внутри нет</div></div>
+</div>
+<p>Почему <code>execute</code> возвращает строку, а не печатает её сам? Тест не умеет набирать текст на клавиатуре и читать экран. А вызвать метод и сравнить строку он умеет: <code>assertEquals("Итого: 140", commands.execute("total"))</code>. Всё, что можно вынести из <code>Main</code>, выносим, и тогда почти вся программа проверяется тестами.</p>
+
+<div class="note">
+<p><strong>Как в Python.</strong> Ты бы написал так: <code>while True: line = input("&gt; ")</code>, а разбор вынес бы в функцию <code>handle(line) -&gt; str</code>, чтобы проверять её в pytest. Здесь то же самое, только <code>input()</code> заменяет <code>Scanner</code>.</p>
+</div>
+
+<h2>2. Scanner: читаем строку с клавиатуры</h2>
+<p><code>Scanner</code> — класс из <code>java.util</code>, который читает текст из источника и разбивает его на куски (<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Scanner.html">Java 21 API: Scanner</a>). Источник клавиатуры — <code>System.in</code>, пара к знакомому <code>System.out</code>.</p>
+
+<div class="template">
+<p class="label">шаблон</p>
+<pre><code>import java.util.Scanner;
+
+Scanner <span class="ph">scanner</span> = new Scanner(System.in);   // один раз на всю программу
+if (<span class="ph">scanner</span>.hasNextLine()) {                  // есть ли ещё строка?
+    String <span class="ph">line</span> = <span class="ph">scanner</span>.nextLine();        // прочитать её целиком
+}</code></pre>
+</div>
+
+<div class="annotated">
+  <div class="row"><code>new Scanner(System.in)</code><div>создаёт сканер поверх клавиатуры. Нужен <code>import java.util.Scanner;</code></div></div>
+  <div class="row"><code>nextLine()</code><div>ждёт, пока пользователь нажмёт Enter, и возвращает всю строку <strong>без</strong> символа перевода строки. Аналог <code>input()</code></div></div>
+  <div class="row"><code>hasNextLine()</code><div>возвращает <code>true</code>, если строка есть, и <code>false</code>, если ввод закончился. Ввод заканчивается, когда пользователь нажал <strong>Ctrl+D</strong> или когда закончились строки, переданные через <code>|</code></div></div>
+</div>
+
+<h3>Эксперимент: что будет без hasNextLine</h3>
+<p>Цикл читает строки и повторяет их. Пользователь ввёл одну строку и нажал Ctrl+D. <strong>Угадай, что произойдёт</strong>, потом открой.</p>
+<pre><code>Scanner scanner = new Scanner(System.in);
+while (true) {
+    System.out.print("&gt; ");
+    String line = scanner.nextLine();
+    System.out.println("Вы ввели: " + line);
+}</code></pre>
+<details class="reveal"><summary>Результат на JDK 21</summary>
+<pre class="out bad">&gt; Вы ввели: привет
+&gt; Exception in thread "main" java.util.NoSuchElementException: No line found
+	at java.base/java.util.Scanner.nextLine(Scanner.java:1660)
+	at NoLine.main(NoLine.java:8)</pre>
+<p>Когда строк больше нет, <code>nextLine()</code> бросает <code>NoSuchElementException</code>. В Python в этом месте был бы <code>EOFError</code>. Поэтому перед каждым <code>nextLine()</code> спрашиваем <code>hasNextLine()</code> и выходим из цикла, если строк нет.</p>
+</details>
+
+<h3>Эксперимент: ловушка nextInt</h3>
+<p>У сканера есть и <code>nextInt()</code>, который сразу читает число. Пользователь вводит <code>500</code>, Enter, потом хочет ввести имя. <strong>Что окажется в <code>owner</code>?</strong></p>
+<pre><code>System.out.print("Сумма: ");
+int amount = scanner.nextInt();
+System.out.print("Владелец: ");
+String owner = scanner.nextLine();
+System.out.println("amount = " + amount + ", owner = [" + owner + "]");</code></pre>
+<details class="reveal"><summary>Результат на JDK 21</summary>
+<pre class="out bad">Сумма: Владелец: amount = 500, owner = []</pre>
+<p>Программа даже не дала ввести имя. <code>nextInt()</code> забрал из строки <code>500</code>, но перевод строки после числа остался непрочитанным. <code>nextLine()</code> дочитал этот остаток и вернул пустую строку. На этом спотыкается почти каждый, кто начинает работать со <code>Scanner</code>.</p>
+<p><strong>Правило проекта:</strong> читаем только <code>nextLine()</code>, а числа достаём из строки сами через <code>Integer.parseInt</code>. Так ловушки просто нет.</p>
+</details>
+
+<h2>3. Разбираем строку на слова</h2>
+<p>Пользователь ввёл <code>add молоко 90</code>. Нужен массив <code>["add", "молоко", "90"]</code>: первое слово — команда, остальные — аргументы.</p>
+
+<div class="template">
+<p class="label">шаблон</p>
+<pre><code>String[] <span class="ph">parts</span> = <span class="ph">line</span>.trim().split("\\s+");
+String <span class="ph">command</span> = <span class="ph">parts</span>[0];
+int <span class="ph">number</span> = Integer.parseInt(<span class="ph">parts</span>[<span class="ph">индекс</span>]);</code></pre>
+</div>
+
+<div class="annotated">
+  <div class="row"><code>trim()</code><div>убирает пробелы в начале и в конце строки</div></div>
+  <div class="row"><code>split("\\s+")</code><div>режет строку там, где стоит <strong>один или больше</strong> пробельных символов. Аргумент — регулярное выражение (<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html#split(java.lang.String)">String.split</a>): <code>\s</code> — любой пробельный символ, <code>+</code> — «один или больше». В Java-строке обратную косую черту пишут дважды, поэтому <code>"\\s+"</code></div></div>
+  <div class="row"><code>Integer.parseInt("90")</code><div>превращает текст в <code>int</code>. Если текст не число, бросает <code>NumberFormatException</code> (<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Integer.html#parseInt(java.lang.String)">Integer.parseInt</a>)</div></div>
+</div>
+
+<h3>Эксперимент: split(" ") против split("\\s+")</h3>
+<p>Пользователь случайно поставил пробел в начале и два пробела подряд. <strong>Угадай, что напечатает каждая строка.</strong></p>
+<pre><code>String line = " add  молоко 90";
+System.out.println(Arrays.toString(line.split(" ")));
+System.out.println(Arrays.toString(line.trim().split("\\s+")));
+System.out.println("".trim().split("\\s+").length);</code></pre>
+<details class="reveal"><summary>Результат на JDK 21</summary>
+<pre class="out">[, add, , молоко, 90]
+[add, молоко, 90]
+1</pre>
+<p><code>split(" ")</code> режет по каждому пробелу, поэтому между двумя соседними пробелами получается пустая строка. Команда оказалась бы в <code>parts[1]</code>, а не в <code>parts[0]</code>. С <code>trim().split("\\s+")</code> лишних пробелов не важно сколько.</p>
+<p>Последняя строка — сюрприз: у пустой строки массив не пустой, а из <strong>одного</strong> элемента <code>""</code>. Поэтому пустые строки ввода пропускаем ещё в <code>Main</code>, иначе пользователь получит «Неизвестная команда: ».</p>
+</details>
+
+<div class="note">
+<p><strong>Хорошая новость про <code>parseInt</code>.</strong> <code>NumberFormatException</code> — подкласс <code>IllegalArgumentException</code>. Поэтому <code>catch (IllegalArgumentException e)</code> ловит и неверную цену, и текст вместо числа. Сообщение у него английское: <code>For input string: "девяносто"</code>.</p>
+</div>
+
+<h2>4. Класс команд: switch по первому слову</h2>
+<p>Пишем <code>ShopCommands</code> с нуля. Код растёт от шага к шагу.</p>
+
+<ol class="recipe">
+<li>
+<p><strong>Класс и магазин через конструктор.</strong> Это внедрение зависимости из урока 6: команды не создают магазин сами, а получают готовый. Так в тесте можно передать свой магазин и потом заглянуть в него.</p>
+<pre><code>public class ShopCommands {
+    private final Shop shop;
+
+    public ShopCommands(Shop shop) {
+        this.shop = shop;
+    }
+}</code></pre>
+</li>
+<li>
+<p><strong>Метод <code>execute</code>: разбить строку и выбрать ветку.</strong> Это switch-выражение из урока 13, только по <code>String</code>. Каждая ветка возвращает ответ, а <code>default</code> срабатывает для любой незнакомой команды.</p>
+<pre><code>    public String execute(String line) {
+        String[] parts = line.trim().split("\\s+");
+        return switch (parts[0]) {
+            case "add" -&gt; add(parts);
+            case "price" -&gt; price(parts);
+            case "total" -&gt; "Итого: " + shop.total();
+            case "help" -&gt; "Команды: add &lt;товар&gt; &lt;цена&gt;, price &lt;товар&gt;, total, help, exit";
+            default -&gt; throw new IllegalArgumentException("Неизвестная команда: " + parts[0]);
+        };
+    }</code></pre>
+<p>Короткие команды пишем прямо в ветке. Длинные выносим в <code>private</code>-методы, по одному на команду. Иначе <code>switch</code> разрастётся на сто строк.</p>
+</li>
+<li>
+<p><strong>Проверка числа аргументов.</strong> Без неё строка <code>add молоко</code> упадёт на <code>parts[2]</code>. Как именно — смотри эксперимент ниже.</p>
+<pre><code>    private static void requireArgs(String[] parts, int count) {
+        if (parts.length != count + 1) {
+            throw new IllegalArgumentException("Команде " + parts[0] + " нужно аргументов: " + count);
+        }
+    }</code></pre>
+<p><code>count + 1</code> — потому что в <code>parts[0]</code> лежит сама команда. Для <code>add молоко 90</code> аргументов 2, а длина массива 3.</p>
+</li>
+<li>
+<p><strong>Метод на каждую команду.</strong> Порядок всегда один: проверить число аргументов → достать и преобразовать аргументы → вызвать логику → вернуть ответ.</p>
+<pre><code>    private String add(String[] parts) {
+        requireArgs(parts, 2);
+        String name = parts[1];
+        int price = Integer.parseInt(parts[2]);
+        shop.addProduct(name, price);
+        return "Добавлен товар: " + name + ", " + price;
+    }
+
+    private String price(String[] parts) {
+        requireArgs(parts, 1);
+        String name = parts[1];
+        return shop.findPrice(name)
+                .map(price -&gt; name + ": " + price)
+                .orElse("Нет такого товара: " + name);
+    }</code></pre>
+</li>
+</ol>
+
+<div class="annotated">
+  <div class="row"><code>default -&gt; throw ...</code><div>в switch-выражении ветка может не возвращать значение, а бросать исключение. Компилятор это разрешает</div></div>
+  <div class="row"><code>private static void requireArgs</code><div><code>static</code>, потому что метод не трогает поля объекта, ему хватает параметров</div></div>
+  <div class="row"><code>parseInt</code> до <code>addProduct</code><div>если цена не число, исключение вылетит раньше, чем магазин изменится. Состояние после ошибки не меняется — это четвёртый вопрос из урока 15</div></div>
+  <div class="row"><code>.map(price -&gt; ...)</code><div>лямбда видит <code>name</code>, потому что переменная не меняется после присваивания (effectively final, урок 11)</div></div>
+</div>
+
+<h3>Эксперимент: без requireArgs</h3>
+<p>Убираем проверку и передаём <code>add молоко</code>, без цены. Ошибку ловим, как в <code>Main</code>, через <code>catch (IllegalArgumentException e)</code>. <strong>Будет ли поймана?</strong></p>
+<pre><code>String[] parts = "add молоко".trim().split("\\s+");
+try {
+    int price = Integer.parseInt(parts[2]);
+} catch (IllegalArgumentException e) {
+    System.out.println("Ошибка: " + e.getMessage());
+}
+System.out.println("эта строка не напечатается");</code></pre>
+<details class="reveal"><summary>Результат на JDK 21</summary>
+<pre class="out bad">Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException: Index 2 out of bounds for length 2
+	at NoCheck.main(NoCheck.java:5)</pre>
+<p><code>ArrayIndexOutOfBoundsException</code> не наследуется от <code>IllegalArgumentException</code>, поэтому мимо <code>catch</code> он пролетает, и программа падает. <code>requireArgs</code> превращает эту ситуацию в понятную ошибку пользователя, которую ловит <code>catch</code>.</p>
+</details>
+
+<h2>5. try-with-resources: закрыть ресурс автоматически</h2>
+<p><strong>Ресурс</strong> — объект, который держит что-то за пределами программы: файл, сетевое соединение, соединение с базой данных, поток ввода. Когда ресурс больше не нужен, его надо <strong>закрыть</strong>, иначе он остаётся занятым. У таких классов есть метод <code>close()</code>. Сегодня ресурс — <code>Scanner</code>, в уроке 17 будут файлы, в декабре — соединение с PostgreSQL.</p>
+
+<div class="template">
+<p class="label">шаблон</p>
+<pre><code>try (<span class="ph">Тип</span> <span class="ph">имя</span> = <span class="ph">new Ресурс(...)</span>) {
+    <span class="ph">работа с ресурсом</span>
+}   // здесь Java сама вызовет имя.close()</code></pre>
+</div>
+
+<div class="annotated">
+  <div class="row"><code>try (...)</code><div>в круглых скобках создаётся ресурс. Его тип должен реализовывать интерфейс <code>AutoCloseable</code> — это интерфейс с одним методом <code>close()</code> (<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/AutoCloseable.html">AutoCloseable</a>). <code>Scanner</code> его реализует</div></div>
+  <div class="row"><code>{ ... }</code><div>обычный блок. Переменная ресурса видна только внутри него</div></div>
+  <div class="row"><code>}</code><div>на выходе из блока Java вызывает <code>close()</code>. Неважно, как блок закончился: дошли до конца, вышли через <code>break</code> или <code>return</code>, вылетело исключение</div></div>
+  <div class="row"><code>catch</code> и <code>finally</code><div>можно добавить как к обычному <code>try</code>. Они выполнятся уже <strong>после</strong> закрытия ресурса</div></div>
+</div>
+
+<div class="compare">
+<div>
+<p class="label">без try-with-resources</p>
+<pre><code>Scanner scanner = new Scanner(System.in);
+try {
+    // работа
+} finally {
+    scanner.close();
+}</code></pre>
+</div>
+<div>
+<p class="label">с try-with-resources</p>
+<pre><code>try (Scanner scanner = new Scanner(System.in)) {
+    // работа
+}</code></pre>
+</div>
+</div>
+<p>Смысл одинаковый, но во втором варианте закрыть ресурс невозможно забыть (<a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html">The Java Tutorials: The try-with-resources Statement</a>).</p>
+
+<div class="note">
+<p><strong>Как в Python.</strong> Это <code>with open("file.txt") as f:</code>. Выход из блока <code>with</code> закрывает файл, и выход из блока <code>try (...)</code> тоже. <code>AutoCloseable</code> играет роль метода <code>__exit__</code>.</p>
+</div>
+
+<h3>Эксперимент: в каком порядке всё происходит</h3>
+<p>Свой класс-ресурс печатает, когда его открыли и закрыли. Ресурсов два, внутри вылетает исключение. <strong>Расставь шесть строк вывода по порядку</strong>, потом открой.</p>
+<pre><code>static class Resource implements AutoCloseable {
+    private final String name;
+
+    Resource(String name) {
+        this.name = name;
+        System.out.println("открыт " + name);
+    }
+
+    @Override
+    public void close() {
+        System.out.println("закрыт " + name);
+    }
+}
+
+try (Resource a = new Resource("A"); Resource b = new Resource("B")) {
+    System.out.println("работаем");
+    throw new IllegalStateException("что-то сломалось");
+} catch (IllegalStateException e) {
+    System.out.println("поймали: " + e.getMessage());
+}</code></pre>
+<details class="reveal"><summary>Результат на JDK 21</summary>
+<pre class="out">открыт A
+открыт B
+работаем
+закрыт B
+закрыт A
+поймали: что-то сломалось</pre>
+<p>Три вывода:</p>
+<ul>
+  <li>Ресурсы закрываются, <strong>даже если вылетело исключение</strong>.</li>
+  <li>Закрываются в обратном порядке: последний открытый закрывается первым. Так и должно быть, если B зависит от A.</li>
+  <li><code>catch</code> выполняется уже после закрытия.</li>
+</ul>
+</details>
+
+<h3>Эксперимент: ресурсом может быть не всё</h3>
+<pre><code>try (String s = "текст") { ... }</code></pre>
+<details class="reveal"><summary>Ошибка компиляции</summary>
+<pre class="out bad">error: incompatible types: try-with-resources not applicable to variable type
+        try (String s = "текст") {
+                    ^
+    (String cannot be converted to AutoCloseable)</pre>
+<p>Строку не нужно закрывать, она не держит ничего снаружи программы. Если видишь эту ошибку, у класса просто нет <code>close()</code>.</p>
+</details>
+
+<h3>Эксперимент: два сканера</h3>
+<p>Первый сканер закрыт через try-with-resources, потом создаём второй. Пользователь набирает в терминале две строки. <strong>Прочитает ли второй сканер свою строку?</strong></p>
+<pre><code>try (Scanner first = new Scanner(System.in)) {
+    System.out.println("первый: " + first.nextLine());
+}
+Scanner second = new Scanner(System.in);
+System.out.println("второй: " + second.nextLine());</code></pre>
+<details class="reveal"><summary>Результат на JDK 21</summary>
+<pre class="out bad">раз
+первый: раз
+Exception in thread "main" java.util.NoSuchElementException: No line found
+	at java.base/java.util.Scanner.nextLine(Scanner.java:1660)
+	at TwoScanners.main(TwoScanners.java:9)</pre>
+<p>Закрытый сканер закрывает и то, что под ним, — сам <code>System.in</code>. Открыть его заново нельзя. Без <code>try</code> в терминале оба сканера сработали бы. Но если подать ввод через <code>|</code>, второй всё равно упадёт: первый сканер успевает забрать в свой буфер весь ввод сразу.</p>
+<p><strong>Правило:</strong> один <code>Scanner</code> на <code>System.in</code> на всю программу. Он создаётся в <code>main</code> и закрывается, когда программа заканчивается. Создавать сканер внутри цикла или внутри метода команды нельзя.</p>
+</details>
+
+<h2>6. Main: цикл команд целиком</h2>
+
+<ol class="recipe">
+<li>
+<p><strong>Подготовка и приветствие.</strong></p>
+<pre><code>public static void main(String[] args) {
+    ShopCommands commands = new ShopCommands(new Shop());
+    System.out.println("Магазин. Наберите help, чтобы увидеть команды.");
+}</code></pre>
+</li>
+<li>
+<p><strong>Сканер в try-with-resources и бесконечный цикл.</strong></p>
+<pre><code>    try (Scanner scanner = new Scanner(System.in)) {
+        while (true) {
+            System.out.print("&gt; ");
+            if (!scanner.hasNextLine()) {
+                break;
+            }
+            String line = scanner.nextLine();
+        }
+    }
+    System.out.println("До свидания!");</code></pre>
+<p><code>print</code>, а не <code>println</code>: курсор остаётся после <code>&gt; </code>, и пользователь пишет на той же строке. <code>while (true)</code> крутится, пока нас не выкинет <code>break</code>. Первая причина выйти — ввод закончился (Ctrl+D).</p>
+</li>
+<li>
+<p><strong>Пустая строка и выход.</strong></p>
+<pre><code>            if (line.isBlank()) {
+                continue;
+            }
+            if (line.trim().equals("exit")) {
+                break;
+            }</code></pre>
+<p><code>continue</code> пропускает остаток тела цикла и сразу начинает следующий круг: снова печатаем <code>&gt; </code>. <code>exit</code> проверяем в <code>Main</code>, а не в <code>ShopCommands</code>, потому что «закончить цикл» — это забота консоли, а не магазина.</p>
+</li>
+<li>
+<p><strong>Выполнить команду и поймать ошибку пользователя.</strong></p>
+<pre><code>            try {
+                System.out.println(commands.execute(line));
+            } catch (IllegalArgumentException e) {
+                System.out.println("Ошибка: " + e.getMessage());
+            }</code></pre>
+<p><code>try</code> стоит <strong>внутри</strong> цикла. Поймали ошибку, напечатали её, и цикл идёт на следующий круг. Если поставить <code>try</code> снаружи цикла, первая же ошибка завершит программу.</p>
+</li>
+</ol>
+
+<h3>Эксперимент: без catch</h3>
+<p>Убираем внутренний <code>try/catch</code>, остаётся только <code>System.out.println(commands.execute(line));</code>. Ввод: <code>add молоко 90</code>, <code>add сыр -5</code>, <code>total</code>, <code>exit</code>. <strong>Сколько команд выполнится?</strong></p>
+<details class="reveal"><summary>Результат через mvn exec:java</summary>
+<pre class="out bad">Магазин. Наберите help, чтобы увидеть команды.
+&gt; Добавлен товар: молоко, 90
+&gt; [ERROR] Failed to execute goal org.codehaus.mojo:exec-maven-plugin:3.5.0:java (default-cli) on project shop: An exception occurred while executing the Java class. Цена меньше нуля: -5 -&gt; [Help 1]</pre>
+<p>Выполнилась одна команда. Опечатка пользователя убила всю программу, а <code>total</code> и <code>exit</code> до неё так и не дошли.</p>
+</details>
+
+<h3>Что ловить, а что нет</h3>
+<p>Ловим только ошибки <strong>пользователя</strong>: неверные данные, неизвестную команду. Это <code>IllegalArgumentException</code> и исключения твоего банка. А <code>NullPointerException</code> или <code>ArrayIndexOutOfBoundsException</code> — это ошибки <strong>в коде</strong>. Пусть программа на них падает громко, тогда ты их увидишь и исправишь. <code>catch (RuntimeException e)</code> спрятал бы такие баги за безобидным «Ошибка: null».</p>
+<p>В банке исключений несколько: <code>InsufficientFundsException</code>, <code>AccountNotFoundException</code> и другие. Чтобы не перечислять их все в <code>catch</code>, им дают общего родителя — это будет шаг домашки. Тогда ловить можно сразу несколько типов (multi-catch), разделяя их <code>|</code>:</p>
+<pre><code>} catch (<span class="ph">ОбщийРодитель</span> | IllegalArgumentException e) {</code></pre>
+
+<h2>7. Тесты команд</h2>
+<p>Ради этого мы и отделили <code>ShopCommands</code> от консоли. Тест строит магазин, передаёт строку и сравнивает ответ. Всё как в уроке 15:</p>
+<pre><code>class ShopCommandsTest {
+    private Shop shop;
+    private ShopCommands commands;
+
+    @BeforeEach
+    void setUp() {
+        shop = new Shop();
+        commands = new ShopCommands(shop);
+    }
+
+    @Test
+    void addPutsProductIntoShop() {
+        assertEquals("Добавлен товар: молоко, 90", commands.execute("add молоко 90"));
+        assertEquals(90, shop.total());
+    }
+
+    @Test
+    void extraSpacesAreIgnored() {
+        assertEquals("Добавлен товар: молоко, 90", commands.execute("  add   молоко  90 "));
+    }
+
+    @Test
+    void priceOfMissingProduct() {
+        assertEquals("Нет такого товара: сыр", commands.execute("price сыр"));
+    }
+
+    @Test
+    void totalAfterTwoProducts() {
+        commands.execute("add молоко 90");
+        commands.execute("add хлеб 50");
+        assertEquals("Итого: 140", commands.execute("total"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"add молоко", "add молоко 90 лишнее", "price"})
+    void wrongNumberOfArguments(String line) {
+        assertThrows(IllegalArgumentException.class, () -&gt; commands.execute(line));
+        assertEquals(0, shop.count());
+    }
+
+    @Test
+    void priceMustBeNumber() {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -&gt; commands.execute("add молоко девяносто"));
+        assertEquals("For input string: \"девяносто\"", e.getMessage());
+        assertEquals(0, shop.count());
+    }
+
+    @Test
+    void unknownCommand() {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -&gt; commands.execute("buy молоко"));
+        assertEquals("Неизвестная команда: buy", e.getMessage());
+    }
+}</code></pre>
+<div class="annotated">
+  <div class="row"><code>shop</code> в поле<div>магазин хранится отдельно, чтобы проверить не только ответ, но и <strong>состояние</strong>: товар правда добавился (<code>total</code> = 90), а после ошибки — нет (<code>count</code> = 0)</div></div>
+  <div class="row"><code>@ValueSource</code> со строками<div>одна проверка «неверное число аргументов» на три разные строки: мало, много, нет совсем</div></div>
+  <div class="row"><code>\"девяносто\"</code><div>кавычка внутри строки Java пишется через <code>\"</code></div></div>
+</div>
+<pre class="out good">[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</pre>
+
+<h2>8. Запуск: руками и одной командой</h2>
+<p>Интерактивно, как обычную программу:</p>
+<pre><code>mvn -q compile exec:java</code></pre>
+<p><code>-q</code> (quiet) убирает строки <code>[INFO]</code>, чтобы они не мешали диалогу. <code>exec:java</code> запускает <code>main</code> в том же процессе, что и Maven (<a href="https://www.mojohaus.org/exec-maven-plugin/java-mojo.html">exec:java</a>), поэтому клавиатура доходит до твоего <code>Scanner</code>. В IntelliJ тоже работает: зелёный треугольник у <code>main</code>, ввод набирается в окне Run.</p>
+
+<p>Весь сценарий одной командой, без набора руками. <code>printf</code> подаёт строки на вход программы, <code>\n</code> — это Enter:</p>
+<pre><code>printf 'help\nadd молоко 90\nadd  хлеб   50\nadd сыр девяносто\nadd сыр\nprice молоко\nprice кефир\n\ntotal\nbuy хлеб\nexit\n' | mvn -q compile exec:java</code></pre>
+<pre class="out good">Магазин. Наберите help, чтобы увидеть команды.
+&gt; Команды: add &lt;товар&gt; &lt;цена&gt;, price &lt;товар&gt;, total, help, exit
+&gt; Добавлен товар: молоко, 90
+&gt; Добавлен товар: хлеб, 50
+&gt; Ошибка: For input string: "девяносто"
+&gt; Ошибка: Команде add нужно аргументов: 2
+&gt; молоко: 90
+&gt; Нет такого товара: кефир
+&gt; &gt; Итого: 140
+&gt; Ошибка: Неизвестная команда: buy
+&gt; До свидания!</pre>
+<p>Здесь не видно самих команд. Когда ты печатаешь в терминале, набранный текст показывает терминал, а у ввода через <code>|</code> его никто не показывает. Двойное <code>&gt; &gt;</code> — это пустая строка: цикл её пропустил и снова напечатал приглашение. Такой запуск удобен, чтобы после каждой правки прогнать один и тот же сценарий за секунду.</p>
+
+<h2>Весь код целиком</h2>
+<pre><code>// src/main/java/ru/ilyagrg/shop/ShopCommands.java
+package ru.ilyagrg.shop;
+
+public class ShopCommands {
+    private final Shop shop;
+
+    public ShopCommands(Shop shop) {
+        this.shop = shop;
+    }
+
+    public String execute(String line) {
+        String[] parts = line.trim().split("\\s+");
+        return switch (parts[0]) {
+            case "add" -&gt; add(parts);
+            case "price" -&gt; price(parts);
+            case "total" -&gt; "Итого: " + shop.total();
+            case "help" -&gt; "Команды: add &lt;товар&gt; &lt;цена&gt;, price &lt;товар&gt;, total, help, exit";
+            default -&gt; throw new IllegalArgumentException("Неизвестная команда: " + parts[0]);
+        };
+    }
+
+    private String add(String[] parts) {
+        requireArgs(parts, 2);
+        String name = parts[1];
+        int price = Integer.parseInt(parts[2]);
+        shop.addProduct(name, price);
+        return "Добавлен товар: " + name + ", " + price;
+    }
+
+    private String price(String[] parts) {
+        requireArgs(parts, 1);
+        String name = parts[1];
+        return shop.findPrice(name)
+                .map(price -&gt; name + ": " + price)
+                .orElse("Нет такого товара: " + name);
+    }
+
+    private static void requireArgs(String[] parts, int count) {
+        if (parts.length != count + 1) {
+            throw new IllegalArgumentException("Команде " + parts[0] + " нужно аргументов: " + count);
+        }
+    }
+}</code></pre>
+<pre><code>// src/main/java/ru/ilyagrg/shop/Main.java
+package ru.ilyagrg.shop;
+
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        ShopCommands commands = new ShopCommands(new Shop());
+        System.out.println("Магазин. Наберите help, чтобы увидеть команды.");
+
+        try (Scanner scanner = new Scanner(System.in)) {
+            while (true) {
+                System.out.print("&gt; ");
+                if (!scanner.hasNextLine()) {
+                    break;
+                }
+                String line = scanner.nextLine();
+                if (line.isBlank()) {
+                    continue;
+                }
+                if (line.trim().equals("exit")) {
+                    break;
+                }
+                try {
+                    System.out.println(commands.execute(line));
+                } catch (IllegalArgumentException e) {
+                    System.out.println("Ошибка: " + e.getMessage());
+                }
+            }
+        }
+        System.out.println("До свидания!");
+    }
+}</code></pre>
+<p class="cite">Запущено на твоём Maven 3.9.12 из <code>apt</code>, JDK 21, JUnit 5.11.4, exec-maven-plugin 3.5.0. Все выводы в уроке настоящие. Интерактивный запуск проверен в псевдотерминале.</p>
+
+<h2>Частые вопросы</h2>
+<details class="reveal"><summary>Почему после Ctrl+D «До свидания!» печатается на одной строке с <code>&gt;</code>?</summary>
+<p>Приглашение <code>&gt; </code> уже напечатано без перевода строки, а Ctrl+D перевода строки не добавляет. Если тебя это раздражает, напечатай перед <code>break</code> пустой <code>System.out.println()</code>. На работу программы это не влияет.</p>
+</details>
+<details class="reveal"><summary>Почему <code>Scanner</code>, а не <code>BufferedReader</code> или <code>System.console()</code>?</summary>
+<p>Для строк с клавиатуры <code>Scanner</code> проще всего. <code>BufferedReader</code> появится в уроке 17 для файлов. <code>System.console()</code> на JDK 21 может вернуть <code>null</code>, когда ввод идёт через <code>|</code> или из IDE, и такой запуск сломался бы.</p>
+</details>
+<details class="reveal"><summary>Зачем закрывать <code>Scanner</code> над <code>System.in</code>, если программа всё равно заканчивается?</summary>
+<p>Здесь ничего страшного не случится: при выходе из программы операционная система всё освободит сама. Но с файлами и базой данных привычка «открыл — закрой через try-with-resources» обязательна. Мы закрепляем её на простом примере.</p>
+</details>
+<details class="reveal"><summary>Почему <code>exit</code> не одна из веток <code>switch</code>?</summary>
+<p><code>execute</code> возвращает строку-ответ, а у <code>exit</code> ответа нет: эта команда означает «прекрати цикл». Цикл живёт в <code>Main</code>, значит, и решение о выходе принимает <code>Main</code>. Есть способы и посложнее, например вернуть из <code>execute</code> объект с флагом «выйти», но для нашего проекта это лишнее.</p>
+</details>
+<details class="reveal"><summary>Можно ли писать команды по-русски, например <code>перевод</code>?</summary>
+<p>Можно: <code>case "перевод" -&gt;</code> работает, Java 21 по умолчанию читает ввод в UTF-8. Но в консольных программах команды почти всегда английские, как <code>git commit</code>. Оставь английские.</p>
+</details>
+<details class="reveal"><summary>Зачем отдельный репозиторий, если всё и так лежит на GitHub?</summary>
+<p>Учебный репозиторий — это журнал уроков, а работодатель ищет законченные проекты. У отдельного репозитория своё имя, свой README и своя чистая история коммитов. Ссылку на него можно положить прямо в резюме.</p>
+</details>
+
+<h2>Проверь себя</h2>
+<div class="quiz-score"></div>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>1. Пользователь ввёл <code>500</code> и нажал Enter. Программа вызвала <code>nextInt()</code>, а затем <code>nextLine()</code>. Что вернёт <code>nextLine()</code>?</legend>
+  <label><input type="radio"> Строку «500» ещё раз, потому что ввод не сдвинулся</label>
+  <label><input type="radio"> Пустую строку: остаток после числа до перевода строки</label>
+  <label><input type="radio"> Следующую строку, которую пользователь введёт позже</label>
+  <label><input type="radio"> Исключение NoSuchElementException, ввод уже закончился</label>
+  <p class="feedback"><code>nextInt()</code> забирает только число. Перевод строки остаётся, и <code>nextLine()</code> дочитывает пустой остаток. Поэтому в проекте читаем только <code>nextLine()</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="4">
+  <legend>2. Почему <code>execute</code> возвращает строку, а не печатает её сама?</legend>
+  <label><input type="radio"> Так программа заметно быстрее работает на большом вводе</label>
+  <label><input type="radio"> Иначе Scanner не сможет прочитать следующую строку ввода</label>
+  <label><input type="radio"> Этого требует switch-выражение со стрелками в Java 21</label>
+  <label><input type="radio"> Так каждую команду можно проверить тестом без консоли</label>
+  <p class="feedback">Тест вызывает метод и сравнивает результат через <code>assertEquals</code>. Набирать текст на клавиатуре и читать экран он не умеет.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="1">
+  <legend>3. Когда try-with-resources вызывает <code>close()</code>?</legend>
+  <label><input type="radio"> При выходе из блока try, даже из-за исключения</label>
+  <label><input type="radio"> Только если блок try завершился без исключения</label>
+  <label><input type="radio"> Только когда сборщик мусора удалит этот объект</label>
+  <label><input type="radio"> Только если в коде есть отдельный блок finally</label>
+  <p class="feedback">Эксперимент с ресурсами A и B: <code>закрыт B</code> и <code>закрыт A</code> напечатались до <code>поймали</code>.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="3">
+  <legend>4. Что вернёт <code>"add  молоко 90".split(" ")</code> (два пробела после <code>add</code>)?</legend>
+  <label><input type="radio"> [add, молоко, 90]</label>
+  <label><input type="radio"> [add молоко 90]</label>
+  <label><input type="radio"> [add, , молоко, 90]</label>
+  <label><input type="radio"> [add, молоко 90]</label>
+  <p class="feedback">Между двумя соседними пробелами получается пустая строка. <code>trim().split("\\s+")</code> этого не допускает.</p>
+</fieldset>
+
+<fieldset class="quiz-q" data-answer="2">
+  <legend>5. Где поставить <code>try/catch</code>, чтобы ошибка в одной команде не завершала программу?</legend>
+  <label><input type="radio"> Вокруг всего цикла while, снаружи от него</label>
+  <label><input type="radio"> Внутри цикла, вокруг вызова одной команды</label>
+  <label><input type="radio"> Вокруг создания сканера в начале метода</label>
+  <label><input type="radio"> Внутри каждого метода класса с логикой</label>
+  <p class="feedback">Поймали, напечатали, и цикл пошёл на следующий круг. Снаружи цикла первая же ошибка выкинет из него.</p>
+</fieldset>
+
+<h2>Домашка</h2>
+<p>Проект живёт в новом репозитории <code>~/Документы/console-bank</code>. Учебный репозиторий остаётся для уроков и моих записей. Один шаг — один коммит.</p>
+
+<div class="task">
+<h3>Шаг 0. Учебный репозиторий</h3>
+<p>В <code>JavaLearning</code> закоммить откат <code>sorted</code> в <code>Bank.java</code> и мои файлы (урок 16, справочник, README, GLOSSARY, learning-records, RESOURCES, NOTES). Потом сделай <code>git push</code>.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 1. Новый проект и репозиторий</h3>
+<ol>
+  <li><code>mkdir ~/Документы/console-bank</code> и скопируй туда <code>pom.xml</code> и <code>src/</code> из <code>lesson0015</code>. <code>target/</code> не копируй.</li>
+  <li>В <code>pom.xml</code> поменяй <code>artifactId</code> на <code>console-bank</code>.</li>
+  <li>Создай <code>.gitignore</code>: в нём <code>target/</code>, <code>.idea/</code>, <code>*.iml</code>.</li>
+  <li><code>git init -b main</code>, первый коммит. Проверь, что <code>mvn test</code> даёт те же 63 теста.</li>
+  <li>На GitHub создай <strong>пустой</strong> репозиторий <code>console-bank</code>: без README и без <code>.gitignore</code>, иначе первый push упрётся в чужой коммит (<a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository">GitHub Docs: Creating a new repository</a>). Затем <code>git remote add origin git@github.com:IlyaGrg/console-bank.git</code> и <code>git push -u origin main</code>.</li>
+  <li>Открой папку в IntelliJ как отдельный проект.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Шаг 2. Общий родитель для исключений банка</h3>
+<ul>
+  <li>Создай <code>BankException extends RuntimeException</code> с конструктором, принимающим сообщение.</li>
+  <li>Все свои исключения (<code>InsufficientFundsException</code>, <code>AccountNotFoundException</code>, <code>DuplicateAccountException</code>, <code>EntityNotFoundByIdException</code>, <code>WithdrawalLimitExceededException</code>) унаследуй от него.</li>
+  <li><code>mvn test</code> — по-прежнему 63 зелёных: поведение не поменялось.</li>
+  <li>В сообщении к коммиту или в чате ответь, почему в цикле не стоит писать просто <code>catch (RuntimeException e)</code>.</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Шаг 3. BankCommands и тесты</h3>
+<p>Класс <code>BankCommands</code> с конструктором <code>BankCommands(Bank bank)</code> и методом <code>String execute(String line)</code>. Текст ответов придумай сам, но он должен быть понятным человеку. Команды:</p>
+<div class="annotated">
+  <div class="row"><code>open &lt;номер&gt; &lt;владелец&gt; &lt;сумма&gt;</code><div>открыть обычный счёт <code>BankAccount</code></div></div>
+  <div class="row"><code>deposit &lt;номер&gt; &lt;сумма&gt;</code><div>пополнить</div></div>
+  <div class="row"><code>withdraw &lt;номер&gt; &lt;сумма&gt;</code><div>снять</div></div>
+  <div class="row"><code>transfer &lt;откуда&gt; &lt;куда&gt; &lt;сумма&gt;</code><div>перевести</div></div>
+  <div class="row"><code>balance &lt;номер&gt;</code><div>владелец и баланс счёта</div></div>
+  <div class="row"><code>total</code><div>сумма по всем счетам</div></div>
+  <div class="row"><code>help</code><div>список команд</div></div>
+</div>
+<p>Тесты в <code>BankCommandsTest</code>. Для каждой команды задай четыре вопроса из урока 15:</p>
+<ul>
+  <li><strong>обычный случай:</strong> точный ответ <strong>и</strong> изменившееся состояние банка (проверь баланс через <code>bank</code>, а не только текст ответа);</li>
+  <li><strong>неверное число аргументов</strong> и <strong>сумма не числом</strong> — параметризованный тест;</li>
+  <li><strong>ошибка банка:</strong> нет счёта, мало денег, занятый номер — нужное исключение, а балансы прежние;</li>
+  <li>лишние пробелы в строке; неизвестная команда.</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Шаг 4. Main с циклом</h3>
+<ul>
+  <li>Тонкий <code>Main</code> по образцу раздела 6: <code>Scanner</code> в try-with-resources, <code>hasNextLine</code>, пропуск пустых строк, <code>exit</code>.</li>
+  <li>Ловит <code>BankException</code> и <code>IllegalArgumentException</code> одним multi-catch.</li>
+  <li>Прогони сценарий и пришли вывод вместе с домашкой:</li>
+</ul>
+<pre><code>printf 'open BANK-1 Ilya 1000\nopen BANK-2 Adam 500\ntransfer BANK-1 BANK-2 300\nbalance BANK-1\nbalance BANK-2\nwithdraw BANK-2 5000\ntransfer BANK-1 BANK-9 10\ndeposit BANK-1 сто\nopen BANK-1 Ilya 1\nopen 123 Ilya 1\ndeposit BANK-1\n\ntotal\nfly\nexit\n' | mvn -q compile exec:java</code></pre>
+<p>Ожидается: ни одного stack trace, на каждую строку понятный ответ, <code>total</code> равен 1500. Потом поработай с банком руками и попробуй его сломать. Всё, что ломается, — новый тест.</p>
+</div>
+
+<div class="task">
+<h3>Шаг 5. README и отправка</h3>
+<ol>
+  <li><code>README.md</code> проекта, пока короткий: что это, как запустить (<code>mvn -q compile exec:java</code>), список команд с примером. Полный README сделаем в уроке 18.</li>
+  <li><code>git push</code>.</li>
+  <li>Напиши «проверь домашку 0016» и пришли вывод сценария из шага 4.</li>
+</ol>
+</div>
+
+<h2>Первоисточник</h2>
+<p><a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html">The Java Tutorials: The try-with-resources Statement</a> — ~15 минут, до раздела «Suppressed Exceptions». Список методов сканера смотри в <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Scanner.html">Java 21 API: Scanner</a>: начало страницы и <code>nextLine</code>, <code>hasNextLine</code>.</p>
+
+<p>Шпаргалка — <a href="../reference/0016-java-console-io.html">справочник «Консольный ввод»</a>. Прошлый урок — <a href="0015-junit5.html">15. JUnit 5</a> и его <a href="../reference/0015-java-junit5.html">шпаргалка</a>.</p>
+
+<div class="note ask">
+<p>Любой вопрос — сразу в терминал. Если команда отвечает не то, пришли строку ввода и ответ. Если не понятно, как разложить команду на <code>parts</code>, тоже спрашивай. Покажу на магазине.</p>
+</div>
+
+<nav class="course">
+  <a href="0015-junit5.html">← Урок 15: JUnit 5</a>
+  <span>Дальше: урок 17, сохранение в файл →</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -62,6 +62,12 @@
   Как Maven запускает JUnit 5, какие классы считает тестами. Use for: урок 15, разбор `Tests run: 0`.
 - [Spring Boot Reference: Testing](https://docs.spring.io/spring-boot/reference/testing/index.html)
   Тесты в Spring Boot, JUnit входит в стартовый набор (версию проверить, когда дойдём). Use for: февраль, тесты REST API.
+- [Java 21 API: Scanner](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Scanner.html), [String.split](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html#split(java.lang.String)), [Integer.parseInt](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Integer.html#parseInt(java.lang.String))
+  Чтение строк с клавиатуры, разбор по регулярному выражению, `NumberFormatException`. Use for: урок 16, консольный банк.
+- [The Java Tutorials: The try-with-resources Statement](https://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html) и [Java 21 API: AutoCloseable](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/AutoCloseable.html)
+  Автоматическое закрытие ресурсов, порядок закрытия, подавленные исключения. Use for: уроки 16–17 (файлы), JDBC в декабре.
+- [GitHub Docs: Creating a new repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository)
+  Создание репозитория на GitHub. Use for: отдельный репозиторий консольного банка и пет-проектов.
 - [Pro Git, 2-е издание, на русском](https://git-scm.com/book/ru/v2)
   Официальная книга по Git, бесплатная. Use for: весь Git — от коммитов до rebase и внутреннего устройства.
 - [Git Reference: git switch](https://git-scm.com/docs/git-switch) и [git merge](https://git-scm.com/docs/git-merge)

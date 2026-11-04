@@ -22,14 +22,16 @@
 | 12 | Stream API | Все методы банка переписаны на стримы (`mapToInt().sum()`, `filter`, `sorted`, `distinct`, `groupingBy` + `summingInt`), каждый отдельным коммитом после проверок; новые `richOwners` и `countAccounts`; ловушки `allMatch` на пустом стриме, одноразового стрима и `toList()` в [`EXPERIMENTS.md`](src/lesson0012/EXPERIMENTS.md) | [`lesson0012`](src/lesson0012) |
 | 13 | `enum`, `record`, `Optional` | `AccountNumber` переписан в `record` с компактным конструктором (41 строка → 11, проверки урока 8 прошли без изменений); `enum Currency` с названием и символом через switch-выражение; `findById` возвращает `Optional`, как в Spring Data, а банк превращает пустой результат в исключение через `orElseThrow`; новый `findRichest()` | [`lesson0013`](src/lesson0013) |
 | 14 | Maven | Банк переложен в стандартную структуру Maven с пакетом `ru.ilyagrg.bank`; `pom.xml` написан вручную: координаты, Java 21, зависимость `commons-lang3`, плагин `exec-maven-plugin`; сборка и запуск одной командой, проверка номера счёта через `StringUtils.isBlank` | [`lesson0014`](lesson0014) |
+| 15 | JUnit 5 | 63 теста на весь банк в 7 классах: `@BeforeEach`, `assertThrows` с проверкой «после ошибки состояние не изменилось», параметризованные тесты с `@CsvSource` и enum, сравнение коллекций без учёта порядка; каждый тест проверен намеренной поломкой кода | [`lesson0015`](lesson0015) |
 
 ## Как запустить
 
 Нужны JDK 21 и Maven. Начиная с урока 14 проект собирается через Maven:
 
 ```bash
-cd lesson0014
-mvn compile exec:java
+cd lesson0015
+mvn compile exec:java   # запуск
+mvn test               # тесты
 ```
 
 Уроки 1–13 запускаются без Maven, из корня репозитория:
@@ -46,6 +48,7 @@ java -cp out lesson0013.Main
 ```
 src/lessonNNNN/     мой код: домашние задания уроков 1–13
 lesson0014/         Maven-проект банка (у него своя папка src/)
+lesson0015/         тот же банк с тестами JUnit 5 (src/test/java)
 lessons/            уроки (HTML, открываются в браузере)
 reference/          шпаргалки, номер = номер урока
 learning-records/   записи о том, что усвоено и где были пробелы
@@ -56,7 +59,7 @@ RESOURCES.md        источники: туториалы Oracle, докуме�
 
 ## Дальше по плану
 
-JUnit 5 → мини-проект «Консольный банк» (до 22 ноября) → SQL и PostgreSQL → Spring Boot → Docker и деплой.
+Мини-проект «Консольный банк» (до 22 ноября) → SQL и PostgreSQL → Spring Boot → Docker и деплой.
 
 ## Стек
 
