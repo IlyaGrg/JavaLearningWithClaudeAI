@@ -77,4 +77,13 @@ public class BankAccountTest {
         assertEquals(secondAccount.getBalance(), 123_000 + 100_000);
         assertEquals(bankAccount.getBalance(), 123_456 - 100_000);
     }
+
+    @Test
+    void checkTransferToWithNoMoney(){
+        BankAccount secondAccount = new BankAccount("Valeria", 123_000);
+        InsufficientFundsException e = assertThrows(InsufficientFundsException.class,
+                () -> secondAccount.transferTo(bankAccount, 125_000));
+        assertEquals(e.getAvailable(), secondAccount.getBalance());
+    }
+
 }
